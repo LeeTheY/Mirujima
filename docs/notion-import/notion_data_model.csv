@@ -1,0 +1,221 @@
+항목명,저장 계층,엔티티,필드,데이터 타입,Key,Cloud 동기화,보관 기간,원본 파일,모델 구분
+SCHEDULE.id,Local,SCHEDULE,id,string,PK,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.title,Local,SCHEDULE,title,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.description,Local,SCHEDULE,description,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.dateKey,Local,SCHEDULE,dateKey,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.startAt,Local,SCHEDULE,startAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.endAt,Local,SCHEDULE,endAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.targetFocusMinutes,Local,SCHEDULE,targetFocusMinutes,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.breakMinutes,Local,SCHEDULE,breakMinutes,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.activityMode,Local,SCHEDULE,activityMode,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.blockingMode,Local,SCHEDULE,blockingMode,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.allowedDomains,Local,SCHEDULE,allowedDomains,json,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.blockedDomains,Local,SCHEDULE,blockedDomains,json,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.status,Local,SCHEDULE,status,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.snoozeCount,Local,SCHEDULE,snoozeCount,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.snoozedUntil,Local,SCHEDULE,snoozedUntil,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.createdAt,Local,SCHEDULE,createdAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+SCHEDULE.updatedAt,Local,SCHEDULE,updatedAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.id,Local,FOCUS_SESSION,id,string,PK,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.scheduleId,Local,FOCUS_SESSION,scheduleId,string,FK,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.dateKey,Local,FOCUS_SESSION,dateKey,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.startedAt,Local,FOCUS_SESSION,startedAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.endedAt,Local,FOCUS_SESSION,endedAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.pausedAt,Local,FOCUS_SESSION,pausedAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.accumulatedFocusSeconds,Local,FOCUS_SESSION,accumulatedFocusSeconds,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.accumulatedBreakSeconds,Local,FOCUS_SESSION,accumulatedBreakSeconds,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.breakStartedAt,Local,FOCUS_SESSION,breakStartedAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.breakEndsAt,Local,FOCUS_SESSION,breakEndsAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.distractionSeconds,Local,FOCUS_SESSION,distractionSeconds,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.idleSeconds,Local,FOCUS_SESSION,idleSeconds,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.blockedAttemptCount,Local,FOCUS_SESSION,blockedAttemptCount,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.checkInCount,Local,FOCUS_SESSION,checkInCount,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+FOCUS_SESSION.status,Local,FOCUS_SESSION,status,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+ACTIVITY_EVENT.id,Local,ACTIVITY_EVENT,id,string,PK,동기화 안 함,30일,src/shared/types/models.ts,Chrome Storage 논리 모델
+ACTIVITY_EVENT.scheduleId,Local,ACTIVITY_EVENT,scheduleId,string,FK,동기화 안 함,30일,src/shared/types/models.ts,Chrome Storage 논리 모델
+ACTIVITY_EVENT.sessionId,Local,ACTIVITY_EVENT,sessionId,string,FK,동기화 안 함,30일,src/shared/types/models.ts,Chrome Storage 논리 모델
+ACTIVITY_EVENT.type,Local,ACTIVITY_EVENT,type,string,,동기화 안 함,30일,src/shared/types/models.ts,Chrome Storage 논리 모델
+ACTIVITY_EVENT.hostname,Local,ACTIVITY_EVENT,hostname,string,,동기화 안 함,30일,src/shared/types/models.ts,Chrome Storage 논리 모델
+ACTIVITY_EVENT.occurredAt,Local,ACTIVITY_EVENT,occurredAt,string,,동기화 안 함,30일,src/shared/types/models.ts,Chrome Storage 논리 모델
+ACTIVITY_EVENT.metadata,Local,ACTIVITY_EVENT,metadata,json,,동기화 안 함,30일,src/shared/types/models.ts,Chrome Storage 논리 모델
+TEMPORARY_ALLOW.hostname,Local,TEMPORARY_ALLOW,hostname,string,PK,동기화 안 함,만료 또는 세션 종료까지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TEMPORARY_ALLOW.sessionId,Local,TEMPORARY_ALLOW,sessionId,string,FK,동기화 안 함,만료 또는 세션 종료까지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TEMPORARY_ALLOW.reason,Local,TEMPORARY_ALLOW,reason,string,,동기화 안 함,만료 또는 세션 종료까지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TEMPORARY_ALLOW.expiresAt,Local,TEMPORARY_ALLOW,expiresAt,string,,동기화 안 함,만료 또는 세션 종료까지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.id,Local,DAILY_REPORT,id,string,PK,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.dateKey,Local,DAILY_REPORT,dateKey,string,UK,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.plannedCount,Local,DAILY_REPORT,plannedCount,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.completedCount,Local,DAILY_REPORT,completedCount,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.incompleteCount,Local,DAILY_REPORT,incompleteCount,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.achievementRate,Local,DAILY_REPORT,achievementRate,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.plannedFocusMinutes,Local,DAILY_REPORT,plannedFocusMinutes,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.actualFocusMinutes,Local,DAILY_REPORT,actualFocusMinutes,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.focusRate,Local,DAILY_REPORT,focusRate,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.breakMinutes,Local,DAILY_REPORT,breakMinutes,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.snoozeCount,Local,DAILY_REPORT,snoozeCount,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.blockedAttemptCount,Local,DAILY_REPORT,blockedAttemptCount,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.idleMinutes,Local,DAILY_REPORT,idleMinutes,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.bestScheduleTitle,Local,DAILY_REPORT,bestScheduleTitle,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.summary,Local,DAILY_REPORT,summary,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.createdAt,Local,DAILY_REPORT,createdAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+DAILY_REPORT.updatedAt,Local,DAILY_REPORT,updatedAt,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+LEARNING_DAY.dateKey,Local,LEARNING_DAY,dateKey,string,PK,Premium 동기화 대상,로컬 유지,src/features/learning-grass/learning.ts,Chrome Storage 논리 모델
+LEARNING_DAY.actualFocusMinutes,Local,LEARNING_DAY,actualFocusMinutes,number,,Premium 동기화 대상,로컬 유지,src/features/learning-grass/learning.ts,Chrome Storage 논리 모델
+LEARNING_DAY.completedScheduleCount,Local,LEARNING_DAY,completedScheduleCount,number,,Premium 동기화 대상,로컬 유지,src/features/learning-grass/learning.ts,Chrome Storage 논리 모델
+LEARNING_DAY.achievementRate,Local,LEARNING_DAY,achievementRate,number,,Premium 동기화 대상,로컬 유지,src/features/learning-grass/learning.ts,Chrome Storage 논리 모델
+LEARNING_DAY.learningScore,Local,LEARNING_DAY,learningScore,number,,Premium 동기화 대상,로컬 유지,src/features/learning-grass/learning.ts,Chrome Storage 논리 모델
+LEARNING_DAY.intensity,Local,LEARNING_DAY,intensity,number,,Premium 동기화 대상,로컬 유지,src/features/learning-grass/learning.ts,Chrome Storage 논리 모델
+USER_SETTINGS.schemaVersion,Local,USER_SETTINGS,schemaVersion,number,PK,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.onboardingCompleted,Local,USER_SETTINGS,onboardingCompleted,boolean,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.mainUI,Local,USER_SETTINGS,mainUI,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.defaultBlockingMode,Local,USER_SETTINGS,defaultBlockingMode,string,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.idleThresholdMinutes,Local,USER_SETTINGS,idleThresholdMinutes,number,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.notificationsEnabled,Local,USER_SETTINGS,notificationsEnabled,boolean,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.distractionWarningsEnabled,Local,USER_SETTINGS,distractionWarningsEnabled,boolean,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.activityHeartbeatEnabled,Local,USER_SETTINGS,activityHeartbeatEnabled,boolean,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.dailyReportEnabled,Local,USER_SETTINGS,dailyReportEnabled,boolean,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_SETTINGS.defaultBlockedDomains,Local,USER_SETTINGS,defaultBlockedDomains,json,,Premium 동기화 대상,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+USER_TAB_RULE.id,Local,USER_TAB_RULE,id,string,PK,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+USER_TAB_RULE.hostname,Local,USER_TAB_RULE,hostname,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+USER_TAB_RULE.category,Local,USER_TAB_RULE,category,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+USER_TAB_RULE.scope,Local,USER_TAB_RULE,scope,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+USER_TAB_RULE.scheduleId,Local,USER_TAB_RULE,scheduleId,string,FK,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+USER_TAB_RULE.titleKeyword,Local,USER_TAB_RULE,titleKeyword,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+USER_TAB_RULE.createdAt,Local,USER_TAB_RULE,createdAt,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+USER_TAB_RULE.updatedAt,Local,USER_TAB_RULE,updatedAt,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+WORK_TAB_SET.id,Local,WORK_TAB_SET,id,string,PK,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+WORK_TAB_SET.name,Local,WORK_TAB_SET,name,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+WORK_TAB_SET.scheduleId,Local,WORK_TAB_SET,scheduleId,string,FK,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+WORK_TAB_SET.items,Local,WORK_TAB_SET,items,json,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+WORK_TAB_SET.createdAt,Local,WORK_TAB_SET,createdAt,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+WORK_TAB_SET.updatedAt,Local,WORK_TAB_SET,updatedAt,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+WORK_TAB_SET.lastUsedAt,Local,WORK_TAB_SET,lastUsedAt,string,,동기화 안 함,로컬 유지,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+TAB_SNAPSHOT.id,Local,TAB_SNAPSHOT,id,string,PK,동기화 안 함,로컬 snapshot 정책,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+TAB_SNAPSHOT.sessionId,Local,TAB_SNAPSHOT,sessionId,string,FK,동기화 안 함,로컬 snapshot 정책,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+TAB_SNAPSHOT.windowId,Local,TAB_SNAPSHOT,windowId,number,,동기화 안 함,로컬 snapshot 정책,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+TAB_SNAPSHOT.createdAt,Local,TAB_SNAPSHOT,createdAt,string,,동기화 안 함,로컬 snapshot 정책,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+TAB_SNAPSHOT.activeTabId,Local,TAB_SNAPSHOT,activeTabId,number,,동기화 안 함,로컬 snapshot 정책,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+TAB_SNAPSHOT.tabs,Local,TAB_SNAPSHOT,tabs,json,,동기화 안 함,로컬 snapshot 정책,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+TAB_SNAPSHOT.groups,Local,TAB_SNAPSHOT,groups,json,,동기화 안 함,로컬 snapshot 정책,src/features/tab-organizer/types.ts,Chrome Storage 논리 모델
+TAB_ORGANIZER_SETTINGS.enabled,Local,TAB_ORGANIZER_SETTINGS,enabled,boolean,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TAB_ORGANIZER_SETTINGS.organizeOnFocusStart,Local,TAB_ORGANIZER_SETTINGS,organizeOnFocusStart,boolean,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TAB_ORGANIZER_SETTINGS.organizeOnFocusResume,Local,TAB_ORGANIZER_SETTINGS,organizeOnFocusResume,boolean,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TAB_ORGANIZER_SETTINGS.classifyNewTabsDuringFocus,Local,TAB_ORGANIZER_SETTINGS,classifyNewTabsDuringFocus,boolean,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TAB_ORGANIZER_SETTINGS.preserveUserGroups,Local,TAB_ORGANIZER_SETTINGS,preserveUserGroups,boolean,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TAB_ORGANIZER_SETTINGS.includePinnedTabs,Local,TAB_ORGANIZER_SETTINGS,includePinnedTabs,boolean,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TAB_ORGANIZER_SETTINGS.rememberCorrections,Local,TAB_ORGANIZER_SETTINGS,rememberCorrections,boolean,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+TAB_ORGANIZER_SETTINGS.restoreLayoutOnFinish,Local,TAB_ORGANIZER_SETTINGS,restoreLayoutOnFinish,string,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.plan,Local,MEMBERSHIP_CACHE,plan,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.status,Local,MEMBERSHIP_CACHE,status,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.billingIntegration,Local,MEMBERSHIP_CACHE,billingIntegration,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.activationSource,Local,MEMBERSHIP_CACHE,activationSource,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.userId,Local,MEMBERSHIP_CACHE,userId,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.email,Local,MEMBERSHIP_CACHE,email,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.chromeAccountEmail,Local,MEMBERSHIP_CACHE,chromeAccountEmail,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.entitlements,Local,MEMBERSHIP_CACHE,entitlements,json,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.deviceCount,Local,MEMBERSHIP_CACHE,deviceCount,number,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.lastCheckedAt,Local,MEMBERSHIP_CACHE,lastCheckedAt,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+MEMBERSHIP_CACHE.error,Local,MEMBERSHIP_CACHE,error,string,,동기화 안 함,서버 재검증 시 갱신,src/features/membership/types.ts,Chrome Storage 논리 모델
+CLOUD_SYNC_STATE.status,Local,CLOUD_SYNC_STATE,status,string,,동기화 안 함,동기화 상태 유지,src/features/cloud-sync/types.ts,Chrome Storage 논리 모델
+CLOUD_SYNC_STATE.initialized,Local,CLOUD_SYNC_STATE,initialized,boolean,,동기화 안 함,동기화 상태 유지,src/features/cloud-sync/types.ts,Chrome Storage 논리 모델
+CLOUD_SYNC_STATE.lastSyncAt,Local,CLOUD_SYNC_STATE,lastSyncAt,string,,동기화 안 함,동기화 상태 유지,src/features/cloud-sync/types.ts,Chrome Storage 논리 모델
+CLOUD_SYNC_STATE.pendingCount,Local,CLOUD_SYNC_STATE,pendingCount,number,,동기화 안 함,동기화 상태 유지,src/features/cloud-sync/types.ts,Chrome Storage 논리 모델
+CLOUD_SYNC_STATE.conflicts,Local,CLOUD_SYNC_STATE,conflicts,json,,동기화 안 함,동기화 상태 유지,src/features/cloud-sync/types.ts,Chrome Storage 논리 모델
+CLOUD_SYNC_STATE.restorePreview,Local,CLOUD_SYNC_STATE,restorePreview,json,,동기화 안 함,동기화 상태 유지,src/features/cloud-sync/types.ts,Chrome Storage 논리 모델
+CLOUD_SYNC_STATE.error,Local,CLOUD_SYNC_STATE,error,string,,동기화 안 함,동기화 상태 유지,src/features/cloud-sync/types.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.schedules,Local,APP_SNAPSHOT,schedules,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.activeSession,Local,APP_SNAPSHOT,activeSession,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.reports,Local,APP_SNAPSHOT,reports,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.settings,Local,APP_SNAPSHOT,settings,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.notificationState,Local,APP_SNAPSHOT,notificationState,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.temporaryAllows,Local,APP_SNAPSHOT,temporaryAllows,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.tabOrganizer,Local,APP_SNAPSHOT,tabOrganizer,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.membership,Local,APP_SNAPSHOT,membership,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+APP_SNAPSHOT.cloudSync,Local,APP_SNAPSHOT,cloudSync,json,,동기화 안 함,로컬 유지,src/shared/types/models.ts,Chrome Storage 논리 모델
+AUTH_USERS.id,Supabase,AUTH_USERS,id,uuid,PK,서버 원본,계정·권한 정책,Supabase Auth,물리 테이블
+PROFILES.id,Supabase,PROFILES,id,uuid,PK,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+PROFILES.display_name,Supabase,PROFILES,display_name,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+PROFILES.avatar_url,Supabase,PROFILES,avatar_url,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+PROFILES.created_at,Supabase,PROFILES,created_at,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+PROFILES.updated_at,Supabase,PROFILES,updated_at,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+MEMBERSHIPS.user_id,Supabase,MEMBERSHIPS,user_id,uuid,PK,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+MEMBERSHIPS.plan,Supabase,MEMBERSHIPS,plan,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+MEMBERSHIPS.billing_integration,Supabase,MEMBERSHIPS,billing_integration,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+MEMBERSHIPS.activation_source,Supabase,MEMBERSHIPS,activation_source,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+MEMBERSHIPS.status,Supabase,MEMBERSHIPS,status,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+MEMBERSHIPS.activated_at,Supabase,MEMBERSHIPS,activated_at,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+MEMBERSHIPS.updated_at,Supabase,MEMBERSHIPS,updated_at,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+MEMBERSHIP_ENTITLEMENTS.user_id,Supabase,MEMBERSHIP_ENTITLEMENTS,user_id,uuid,PK,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+MEMBERSHIP_ENTITLEMENTS.feature_key,Supabase,MEMBERSHIP_ENTITLEMENTS,feature_key,text,PK,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+MEMBERSHIP_ENTITLEMENTS.enabled,Supabase,MEMBERSHIP_ENTITLEMENTS,enabled,boolean,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+MEMBERSHIP_ENTITLEMENTS.source,Supabase,MEMBERSHIP_ENTITLEMENTS,source,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+MEMBERSHIP_ENTITLEMENTS.valid_until,Supabase,MEMBERSHIP_ENTITLEMENTS,valid_until,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+MEMBERSHIP_ENTITLEMENTS.updated_at,Supabase,MEMBERSHIP_ENTITLEMENTS,updated_at,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+DEVICES.id,Supabase,DEVICES,id,uuid,PK,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+DEVICES.user_id,Supabase,DEVICES,user_id,uuid,FK,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+DEVICES.client_generated_device_id,Supabase,DEVICES,client_generated_device_id,text,UK,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+DEVICES.device_name,Supabase,DEVICES,device_name,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+DEVICES.extension_version,Supabase,DEVICES,extension_version,text,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+DEVICES.last_seen_at,Supabase,DEVICES,last_seen_at,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+DEVICES.created_at,Supabase,DEVICES,created_at,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+DEVICES.updated_at,Supabase,DEVICES,updated_at,timestamptz,,서버 원본,계정·권한 정책,supabase/migrations/202607160001_gate_a_membership.sql,물리 테이블
+CLOUD_SCHEDULES.user_id,Supabase,CLOUD_SCHEDULES,user_id,uuid,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SCHEDULES.entity_id,Supabase,CLOUD_SCHEDULES,entity_id,text,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SCHEDULES.payload,Supabase,CLOUD_SCHEDULES,payload,jsonb,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SCHEDULES.version,Supabase,CLOUD_SCHEDULES,version,bigint,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SCHEDULES.device_id,Supabase,CLOUD_SCHEDULES,device_id,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SCHEDULES.deleted_at,Supabase,CLOUD_SCHEDULES,deleted_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SCHEDULES.created_at,Supabase,CLOUD_SCHEDULES,created_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SCHEDULES.updated_at,Supabase,CLOUD_SCHEDULES,updated_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SETTINGS.user_id,Supabase,CLOUD_SETTINGS,user_id,uuid,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SETTINGS.entity_id,Supabase,CLOUD_SETTINGS,entity_id,text,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SETTINGS.payload,Supabase,CLOUD_SETTINGS,payload,jsonb,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SETTINGS.version,Supabase,CLOUD_SETTINGS,version,bigint,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SETTINGS.device_id,Supabase,CLOUD_SETTINGS,device_id,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SETTINGS.deleted_at,Supabase,CLOUD_SETTINGS,deleted_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SETTINGS.created_at,Supabase,CLOUD_SETTINGS,created_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_SETTINGS.updated_at,Supabase,CLOUD_SETTINGS,updated_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_FOCUS_SESSIONS.user_id,Supabase,CLOUD_FOCUS_SESSIONS,user_id,uuid,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_FOCUS_SESSIONS.entity_id,Supabase,CLOUD_FOCUS_SESSIONS,entity_id,text,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_FOCUS_SESSIONS.payload,Supabase,CLOUD_FOCUS_SESSIONS,payload,jsonb,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_FOCUS_SESSIONS.version,Supabase,CLOUD_FOCUS_SESSIONS,version,bigint,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_FOCUS_SESSIONS.device_id,Supabase,CLOUD_FOCUS_SESSIONS,device_id,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_FOCUS_SESSIONS.deleted_at,Supabase,CLOUD_FOCUS_SESSIONS,deleted_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_FOCUS_SESSIONS.created_at,Supabase,CLOUD_FOCUS_SESSIONS,created_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_FOCUS_SESSIONS.updated_at,Supabase,CLOUD_FOCUS_SESSIONS,updated_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_REPORTS.user_id,Supabase,CLOUD_REPORTS,user_id,uuid,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_REPORTS.entity_id,Supabase,CLOUD_REPORTS,entity_id,text,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_REPORTS.payload,Supabase,CLOUD_REPORTS,payload,jsonb,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_REPORTS.version,Supabase,CLOUD_REPORTS,version,bigint,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_REPORTS.device_id,Supabase,CLOUD_REPORTS,device_id,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_REPORTS.deleted_at,Supabase,CLOUD_REPORTS,deleted_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_REPORTS.created_at,Supabase,CLOUD_REPORTS,created_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_REPORTS.updated_at,Supabase,CLOUD_REPORTS,updated_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.user_id,Supabase,CLOUD_LEARNING_DAYS,user_id,uuid,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.date_key,Supabase,CLOUD_LEARNING_DAYS,date_key,date,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.actual_focus_minutes,Supabase,CLOUD_LEARNING_DAYS,actual_focus_minutes,integer,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.completed_schedule_count,Supabase,CLOUD_LEARNING_DAYS,completed_schedule_count,integer,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.achievement_rate,Supabase,CLOUD_LEARNING_DAYS,achievement_rate,integer,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.learning_score,Supabase,CLOUD_LEARNING_DAYS,learning_score,integer,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.intensity,Supabase,CLOUD_LEARNING_DAYS,intensity,smallint,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.payload,Supabase,CLOUD_LEARNING_DAYS,payload,jsonb,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.version,Supabase,CLOUD_LEARNING_DAYS,version,bigint,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.device_id,Supabase,CLOUD_LEARNING_DAYS,device_id,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.deleted_at,Supabase,CLOUD_LEARNING_DAYS,deleted_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.created_at,Supabase,CLOUD_LEARNING_DAYS,created_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+CLOUD_LEARNING_DAYS.updated_at,Supabase,CLOUD_LEARNING_DAYS,updated_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.mutation_id,Supabase,SYNC_MUTATIONS,mutation_id,uuid,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.user_id,Supabase,SYNC_MUTATIONS,user_id,uuid,PK,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.entity_type,Supabase,SYNC_MUTATIONS,entity_type,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.entity_id,Supabase,SYNC_MUTATIONS,entity_id,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.operation,Supabase,SYNC_MUTATIONS,operation,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.expected_version,Supabase,SYNC_MUTATIONS,expected_version,bigint,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.result_status,Supabase,SYNC_MUTATIONS,result_status,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.result_record,Supabase,SYNC_MUTATIONS,result_record,jsonb,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.device_id,Supabase,SYNC_MUTATIONS,device_id,text,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+SYNC_MUTATIONS.created_at,Supabase,SYNC_MUTATIONS,created_at,timestamptz,,서버 원본,최대 365일 정책,supabase/migrations/202607160002_gate_b_cloud_sync.sql,물리 테이블
+AI_RATE_LIMITS.user_id,Supabase,AI_RATE_LIMITS,user_id,uuid,PK,서버 원본,1분 quota window,supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+AI_RATE_LIMITS.task,Supabase,AI_RATE_LIMITS,task,text,PK,서버 원본,1분 quota window,supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+AI_RATE_LIMITS.window_started_at,Supabase,AI_RATE_LIMITS,window_started_at,timestamptz,,서버 원본,1분 quota window,supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+AI_RATE_LIMITS.request_count,Supabase,AI_RATE_LIMITS,request_count,integer,,서버 원본,1분 quota window,supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블
+AI_RATE_LIMITS.updated_at,Supabase,AI_RATE_LIMITS,updated_at,timestamptz,,서버 원본,1분 quota window,supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,물리 테이블

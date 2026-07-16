@@ -1,0 +1,55 @@
+{
+  "manifest_version": 3,
+  "name": "미루지마",
+  "short_name": "미루지마",
+  "description": "계획한 시간에 실제 행동하도록 돕는 로컬 우선 집중 보조 확장 프로그램",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications",
+    "idle",
+    "tabs",
+    "tabGroups",
+    "identity",
+    "identity.email",
+    "sidePanel",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "미루지마",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["assets/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["blocked.html", "assets/*", "icons/*"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ]
+}

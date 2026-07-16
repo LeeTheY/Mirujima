@@ -1,0 +1,13 @@
+project_id = "mirujima"
+
+[functions.activate-membership]
+verify_jwt = true
+
+[functions.get-membership-entitlements]
+verify_jwt = true
+
+[functions.cloud-sync]
+verify_jwt = true
+
+[functions.ai-writing]
+verify_jwt = true

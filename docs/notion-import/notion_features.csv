@@ -1,0 +1,105 @@
+요구사항 ID,대분류,요구사항,구현 상태,이용 등급,관련 화면,외부 검증 필요,범위,관련 파일,출처 문서
+ONB-01,온보딩,소개 → 멤버십 → 주 화면 → 알림 → 차단 방식 → 유휴 기준 → 첫 일정 → 완료의 8단계를 제공한다.,구현,전체,Onboarding,아니오,현재 범위,src/features/onboarding/Onboarding.tsx,docs/FEATURE_SPECIFICATION.md
+ONB-02,온보딩,"모든 단계에서 건너뛰기를 제공하고 건너뛰면 Free, Side Panel 기본값을 사용한다.",구현,전체,Onboarding,아니오,현재 범위,src/features/onboarding/Onboarding.tsx,docs/FEATURE_SPECIFICATION.md
+ONB-03,온보딩,Premium을 선택하기 전에는 로그인 창이나 외부 요청을 시작하지 않는다.,구현,전체,Onboarding,아니오,현재 범위,src/features/onboarding/Onboarding.tsx,docs/FEATURE_SPECIFICATION.md
+ONB-04,온보딩,Side Panel과 Popup 중 주 UI를 저장하고 설정에서 변경할 수 있다.,구현,전체,Onboarding,아니오,현재 범위,src/features/onboarding/Onboarding.tsx,docs/FEATURE_SPECIFICATION.md
+ONB-05,온보딩,테스트 알림은 클릭할 때마다 고유 ID로 새 알림 생성을 시도한다.,구현,전체,Onboarding,아니오,현재 범위,src/features/onboarding/Onboarding.tsx,docs/FEATURE_SPECIFICATION.md
+ONB-06,온보딩,"첫 일정은 생략할 수 있고, 생성 시 일반 일정 검증을 동일하게 적용한다.",구현,전체,Onboarding,아니오,현재 범위,src/features/onboarding/Onboarding.tsx,docs/FEATURE_SPECIFICATION.md
+SCH-01,일정 관리,"일정명, 설명, 날짜, 시작, 목표 집중 시간, 권장 휴식, 활동 유형, 차단 모드, 도메인을 입력한다.",구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-02,일정 관리,목표 시간을 처음 입력하면 시작 시각을 현재의 약 5분 뒤로 잡고 종료 시각을 자동 계산한다.,구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-03,일정 관리,종료 시각은 시작 + 목표 집중 시간이며 읽기 전용으로 표시한다.,구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-04,일정 관리,목표 집중 시간과 권장 휴식은 빈 값으로 시작하고 빈 값 또는 0으로 저장할 수 없다.,구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-05,일정 관리,"같은 날짜의 겹치는 일정, 과거 시작 시각, 잘못된 도메인을 폼 내부 오류로 표시한다.",구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-06,일정 관리,진행 중인 일정은 삭제할 수 없다. 삭제 전 확인을 받는다.,구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-07,일정 관리,"예정·미룸 상태 일정은 Today, Plan, Popup에서 집중을 시작할 수 있다.",구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-08,일정 관리,5분 미루기 횟수와 시각을 저장하고 3회 이상이면 강화된 경고 대상이 된다.,구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-09,일정 관리,Allowlist와 Blocklist 입력값은 모드 전환 시 삭제하지 않는다.,구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+SCH-10,일정 관리,자주 쓰는 허용·방해 사이트는 클릭형 preset으로 추가·제거할 수 있다.,구현,전체,Plan; Today; Popup,아니오,현재 범위,src/features/schedules/; src/background/alarms.ts,docs/FEATURE_SPECIFICATION.md
+FOC-01,집중·휴식,한 번에 하나의 활성 집중 세션만 허용한다.,구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-02,집중·휴식,"시작 시 세션 저장, 종료·상태 확인 alarm, DNR 규칙, badge, 선택적 탭 정리를 설정한다.",구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-03,집중·휴식,일시정지와 휴식 중에는 집중 누적과 사이트 차단을 멈춘다.,구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-04,집중·휴식,재개 시 남은 집중 시간을 기준으로 alarm과 차단을 복구한다.,구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-05,집중·휴식,휴식은 강제 종료 카운트다운이 아니라 일정 단위 누적 시간으로 측정한다.,구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-06,집중·휴식,"권장 휴식 전에는 잔여 시간, 초과 후에는 +시간을 계속 표시한다.",구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-07,집중·휴식,휴식 종료 alarm은 재개를 권하지만 휴식을 자동 종료하지 않는다.,구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-08,집중·휴식,목표 시간 종료 시 awaiting-result로 전환하고 누적·차단·focus-check를 정지한다.,구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-09,집중·휴식,"완료·미완료 결과는 Focus, Today, Popup에서 한 번 더 확인한 뒤 저장한다.",구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-10,집중·휴식,종료 알림의 결과 버튼은 확정/돌아가기 후속 알림을 거친다.,구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+FOC-11,집중·휴식,완료 세션은 session history와 일일 리포트의 집계 원천이 된다.,구현,전체,Focus; Today; Popup,아니오,현재 범위,src/features/focus/; src/background/message-handler.ts,docs/FEATURE_SPECIFICATION.md
+BLK-01,사이트 차단,Allowlist는 등록 hostname과 포함 대상 서브도메인만 허용한다.,구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+BLK-02,사이트 차단,Blocklist는 등록 hostname과 포함 대상 서브도메인만 차단한다.,구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+BLK-03,사이트 차단,Off는 차단 없이 타이머와 기록만 제공한다.,구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+BLK-04,사이트 차단,집중 중 DNR session rule로 main-frame 요청을 blocked.html로 리디렉션한다.,구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+BLK-05,사이트 차단,"확장 페이지, 제한된 Chrome 내부 URL, 유효한 임시 허용은 차단 대상에서 제외한다.",구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+BLK-06,사이트 차단,"입력 도메인은 protocol, path, query, hash, www.를 제거하고 소문자로 정규화한다.",구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+BLK-07,사이트 차단,"차단 페이지는 일정명, hostname, 이유, 남은 시간, 허용 목록, 복귀, 임시 허용을 제공한다.",구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+BLK-08,사이트 차단,임시 허용은 1분·5분·이번 세션과 사유를 요구하고 만료 alarm을 등록한다.,구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+BLK-09,사이트 차단,차단 이벤트에는 일정·세션·hostname·시각만 기록하고 전체 URL은 저장하지 않는다.,구현,전체,Blocked; Focus,아니오,현재 범위,src/background/blocking.ts; src/blocked/BlockedApp.tsx,docs/FEATURE_SPECIFICATION.md
+MON-01,집중 상태 확인,활성 집중 중 1분마다 focus-check를 실행한다.,구현,전체,Background; Today,아니오,현재 범위,src/background/activity.ts; src/background/idle.ts,docs/FEATURE_SPECIFICATION.md
+MON-02,집중 상태 확인,"chrome.idle, 활성 탭 hostname, visibility, heartbeat, 차단 시도를 조합한다.",구현,전체,Background; Today,아니오,현재 범위,src/background/activity.ts; src/background/idle.ts,docs/FEATURE_SPECIFICATION.md
+MON-03,집중 상태 확인,"heartbeat 무활동 기준은 interactive 5분, reading 15분, watching 45분이다.",구현,전체,Background; Today,아니오,현재 범위,src/background/activity.ts; src/background/idle.ts,docs/FEATURE_SPECIFICATION.md
+MON-04,집중 상태 확인,offline 활동은 Chrome 입력량을 집중 판단에 사용하지 않는다.,구현,전체,Background; Today,아니오,현재 범위,src/background/activity.ts; src/background/idle.ts,docs/FEATURE_SPECIFICATION.md
+MON-05,집중 상태 확인,최근 5분 내 차단 2회 이상 또는 미허용 활성 탭은 distracted 신호다.,구현,전체,Background; Today,아니오,현재 범위,src/background/activity.ts; src/background/idle.ts,docs/FEATURE_SPECIFICATION.md
+MON-06,집중 상태 확인,설정한 3·5·10분 유휴 또는 화면 잠금은 away 신호다.,구현,전체,Background; Today,아니오,현재 범위,src/background/activity.ts; src/background/idle.ts,docs/FEATURE_SPECIFICATION.md
+MON-07,집중 상태 확인,동일 상태 알림에는 cooldown을 적용한다.,구현,전체,Background; Today,아니오,현재 범위,src/background/activity.ts; src/background/idle.ts,docs/FEATURE_SPECIFICATION.md
+NOT-01,알림,"일정 시작, 미룸 경고, 상태 확인, 방해, 자리 비움, 휴식 종료, 목표 종료, 다음 일정, 리포트 알림을 지원한다.",구현,전체,System Notification; Today; Badge,아니오,현재 범위,src/background/notifications.ts; src/features/dashboard/TodayPage.tsx,docs/FEATURE_SPECIFICATION.md
+NOT-02,알림,"시스템 알림, badge, 앱 내부 미처리 알림, 차단 페이지를 다중 채널로 사용한다.",구현,전체,System Notification; Today; Badge,아니오,현재 범위,src/background/notifications.ts; src/features/dashboard/TodayPage.tsx,docs/FEATURE_SPECIFICATION.md
+NOT-03,알림,일반 알림 ID는 kind:entityId 형태로 안정적으로 만들고 최근 발송 시각을 저장한다.,구현,전체,System Notification; Today; Badge,아니오,현재 범위,src/background/notifications.ts; src/features/dashboard/TodayPage.tsx,docs/FEATURE_SPECIFICATION.md
+NOT-04,알림,시스템 알림 실패를 핵심 상태 전환 실패로 전파하지 않는다.,구현,전체,System Notification; Today; Badge,아니오,현재 범위,src/background/notifications.ts; src/features/dashboard/TodayPage.tsx,docs/FEATURE_SPECIFICATION.md
+NOT-05,알림,"Today의 미처리 알림은 제목, 본문, 시각, 이동·결과·확인 동작을 제공한다.",구현,전체,System Notification; Today; Badge,아니오,현재 범위,src/background/notifications.ts; src/features/dashboard/TodayPage.tsx,docs/FEATURE_SPECIFICATION.md
+NOT-06,알림,본문 클릭은 주 UI를 열되 미처리 항목을 자동 삭제하지 않는다.,구현,전체,System Notification; Today; Badge,아니오,현재 범위,src/background/notifications.ts; src/features/dashboard/TodayPage.tsx,docs/FEATURE_SPECIFICATION.md
+NOT-07,알림,Popup은 API로 강제 열 수 없으므로 알림 클릭에는 Side Panel 또는 전체 페이지 fallback을 허용한다.,구현,전체,System Notification; Today; Badge,아니오,현재 범위,src/background/notifications.ts; src/features/dashboard/TodayPage.tsx,docs/FEATURE_SPECIFICATION.md
+REP-01,리포트·학습 잔디,"날짜별 계획·완료·미완료, 집중, 휴식, 미룸, 차단, 유휴를 집계한다.",구현,전체,Reports; Today,아니오,현재 범위,src/features/reports/; src/features/learning-grass/,docs/FEATURE_SPECIFICATION.md
+REP-02,리포트·학습 잔디,일정 달성률과 집중 시간 달성률은 0~100 범위로 계산한다.,구현,전체,Reports; Today,아니오,현재 범위,src/features/reports/; src/features/learning-grass/,docs/FEATURE_SPECIFICATION.md
+REP-03,리포트·학습 잔디,가장 집중한 일정과 규칙 기반 로컬 요약을 제공한다.,구현,전체,Reports; Today,아니오,현재 범위,src/features/reports/; src/features/learning-grass/,docs/FEATURE_SPECIFICATION.md
+REP-04,리포트·학습 잔디,리포트 생성은 같은 날짜에 반복해도 중복을 만들지 않는다.,구현,전체,Reports; Today,아니오,현재 범위,src/features/reports/; src/features/learning-grass/,docs/FEATURE_SPECIFICATION.md
+REP-05,리포트·학습 잔디,로컬 이벤트 원본은 기본 30일 보관한다.,구현,전체,Reports; Today,아니오,현재 범위,src/features/reports/; src/features/learning-grass/,docs/FEATURE_SPECIFICATION.md
+REP-06,리포트·학습 잔디,Premium은 Reports 월간 학습 잔디와 Today 연속 학습 일수를 본다.,구현,Premium,Reports; Today,아니오,현재 범위,src/features/reports/; src/features/learning-grass/,docs/FEATURE_SPECIFICATION.md
+REP-07,리포트·학습 잔디,"학습 점수는 집중 분 + 완료 일정 수 × 10, 강도는 0~4로 계산한다.",구현,Premium,Reports; Today,아니오,현재 범위,src/features/reports/; src/features/learning-grass/,docs/FEATURE_SPECIFICATION.md
+REP-08,리포트·학습 잔디,Premium 구조화 리포트·학습 일자는 cloud에서 최대 365일 보관한다.,외부 검증 필요,Premium,Reports; Today,예,현재 범위,src/features/reports/; src/features/learning-grass/,docs/FEATURE_SPECIFICATION.md
+TAB-01,스마트 탭 그룹화,"현재 활성 일반 창의 탭을 현재 작업, 참고 자료, 커뮤니케이션, 휴식 탭, 분류 필요로 분류한다.",구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+TAB-02,스마트 탭 그룹화,"일정 허용 사이트, 저장된 작업 탭 세트, 사용자 교정 규칙을 일반 규칙보다 우선한다.",구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+TAB-03,스마트 탭 그룹화,집중 시작·재개 또는 사용자의 수동 요청에서 정리한다.,구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+TAB-04,스마트 탭 그룹화,고정 탭과 기존 사용자 그룹은 기본적으로 보존한다.,구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+TAB-05,스마트 탭 그룹화,정리 전에 탭·그룹 snapshot을 로컬 저장하고 요청 시 배치를 복원한다.,구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+TAB-06,스마트 탭 그룹화,"분류 필요 탭은 이번만, 현재 일정, 전역 범위로 교정할 수 있다.",구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+TAB-07,스마트 탭 그룹화,현재 작업 탭 세트를 일정별 또는 공용으로 저장한다.,구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+TAB-08,스마트 탭 그룹화,"탭을 닫거나 새 탭을 강제로 열지 않으며, 그룹화 실패가 집중 시작을 취소하지 않는다.",구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+TAB-09,스마트 탭 그룹화,"탭 ID, window ID, group ID, snapshot, runtime metadata는 cloud로 보내지 않는다.",구현,전체,Focus; Settings; Popup,아니오,현재 범위,src/features/tab-organizer/; src/background/tab-organizer.ts,docs/FEATURE_SPECIFICATION.md
+MEM-01,멤버십·인증,Free 핵심 기능은 로그인 없이 제공한다.,구현,전체,Onboarding; Settings,아니오,현재 범위,src/features/membership/; supabase/migrations/202607160001_gate_a_membership.sql,docs/FEATURE_SPECIFICATION.md
+MEM-02,멤버십·인증,Premium 선택 시 Chrome 기본 Google 계정을 확인하고 Supabase PKCE OAuth를 시작한다.,"구현, 외부 검증 필요",Premium,Onboarding; Settings,예,현재 범위,src/features/membership/; supabase/migrations/202607160001_gate_a_membership.sql,docs/FEATURE_SPECIFICATION.md
+MEM-03,멤버십·인증,Chrome 계정과 Supabase 계정 불일치를 사용자에게 알린다.,"구현, 외부 검증 필요",Premium,Onboarding; Settings,예,현재 범위,src/features/membership/; supabase/migrations/202607160001_gate_a_membership.sql,docs/FEATURE_SPECIFICATION.md
+MEM-04,멤버십·인증,Premium 권한은 클라이언트 선택이 아니라 서버 membership·entitlement로 판정한다.,"구현, 외부 검증 필요",Premium,Onboarding; Settings,예,현재 범위,src/features/membership/; supabase/migrations/202607160001_gate_a_membership.sql,docs/FEATURE_SPECIFICATION.md
+MEM-05,멤버십·인증,현재는 결제 정보 없이 onboarding_deferred로 활성화하며 결제 연동 전임을 표시한다.,"구현, 외부 검증 필요",Premium,Onboarding; Settings,예,현재 범위,src/features/membership/; supabase/migrations/202607160001_gate_a_membership.sql,docs/FEATURE_SPECIFICATION.md
+MEM-06,멤버십·인증,같은 Supabase user ID로 다른 PC에서 멤버십을 복구한다.,"구현, 외부 검증 필요",Premium,Onboarding; Settings,예,현재 범위,src/features/membership/; supabase/migrations/202607160001_gate_a_membership.sql,docs/FEATURE_SPECIFICATION.md
+MEM-07,멤버십·인증,"Premium entitlement는 잔디, 백업, 동기화, OCR, 문법 교정, 핵심 요약이다.",구현,Premium,Onboarding; Settings,아니오,현재 범위,src/features/membership/; supabase/migrations/202607160001_gate_a_membership.sql,docs/FEATURE_SPECIFICATION.md
+MEM-08,멤버십·인증,Stripe 결제와 실제 구독 상태 연동은 제공하지 않는다.,보류,Premium,Onboarding; Settings,아니오,보류,src/features/membership/; supabase/migrations/202607160001_gate_a_membership.sql,docs/FEATURE_SPECIFICATION.md
+CLD-01,클라우드 동기화,최초 연결 시 이 기기 백업 또는 클라우드 복원 미리보기 중 하나를 명시적으로 선택한다.,"구현, 외부 검증 필요",Premium,Settings,예,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+CLD-02,클라우드 동기화,"일정, 설정, 완료 세션, 리포트, 학습 일자만 동기화한다.","구현, 외부 검증 필요",Premium,Settings,예,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+CLD-03,클라우드 동기화,로컬 변경을 먼저 저장하고 pending mutation에 추가한다.,구현,Premium,Settings,아니오,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+CLD-04,클라우드 동기화,15분 alarm과 수동 버튼으로 동기화한다.,"구현, 외부 검증 필요",Premium,Settings,예,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+CLD-05,클라우드 동기화,mutation ID로 재시도 멱등성을 보장한다.,"구현, 외부 검증 필요",Premium,Settings,예,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+CLD-06,클라우드 동기화,expected version 불일치는 자동 덮어쓰기하지 않고 사용자에게 로컬·cloud 선택을 요구한다.,"구현, 외부 검증 필요",Premium,Settings,예,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+CLD-07,클라우드 동기화,삭제는 tombstone으로 전파한다.,"구현, 외부 검증 필요",Premium,Settings,예,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+CLD-08,클라우드 동기화,복원 전 일정·세션·리포트·잔디·삭제 수량을 보여주고 확인 후 병합한다.,"구현, 외부 검증 필요",Premium,Settings,예,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+CLD-09,클라우드 동기화,"heartbeat, 임시 허용, alarm, DNR, 탭 snapshot, AI 임시 이미지는 동기화하지 않는다.",구현,Premium,Settings,아니오,현재 범위,src/features/cloud-sync/; supabase/migrations/202607160002_gate_b_cloud_sync.sql,docs/FEATURE_SPECIFICATION.md
+AI-01,화면 OCR·AI,Premium screen-ocr entitlement가 있을 때만 화면 AI 도구를 연다.,"구현, 외부 검증 필요",Premium,Side Panel; Content Script,예,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-02,화면 OCR·AI,일반 웹페이지의 visible viewport에서 사용자가 drag한 영역만 캡처·crop한다.,"구현, Chrome 검증 필요",Premium,Side Panel; Content Script,예,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-03,화면 OCR·AI,"전송 이미지 preview, 민감정보 경고, 명시적 동의를 제공한다.",구현,Premium,Side Panel; Content Script,아니오,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-04,화면 OCR·AI,Qwen OCR 결과를 stable block ID와 heading·paragraph·list·table·formula 구조로 표시한다.,"구현, Groq 검증 필요",Premium,Side Panel; Content Script,예,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-05,화면 OCR·AI,OCR 원문을 사용자가 수정한 뒤 작업을 실행할 수 있다.,구현,Premium,Side Panel; Content Script,아니오,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-06,화면 OCR·AI,"문법 교정은 맞춤법·문법, 자연스러운 윤문, 간결한 윤문을 제공한다.","구현, Groq 검증 필요",Premium,Side Panel; Content Script,예,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-07,화면 OCR·AI,"교정 결과, diff, 변경 이유, 복사, 지원 입력창 적용을 제공한다.","구현, Chrome 검증 필요",Premium,Side Panel; Content Script,예,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-08,화면 OCR·AI,"핵심 요약은 제목, 핵심 3~5개, 요약, 근거 block, 확인 필요 항목을 제공한다.","구현, Groq 검증 필요",Premium,Side Panel; Content Script,예,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-09,화면 OCR·AI,학습 정리는 개념·용어·기억할 내용 등을 근거 block과 함께 구조화한다.,"구현, Groq 검증 필요",Premium,Side Panel; Content Script,예,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-10,화면 OCR·AI,결과에서 근거 block으로 이동하고 OCR 원문을 접어서 대조할 수 있다.,구현,Premium,Side Panel; Content Script,아니오,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-11,화면 OCR·AI,AI 결과는 부정확할 수 있으며 의료·법률·재무 판단의 단독 근거로 쓰지 않도록 안내한다.,구현,Premium,Side Panel; Content Script,아니오,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-12,화면 OCR·AI,서버가 entitlement와 task별 분당 rate limit을 검사하고 Groq key를 클라이언트에 노출하지 않는다.,"구현, 외부 검증 필요",Premium,Side Panel; Content Script,예,현재 범위,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+AI-13,화면 OCR·AI,"전체 페이지 캡처, Chrome 제한 페이지, 모든 편집기 직접 적용은 보장하지 않는다.",범위 제한,Premium,Side Panel; Content Script,아니오,범위 제한,src/features/writing-assistant/; supabase/migrations/202607160003_gate_c_ai_writing.sql; supabase/migrations/202607160004_gate_d_content_summary.sql,docs/FEATURE_SPECIFICATION.md
+SET-01,설정·데이터·도움말,"주 UI, 기본 차단, 유휴 기준, 알림, heartbeat, 일일 리포트를 설정한다.",구현,전체,Settings; Help,아니오,현재 범위,src/features/settings/SettingsPage.tsx; src/features/help/HelpPage.tsx,docs/FEATURE_SPECIFICATION.md
+SET-02,설정·데이터·도움말,"탭 그룹화 실행 시점, 기존 그룹·고정 탭, 교정 기억, 종료 복원 정책을 설정한다.",구현,전체,Settings; Help,아니오,현재 범위,src/features/settings/SettingsPage.tsx; src/features/help/HelpPage.tsx,docs/FEATURE_SPECIFICATION.md
+SET-03,설정·데이터·도움말,멤버십 상태와 cloud 초기화·동기화·복원·충돌 해결을 설정 화면에서 제공한다.,구현,전체,Settings; Help,아니오,현재 범위,src/features/settings/SettingsPage.tsx; src/features/help/HelpPage.tsx,docs/FEATURE_SPECIFICATION.md
+SET-04,설정·데이터·도움말,JSON 전체 내보내기를 제공하되 가져오기나 표 변환을 제공한다고 표현하지 않는다.,구현,전체,Settings; Help,아니오,현재 범위,src/features/settings/SettingsPage.tsx; src/features/help/HelpPage.tsx,docs/FEATURE_SPECIFICATION.md
+SET-05,설정·데이터·도움말,전체 초기화는 확인 후 로컬 데이터를 지우고 온보딩 상태로 돌아간다.,구현,전체,Settings; Help,아니오,현재 범위,src/features/settings/SettingsPage.tsx; src/features/help/HelpPage.tsx,docs/FEATURE_SPECIFICATION.md
+SET-06,설정·데이터·도움말,온보딩 다시 보기와 매 클릭 새 알림 테스트를 제공한다.,구현,전체,Settings; Help,아니오,현재 범위,src/features/settings/SettingsPage.tsx; src/features/help/HelpPage.tsx,docs/FEATURE_SPECIFICATION.md
+SET-07,설정·데이터·도움말,"도움말은 차단 방식, 집중·휴식, 알림 문제 해결, 데이터·개인정보, 설치 제약을 설명한다.",구현,전체,Settings; Help,아니오,현재 범위,src/features/settings/SettingsPage.tsx; src/features/help/HelpPage.tsx,docs/FEATURE_SPECIFICATION.md
