@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useApp } from "../../shared/ui/AppContext";
 import { DomainChips, EmptyState, ProgressBar } from "../../shared/ui/components";
-import { elapsedBreakSeconds, elapsedFocusSeconds, formatClock, getBreakTimeState } from "../../shared/time/time";
+import { elapsedBreakSeconds, elapsedFocusSeconds, formatClock, getBreakTimeState, remainingFocusSeconds } from "../../shared/time/time";
 import { useNow } from "../../shared/time/useNow";
 import { TabOrganizerCard } from "../tab-organizer/TabOrganizerCard";
 import { sendMessage } from "../../shared/chrome/messaging";
@@ -13,7 +13,7 @@ export function FocusPage() {
   const schedule = session ? snapshot.schedules.find((item) => item.id === session.scheduleId) : undefined;
   const elapsed = useMemo(() => session ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now) : 0, [session, now]);
   const target = (schedule?.targetFocusMinutes ?? 0) * 60;
-  const remaining = Math.max(0, target - elapsed);
+  const remaining = remainingFocusSeconds(schedule?.targetFocusMinutes ?? 0, elapsed);
   if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><EmptyState>Plan 또는 Today에서 일정을 선택해 집중을 시작하세요.</EmptyState></section>;
 
   const progress = target ? Math.min(100, Math.round(elapsed / target * 100)) : 0;

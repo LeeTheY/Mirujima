@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../shared/ui/AppContext";
 import { DomainChips } from "../shared/ui/components";
-import { formatClock } from "../shared/time/time";
+import { elapsedFocusSeconds, formatClock, remainingFocusSeconds } from "../shared/time/time";
 import { useNow } from "../shared/time/useNow";
 
 export function BlockedApp() {
@@ -13,7 +13,10 @@ export function BlockedApp() {
   const session = snapshot.activeSession;
   const schedule = session ? snapshot.schedules.find((item) => item.id === session.scheduleId) : undefined;
   useEffect(() => { if (hostname !== "알 수 없는 사이트") void run({ type: "BLOCKED_ATTEMPT", hostname }).catch(() => undefined); }, [hostname, run]);
-  const remaining = schedule ? Math.max(0, Math.floor((new Date(schedule.endAt).getTime() - now) / 1000)) : 0;
+  const elapsed = session
+    ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now)
+    : 0;
+  const remaining = schedule ? remainingFocusSeconds(schedule.targetFocusMinutes, elapsed) : 0;
   const allow = async () => {
     await run({ type: "TEMPORARY_ALLOW", hostname, minutes, reason });
     location.href = `https://${hostname}`;

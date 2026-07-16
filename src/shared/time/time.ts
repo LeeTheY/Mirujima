@@ -25,6 +25,10 @@ export function elapsedFocusSeconds(
   return Math.max(0, accumulatedFocusSeconds + Math.floor((now - started) / 1000));
 }
 
+export function remainingFocusSeconds(targetFocusMinutes: number, elapsedSeconds: number): number {
+  return Math.max(0, targetFocusMinutes * 60 - elapsedSeconds);
+}
+
 export function elapsedBreakSeconds(
   breakStartedAt: string | null | undefined,
   accumulatedBreakSeconds = 0,
