@@ -75,5 +75,6 @@ export const ALARM_PREFIX = {
   focusCheck: "focus-check",
   temporaryAllow: "temporary-allow:",
   dailyReport: "daily-report",
-  cloudSync: "cloud-sync"
+  cloudSync: "cloud-sync",
+  canonicalFocusSync: "canonical-focus-sync"
 } as const;
