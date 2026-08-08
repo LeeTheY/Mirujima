@@ -130,7 +130,7 @@ git commit -m "feat: define wallet topup presets"
 ### Task 2: Add topup ledger orders and confirmation RPCs
 
 **Files:**
-- Create: `supabase/migrations/202608090006_toss_wallet_topup.sql`
+- Create: `supabase/migrations/202608090007_toss_wallet_topup.sql`
 - Modify: `supabase/tests/database/cashout_sandbox.test.sql`
 - Create: `supabase/tests/database/toss_wallet_topup.test.sql`
 
@@ -161,7 +161,7 @@ Expected: new topup tests fail because the RPCs do not exist. If Docker is unava
 
 - [ ] **Step 3: Implement the additive ledger migration**
 
-In `202608090006_toss_wallet_topup.sql`:
+In `202608090007_toss_wallet_topup.sql`:
 
 1. Replace `wallet_transactions_status_check` so status accepts `pending`, `confirming`, `posted`, and `failed`.
 2. Add a unique partial index on non-null `provider_order_id`.
@@ -180,17 +180,17 @@ Do not add a new table: the pending request and posted confirmation fit the exis
 Run:
 
 ```bash
-git diff --check -- supabase/migrations/202608090006_toss_wallet_topup.sql supabase/tests/database/toss_wallet_topup.test.sql supabase/tests/database/cashout_sandbox.test.sql
+git diff --check -- supabase/migrations/202608090007_toss_wallet_topup.sql supabase/tests/database/toss_wallet_topup.test.sql supabase/tests/database/cashout_sandbox.test.sql
 npx supabase db push --linked --yes
 npx supabase migration list --linked
 ```
 
-Expected: migration `202608090006` exists on both local and remote lists.
+Expected: migration `202608090007` exists on both local and remote lists.
 
 - [ ] **Step 5: Commit the database boundary**
 
 ```bash
-git add supabase/migrations/202608090006_toss_wallet_topup.sql supabase/tests/database/toss_wallet_topup.test.sql supabase/tests/database/cashout_sandbox.test.sql
+git add supabase/migrations/202608090007_toss_wallet_topup.sql supabase/tests/database/toss_wallet_topup.test.sql supabase/tests/database/cashout_sandbox.test.sql
 git commit -m "feat: add toss wallet topup ledger"
 ```
 
