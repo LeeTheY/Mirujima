@@ -11,3 +11,9 @@ verify_jwt = true
 
 [functions.ai-writing]
 verify_jwt = true
+
+[functions.family-link-issue]
+verify_jwt = true
+
+[functions.family-link-redeem]
+verify_jwt = true

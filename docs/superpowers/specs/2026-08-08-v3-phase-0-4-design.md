@@ -40,7 +40,7 @@ PWA는 `app/manifest.ts`, 192/512 아이콘, 작은 native service worker와 off
 
 관계 무결성과 단일 사용 코드 상태를 기존 `cloud_*` payload로 안전하게 표현할 수 없으므로 AGENTS.md가 허용한 `family_links` 테이블 하나를 추가한다. 학생은 동시에 활성 보호자 한 명만 가질 수 있고 보호자는 여러 학생과 연결할 수 있다.
 
-코드는 6자리 숫자이며 5분 후 만료된다. Edge Function은 `MIRUJIMA_SERVER_SIGNING_SECRET`으로 코드를 HMAC 처리하며 DB에는 원문을 저장하지 않는다. 발급·사용 RPC는 `auth.uid()`, 역할, 만료, 재발급 취소, 중복 관계, 시도 횟수와 rate limit을 다시 검증한다. RLS는 관계 당사자에게 안전한 필드만 노출하고 `code_hash`는 직접 조회할 수 없게 한다.
+코드는 6자리 숫자이며 5분 후 만료된다. Edge Function은 JWT 사용자를 확인하고 `MIRUJIMA_SERVER_SIGNING_SECRET`으로 코드를 HMAC 처리하며 DB에는 원문을 저장하지 않는다. 가족 코드 RPC는 임의 hash 직접 호출을 막기 위해 `service_role` 전용으로 제한하고 Edge Function이 검증한 actor ID만 받는다. RPC는 역할, 만료, 재발급 취소, 중복 관계, 시도 횟수와 rate limit을 다시 검증한다. RLS는 관계 당사자에게 안전한 필드만 노출하고 `code_hash`는 직접 조회할 수 없게 한다.
 
 이번 Phase에서는 알림 테이블을 만들지 않는다. 함수 응답에 후속 notification event 경계를 남긴다.
 
