@@ -174,7 +174,7 @@ cashoutAvailable = posted inbound to earned - posted outbound from earned
 membership-create-order
 membership-confirm-payment
 cashout-request
-cashout-complete-test
+cashout-complete-test (outcome: completed | rejected)
 ```
 
 모든 함수는 Supabase access token으로 사용자를 확인하고 `auth.uid()`에서 user id를 얻는다. client body의 `userId`, 가격, bucket, from/to user는 신뢰하지 않는다.
@@ -186,6 +186,7 @@ create_membership_payment_order()
 confirm_toss_membership_payment()
 request_test_cashout()
 complete_test_cashout()
+reject_test_cashout()
 ```
 
 복수 write는 RPC transaction 안에서 실행한다. 주문 및 현금화 idempotency key별 advisory lock을 사용한다.
@@ -242,7 +243,7 @@ complete_test_cashout()
 - `테스트 현금화 · 실제 입금 없음`
 - 요청/처리/완료/실패 상태
 - 계좌번호 입력 없음
-- 완료 버튼은 샌드박스 처리 재현용이며 서버가 test mode일 때만 노출
+- 완료/실패 버튼은 샌드박스 처리 재현용이며 서버가 test mode일 때만 노출
 
 ### 6.2 Extension
 
@@ -267,14 +268,14 @@ Web `apps/web/.env.local`:
 ```dotenv
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
-NEXT_PUBLIC_TOSS_CLIENT_KEY=test_gck_...
+NEXT_PUBLIC_TOSS_CLIENT_KEY=test_ck_...
 NEXT_PUBLIC_APP_ORIGIN=http://localhost:3000
 ```
 
 Supabase Secrets:
 
 ```text
-TOSS_SECRET_KEY=test_gsk_...
+TOSS_SECRET_KEY=test_sk_...
 TOSS_PAYMENT_MODE=test
 ```
 
