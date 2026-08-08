@@ -15,9 +15,9 @@ select is((select relrowsecurity from pg_class where oid = 'public.memberships':
 select is((select relrowsecurity from pg_class where oid = 'public.membership_entitlements'::regclass), true, 'entitlements RLS is enabled');
 select is((select relrowsecurity from pg_class where oid = 'public.devices'::regclass), true, 'devices RLS is enabled');
 
-select ok(not has_function_privilege('anon', 'public.activate_deferred_membership(uuid)', 'EXECUTE'), 'anon cannot activate membership');
-select ok(not has_function_privilege('authenticated', 'public.activate_deferred_membership(uuid)', 'EXECUTE'), 'authenticated clients cannot call the privileged activation RPC directly');
-select ok(has_function_privilege('service_role', 'public.activate_deferred_membership(uuid)', 'EXECUTE'), 'only the server role can call activation RPC');
+select ok(not has_function('public', 'activate_deferred_membership', array['uuid']), 'deferred activation is removed');
+select ok(not has_function_privilege('authenticated', 'public.create_membership_payment_order(uuid,text)', 'EXECUTE'), 'clients cannot create privileged payment orders');
+select ok(has_function_privilege('service_role', 'public.create_membership_payment_order(uuid,text)', 'EXECUTE'), 'only the server role can create payment orders');
 select is(
   (select count(*)::integer from pg_policies where schemaname = 'public' and tablename in ('profiles', 'memberships', 'membership_entitlements', 'devices')),
   8,
@@ -28,7 +28,13 @@ insert into auth.users (id, email)
 values
   ('11111111-1111-4111-8111-111111111111', 'owner@example.com'),
   ('22222222-2222-4222-8222-222222222222', 'other@example.com');
-do $$ begin perform public.activate_deferred_membership('11111111-1111-4111-8111-111111111111'); end $$;
+do $$
+declare order_id text;
+begin
+  order_id := public.create_membership_payment_order('11111111-1111-4111-8111-111111111111', 'gate-a-payment-0001')->>'orderId';
+  perform public.claim_membership_payment('11111111-1111-4111-8111-111111111111', order_id, 'gate_a_payment_key', 12900);
+  perform public.confirm_toss_membership_payment('11111111-1111-4111-8111-111111111111', order_id, 'gate_a_payment_key', '{"status":"DONE"}'::jsonb);
+end $$;
 insert into public.devices (user_id, client_generated_device_id, device_name, extension_version)
 values ('11111111-1111-4111-8111-111111111111', 'owner-device', 'test', '0.1.0');
 

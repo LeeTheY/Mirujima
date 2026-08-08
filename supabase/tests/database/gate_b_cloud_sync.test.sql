@@ -21,7 +21,13 @@ select ok(not has_function_privilege('anon', 'public.apply_cloud_mutation(uuid,t
 insert into auth.users (id, email) values
   ('33333333-3333-4333-8333-333333333333', 'sync-owner@example.com'),
   ('44444444-4444-4444-8444-444444444444', 'sync-other@example.com');
-do $$ begin perform public.activate_deferred_membership('33333333-3333-4333-8333-333333333333'); end $$;
+do $$
+declare order_id text;
+begin
+  order_id := public.create_membership_payment_order('33333333-3333-4333-8333-333333333333', 'gate-b-payment-0001')->>'orderId';
+  perform public.claim_membership_payment('33333333-3333-4333-8333-333333333333', order_id, 'gate_b_payment_key', 12900);
+  perform public.confirm_toss_membership_payment('33333333-3333-4333-8333-333333333333', order_id, 'gate_b_payment_key', '{"status":"DONE"}'::jsonb);
+end $$;
 
 set local role authenticated;
 set local request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
