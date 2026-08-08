@@ -54,7 +54,7 @@ async function registerDevice(client: ReturnType<typeof createClient>, userId: s
 
 async function membershipResponse(client: ReturnType<typeof createClient>, userId: string) {
   const [membershipResult, entitlementResult, deviceResult] = await Promise.all([
-    client.from("memberships").select("plan,status,billing_integration,activation_source").eq("user_id", userId).maybeSingle(),
+    client.from("memberships").select("plan,status,billing_integration,activation_source,current_period_started_at,current_period_ends_at").eq("user_id", userId).maybeSingle(),
     client.from("membership_entitlements").select("feature_key,enabled,valid_until").eq("user_id", userId),
     client.from("devices").select("id", { count: "exact", head: true }).eq("user_id", userId)
   ]);
@@ -62,11 +62,14 @@ async function membershipResponse(client: ReturnType<typeof createClient>, userI
   if (entitlementResult.error) throw entitlementResult.error;
   if (deviceResult.error) throw deviceResult.error;
   const membership = membershipResult.data;
+  const periodActive = !membership?.current_period_ends_at || membership.current_period_ends_at > new Date().toISOString();
   return {
     plan: membership?.plan ?? "free",
-    status: membership?.status ?? "inactive",
-    billingIntegration: membership?.billing_integration ?? "deferred",
+    status: membership?.status === "active" && periodActive ? "active" : "inactive",
+    billingIntegration: membership?.billing_integration ?? null,
     activationSource: membership?.activation_source ?? null,
+    currentPeriodStartedAt: membership?.current_period_started_at ?? null,
+    currentPeriodEndsAt: membership?.current_period_ends_at ?? null,
     entitlements: (entitlementResult.data ?? []).map((item) => ({
       featureKey: item.feature_key,
       enabled: item.enabled,

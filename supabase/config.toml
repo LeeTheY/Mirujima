@@ -1,6 +1,18 @@
 project_id = "mirujima"
 
-[functions.activate-membership]
+[functions.membership-create-order]
+verify_jwt = true
+
+[functions.membership-confirm-payment]
+verify_jwt = true
+
+[functions.wallet-summary]
+verify_jwt = true
+
+[functions.cashout-request]
+verify_jwt = true
+
+[functions.cashout-complete-test]
 verify_jwt = true
 
 [functions.get-membership-entitlements]
