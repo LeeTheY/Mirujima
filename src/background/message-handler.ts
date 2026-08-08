@@ -339,10 +339,7 @@ export async function handleMessage(message: ExtensionMessage): Promise<AppSnaps
       break;
     case "MEMBERSHIP_CHECK_ACCOUNT": await membershipService.checkChromeAccount(); break;
     case "MEMBERSHIP_SIGN_IN": await membershipService.signIn(); break;
-    case "MEMBERSHIP_ACTIVATE":
-      await membershipService.activate();
-      await chrome.alarms.create(ALARM_PREFIX.cloudSync, { periodInMinutes: 15 });
-      break;
+    case "MEMBERSHIP_OPEN_CHECKOUT": await membershipService.openCheckout(); break;
     case "MEMBERSHIP_RESTORE": await membershipService.restore(); break;
     case "MEMBERSHIP_SIGN_OUT":
       await membershipService.signOut();

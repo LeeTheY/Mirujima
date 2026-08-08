@@ -28,7 +28,7 @@
 
 **Interfaces:**
 - Consumes: `auth.uid()` and authenticated profiles.
-- Produces: `wallet_transactions`, `get_wallet_balances()`, `request_test_cashout(bigint,text)`, `complete_test_cashout(uuid,text)`, and `reject_test_cashout(uuid,text)`.
+- Produces: `wallet_transactions`, server-only `get_wallet_balances(uuid)`, `request_test_cashout(uuid,bigint,text)`, `complete_test_cashout(uuid,uuid,text)`, and `reject_test_cashout(uuid,uuid,text)`. The first UUID is supplied only by an Edge Function after token verification.
 
 - [ ] **Step 1: Write failing pgTAP tests**
 
@@ -92,13 +92,14 @@ git commit -m "feat: add cashout sandbox ledger"
 **Files:**
 - Create: `supabase/functions/cashout-request/index.ts`
 - Create: `supabase/functions/cashout-complete-test/index.ts`
+- Create: `supabase/functions/wallet-summary/index.ts`
 - Create: `supabase/functions/tests/cashout.test.ts`
 - Modify: `supabase/functions/_shared/toss.ts`
 - Modify: `supabase/config.toml`
 
 **Interfaces:**
 - Consumes: Task 1 RPCs and `assertTossTestMode` from the membership plan.
-- Produces: endpoints returning `{ requestId, status, points, balances }`.
+- Produces: `wallet-summary` returning balances and cashout endpoints returning `{ requestId, status, points, balances }`.
 
 - [ ] **Step 1: Write failing request validation tests**
 

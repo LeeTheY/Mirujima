@@ -19,7 +19,7 @@ async function requireExtensionUser(): Promise<void> {
 }
 
 async function handleExternalMessage(message: unknown, sender: chrome.runtime.MessageSender): Promise<Record<string, unknown>> {
-  const expectedOrigin = import.meta.env.VITE_WEB_APP_ORIGIN;
+  const expectedOrigin = import.meta.env.VITE_WEB_APP_ORIGIN ?? "";
   if (!isAllowedExternalSender(sender.url, expectedOrigin)) return { ok: false, error: "허용되지 않은 웹 origin입니다." };
   try {
     const parsed = parseWebToExtensionMessage(message);

@@ -37,9 +37,9 @@
 |---|---|---|
 | Free | 일정, 집중 타이머, 휴식, 사이트 차단, 알림, 리포트, 스마트 탭 그룹화, 로컬 저장 | 구현 |
 | Premium | Google 로그인, 학습 잔디, 365일 구조화 기록 동기화, 화면 OCR, 문법 교정·윤문, 핵심 요약, 학습 정리 | 코드·UI 구현, Supabase·OAuth·Groq 실환경 검증 필요 |
-| 결제 | 실제 카드 결제, 구독 갱신, 해지, 영수증, Customer Portal | **미구현** |
+| 결제 | Toss Premium 1개월 테스트 결제, earned 포인트 현금화 상태 재현 | 테스트 모드 구현 |
 
-현재 Premium 선택과 서버 entitlement 구조는 구현되어 있지만 실제 결제는 연결되어 있지 않습니다. 따라서 현재 버전은 결제 정보를 받지 않고 `onboarding_deferred` 상태로 Premium을 활성화합니다. 화면에 표시되는 월 가격은 제품 구조를 검토하기 위한 값이며 실제 청구가 발생하지 않습니다.
+Premium은 Toss Payments API 개별 연동 테스트 키로 1개월 단건 결제를 승인한 뒤 활성화됩니다. 테스트 환경에서는 실제 금액이 청구되지 않으며 자동 갱신되지 않습니다. earned 포인트 현금화도 실제 송금 없이 요청·완료·실패 원장 상태만 재현합니다.
 
 ## 모든 기능
 
@@ -283,16 +283,16 @@ Free 기능은 별도 서버 설정 없이 사용할 수 있습니다. Premium G
 ```env
 VITE_SUPABASE_URL=
 VITE_SUPABASE_PUBLISHABLE_KEY=
-VITE_BILLING_INTEGRATION=deferred
 VITE_PREMIUM_MONTHLY_PRICE_LABEL=
+VITE_WEB_APP_ORIGIN=http://localhost:3000
 ```
 
 추가로 다음 작업이 필요합니다.
 
-1. `supabase/migrations/`의 Gate A~D migration을 Supabase에 적용합니다.
-2. `activate-membership`, `get-membership-entitlements`, `cloud-sync`, `ai-writing` Edge Function을 배포합니다.
+1. `supabase/migrations/`의 migration을 Supabase에 적용합니다.
+2. `membership-create-order`, `membership-confirm-payment`, `wallet-summary`, `cashout-request`, `cashout-complete-test`, `get-membership-entitlements`, `cloud-sync`, `ai-writing` Edge Function을 배포합니다.
 3. Supabase와 Google OAuth redirect를 Chrome Extension ID에 맞게 설정합니다.
-4. `GROQ_API_KEY`와 선택적 모델 값은 확장 프로그램이 아니라 Supabase Edge Function Secret에만 저장합니다.
+4. `TOSS_SECRET_KEY=test_sk_...`, `TOSS_PAYMENT_MODE=test`, `GROQ_API_KEY`는 클라이언트가 아니라 Supabase Edge Function Secret에만 저장합니다.
 5. 실제 계정 로그인, 다른 기기 복구, 동기화 충돌, OCR·교정·요약, rate limit을 실환경에서 검증합니다.
 
 ## 품질 검사

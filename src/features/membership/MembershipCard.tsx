@@ -33,10 +33,11 @@ export function MembershipCard({ onboarding = false, onFree, onActivated }: {
   });
   if (membership.plan === "premium" && membership.status === "active") {
     return <article className="card membership-card membership-card-active">
-      <div className="row between"><div><span className="eyebrow">멤버십</span><h2>Premium</h2></div><div className="row"><span className="badge membership-current-badge">현재 멤버십</span><span className="badge warning">결제 연동 전</span></div></div>
+      <div className="row between"><div><span className="eyebrow">멤버십</span><h2>Premium</h2></div><div className="row"><span className="badge membership-current-badge">현재 멤버십</span><span className="badge warning">자동 갱신 없음</span></div></div>
       <p className="muted small">{membership.email}</p>
       <div className="entitlement-list">{PREMIUM_ENTITLEMENTS.map((feature) => <span key={feature} className={membership.entitlements.includes(feature) ? "entitlement enabled" : "entitlement"}>{LABELS[feature]}</span>)}</div>
       <p className="small muted">연결된 기기 {membership.deviceCount}대 · 마지막 확인 {membership.lastCheckedAt ? new Date(membership.lastCheckedAt).toLocaleString() : "없음"}</p>
+      <p className="small muted">이용 종료 {membership.currentPeriodEndsAt ? new Date(membership.currentPeriodEndsAt).toLocaleString() : "확인 필요"}</p>
       <div className="row"><button className="button secondary" disabled={busy} onClick={() => void act(() => run({ type: "MEMBERSHIP_RESTORE" }))}>멤버십 다시 확인</button><button className="button ghost" disabled={busy} onClick={() => void act(() => run({ type: "MEMBERSHIP_SIGN_OUT" }))}>로그아웃</button></div>
       {(actionError || membership.error) && <div className="alert error" role="alert">{actionError || membership.error}</div>}
     </article>;
@@ -56,7 +57,7 @@ export function MembershipCard({ onboarding = false, onFree, onActivated }: {
       {membership.chromeAccountEmail ? <><strong>Chrome 기본 계정</strong><span>{membership.chromeAccountEmail}</span><p className="small muted">이 계정과 같은 Google 계정으로 Supabase에 로그인합니다.</p><button className="button" disabled={busy} onClick={() => void act(async () => { await run({ type: "MEMBERSHIP_SIGN_IN" }); setStage("confirm"); })}>Google로 로그인</button></> : <><strong>Chrome 로그인 필요</strong><p>Premium은 여러 PC에서 같은 기록을 사용하기 위해 Chrome에 로그인된 Google 계정이 필요합니다.</p><button className="button secondary" disabled={busy} onClick={() => void act(() => run({ type: "MEMBERSHIP_CHECK_ACCOUNT" }))}>Chrome 로그인 후 다시 확인</button>{onboarding && <button className="button ghost" onClick={chooseFree}>Free로 계속</button>}</>}
     </div>}
     {stage === "confirm" && <div className="membership-step">
-      <strong>Premium {MEMBERSHIP_PRODUCT.monthlyPriceLabel}</strong><p>같은 Google 계정으로 여러 PC에서 기록을 사용하고, 학습 잔디와 AI 문법 교정·화면 요약·학습 정리를 이용할 수 있습니다.</p><div className="alert">현재 버전에서는 결제 정보 입력 없이 Premium을 시작합니다. 결제 연동 후에는 이 단계에서 안전한 결제 화면으로 이동합니다.</div><button className="button" disabled={busy} onClick={() => void act(async () => { await run({ type: "MEMBERSHIP_ACTIVATE" }); onActivated?.(); })}>Premium 시작</button><button className="button ghost" disabled={busy} onClick={chooseFree}>Free로 변경</button>
+      <strong>Premium {MEMBERSHIP_PRODUCT.monthlyPriceLabel}</strong><p>같은 Google 계정으로 여러 PC에서 기록을 사용하고, 학습 잔디와 AI 문법 교정·화면 요약·학습 정리를 이용할 수 있습니다.</p><div className="alert">테스트 결제이며 실제 청구되지 않습니다. 1개월 단건 결제로 자동 갱신되지 않습니다.</div><button className="button" disabled={busy} onClick={() => void act(() => run({ type: "MEMBERSHIP_OPEN_CHECKOUT" }))}>Toss 테스트 결제 열기</button><button className="button secondary" disabled={busy} onClick={() => void act(async () => { await run({ type: "MEMBERSHIP_RESTORE" }); onActivated?.(); })}>결제 후 멤버십 확인</button><button className="button ghost" disabled={busy} onClick={chooseFree}>Free로 변경</button>
     </div>}
     {(actionError || membership.error) && <div className="alert error" role="alert">{actionError || membership.error}</div>}
   </article>;

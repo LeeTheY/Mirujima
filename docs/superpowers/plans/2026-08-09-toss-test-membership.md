@@ -30,7 +30,7 @@
 
 **Interfaces:**
 - Consumes: existing `public.memberships`, `public.membership_entitlements`, `auth.uid()`.
-- Produces: `public.membership_payment_orders`, `public.create_membership_payment_order(text)`, `public.claim_membership_payment(text,text,bigint)`, `public.confirm_toss_membership_payment(text,text,jsonb)`, `public.fail_membership_payment(text,text)`, and membership period columns.
+- Produces: server-only `public.membership_payment_orders`, `public.create_membership_payment_order(uuid,text)`, `public.claim_membership_payment(uuid,text,text,bigint)`, `public.confirm_toss_membership_payment(uuid,text,text,jsonb)`, `public.fail_membership_payment(uuid,text,text)`, and membership period columns. The UUID is supplied only by an Edge Function after token verification.
 
 - [ ] **Step 1: Write failing pgTAP coverage**
 
@@ -67,10 +67,10 @@ Create the order table with statuses `pending | confirming | confirmed | failed 
 Implement the RPC signatures exactly:
 
 ```sql
-public.create_membership_payment_order(p_idempotency_key text) returns jsonb
-public.claim_membership_payment(p_order_id text, p_payment_key text, p_callback_amount bigint) returns jsonb
-public.confirm_toss_membership_payment(p_order_id text, p_payment_key text, p_provider_payload jsonb) returns jsonb
-public.fail_membership_payment(p_order_id text, p_failure_code text) returns jsonb
+public.create_membership_payment_order(p_user_id uuid, p_idempotency_key text) returns jsonb
+public.claim_membership_payment(p_user_id uuid, p_order_id text, p_payment_key text, p_callback_amount bigint) returns jsonb
+public.confirm_toss_membership_payment(p_user_id uuid, p_order_id text, p_payment_key text, p_provider_payload jsonb) returns jsonb
+public.fail_membership_payment(p_user_id uuid, p_order_id text, p_failure_code text) returns jsonb
 ```
 
 Use `pg_advisory_xact_lock(hashtextextended(..., 0))`. `confirm_toss_membership_payment` sets the period start to `greatest(now(), current_period_ends_at)` and end to `period_start + interval '1 month'`, then upserts all six entitlements with `source='toss_payment'` and the same `valid_until`.

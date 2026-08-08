@@ -151,6 +151,29 @@ svg { width: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-l
 .inline-actions { display: flex; align-items: center; gap: 18px; margin-top: 20px; }
 .text-button.danger { color: #c63f45; }
 .linked-list { margin-top: 18px; }
+.payment-page { min-height: 100vh; padding: 28px 24px 72px; background: var(--bg); }
+.payment-page > header { width: min(100%, 760px); height: 58px; margin: 0 auto 34px; display: flex; align-items: center; justify-content: space-between; }
+.payment-page > header a { color: var(--muted); font-size: 14px; }
+.payment-card { width: min(100%, 620px); margin: 0 auto; padding: 38px; border: 1px solid var(--border); border-radius: 24px; background: var(--surface); box-shadow: 0 18px 50px rgba(30, 58, 95, .08); display: grid; gap: 22px; }
+.payment-card h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); letter-spacing: -.04em; }
+.test-mode-banner { padding: 13px 15px; border: 1px solid #b8d0ff; border-radius: 12px; color: #1f5fe5; background: #eef5ff; display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.payment-price { margin: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.payment-price strong { font-size: 34px; }
+.payment-price span { color: var(--muted); }
+.payment-benefits { margin: 0; padding: 20px 22px 20px 40px; border-radius: 14px; background: var(--surface-soft); display: grid; gap: 10px; }
+.payment-card .full { width: 100%; justify-content: center; }
+.result-card { margin-top: 80px; text-align: center; }
+.result-card .row { justify-content: center; }
+.cashout-layout { display: grid; gap: 18px; }
+.wallet-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.wallet-metrics article { padding: 22px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+.wallet-metrics span { color: var(--muted); font-size: 13px; }
+.wallet-metrics strong { display: block; margin-top: 14px; font-size: 30px; }
+.cashout-form { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 14px; }
+.cashout-form label { color: var(--muted); font-size: 13px; }
+.cashout-form input { width: 100%; margin-top: 9px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 11px; background: #fbfcfe; }
+.cashout-status { display: grid; gap: 14px; }
+.cashout-status h2, .cashout-status p { margin: 0; }
 
 @media (max-width: 900px) {
   .landing-hero, .onboarding > section, .privacy { grid-template-columns: 1fr; }
@@ -184,7 +207,7 @@ svg { width: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-l
   .app-main { padding: 18px 16px 64px; }
   .dashboard-hero { min-height: 330px; padding: 30px 26px; align-items: flex-start; flex-direction: column; justify-content: space-between; }
   .dashboard-hero h1 { font-size: 36px; }
-  .dashboard-grid, .settings-grid, .metric-grid, .link-layout { grid-template-columns: 1fr; }
+  .dashboard-grid, .settings-grid, .metric-grid, .link-layout, .wallet-metrics, .cashout-form { grid-template-columns: 1fr; }
   .card.wide { grid-column: auto; }
   .page-heading { align-items: stretch; flex-direction: column; }
   .page-heading h1 { font-size: 36px; }
@@ -192,6 +215,10 @@ svg { width: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-l
   .segmented { overflow-x: auto; }
   .segmented label { min-width: 120px; }
   .timer-preview.compact > strong { font-size: 70px; }
+  .payment-page { padding: 18px 16px 48px; }
+  .payment-page > header { margin-bottom: 20px; }
+  .payment-card { padding: 26px 22px; border-radius: 18px; }
+  .test-mode-banner, .payment-price { align-items: flex-start; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {

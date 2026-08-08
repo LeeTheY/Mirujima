@@ -177,7 +177,7 @@ cashout-request
 cashout-complete-test (outcome: completed | rejected)
 ```
 
-모든 함수는 Supabase access token으로 사용자를 확인하고 `auth.uid()`에서 user id를 얻는다. client body의 `userId`, 가격, bucket, from/to user는 신뢰하지 않는다.
+모든 Edge Function은 Supabase access token으로 사용자를 확인한다. 금융 RPC는 authenticated에 공개하지 않고 service role만 실행하며, Edge Function이 검증한 사용자 UUID를 명시적으로 전달한다. client body의 `userId`, 가격, bucket, from/to user는 신뢰하지 않는다.
 
 ### 5.2 SQL RPC
 
