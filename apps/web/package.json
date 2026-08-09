@@ -16,6 +16,7 @@
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "^2.110.6",
     "@tosspayments/tosspayments-sdk": "^2.7.1",
+    "lucide-react": "^1.30.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

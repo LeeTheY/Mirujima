@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(30);
+select plan(34);
 
 select has_column('public', 'profiles', 'role', 'profiles has a role');
 select has_column('public', 'profiles', 'onboarding_completed', 'profiles tracks onboarding');
@@ -11,6 +11,7 @@ select has_column('public', 'profiles', 'sharing_preferences', 'profiles has sha
 select has_table('public', 'family_links', 'family links table exists');
 select is((select relrowsecurity from pg_class where oid = 'public.family_links'::regclass), true, 'family links RLS is enabled');
 select has_function('public', 'set_profile_role', array['text', 'text', 'text'], 'role RPC exists');
+select has_trigger('auth', 'users', 'on_auth_user_created_create_profile', 'auth user profile trigger exists');
 select has_function('public', 'issue_family_link_code', array['uuid', 'text'], 'family issue RPC exists');
 select has_function('public', 'redeem_family_link_code', array['uuid', 'text'], 'family redeem RPC exists');
 select has_function('public', 'cancel_family_link_code', array['uuid'], 'family cancel RPC exists');
@@ -26,17 +27,36 @@ insert into auth.users (id, email) values
   ('73333333-3333-4333-8333-333333333333', 'student-two@example.com'),
   ('74444444-4444-4444-8444-444444444444', 'stranger@example.com');
 
+select is(
+  (select count(*) from public.profiles where id in (
+    '71111111-1111-4111-8111-111111111111',
+    '72222222-2222-4222-8222-222222222222',
+    '73333333-3333-4333-8333-333333333333',
+    '74444444-4444-4444-8444-444444444444'
+  )),
+  4::bigint,
+  'auth user creation automatically creates profiles'
+);
+
 set local role authenticated;
 set local request.jwt.claim.sub = '71111111-1111-4111-8111-111111111111';
 select is(public.set_profile_role('student', 'Asia/Seoul', 'ko-KR')->>'role', 'student', 'student role is stored by RPC');
+select is(public.set_profile_role('guardian', 'Asia/Seoul', 'ko-KR')->>'role', 'student', 'role RPC preserves an existing role');
 reset role;
-select is(public.issue_family_link_code('71111111-1111-4111-8111-111111111111', repeat('a', 64))->>'status', 'pending', 'server issues a pending student code');
+select throws_ok(
+  $$select public.issue_family_link_code('71111111-1111-4111-8111-111111111111', repeat('a', 64))$$,
+  'P0001',
+  'guardian role required',
+  'students cannot issue family link codes'
+);
 
 set local request.jwt.claim.sub = '72222222-2222-4222-8222-222222222222';
 set local role authenticated;
 select is(public.set_profile_role('guardian', 'Asia/Seoul', 'ko-KR')->>'role', 'guardian', 'guardian role is stored by RPC');
 reset role;
-select is(public.redeem_family_link_code('72222222-2222-4222-8222-222222222222', repeat('a', 64))->>'status', 'active', 'server redeems a code for the opposite role once');
+select is(public.issue_family_link_code('72222222-2222-4222-8222-222222222222', repeat('a', 64))->>'status', 'pending', 'guardian issues a pending family code');
+
+select is(public.redeem_family_link_code('71111111-1111-4111-8111-111111111111', repeat('a', 64))->>'status', 'active', 'student redeems a guardian code once');
 
 set local request.jwt.claim.sub = '73333333-3333-4333-8333-333333333333';
 set local role authenticated;
@@ -44,10 +64,9 @@ do $$ begin
   perform public.set_profile_role('student', 'Asia/Seoul', 'ko-KR');
 end $$;
 reset role;
-select public.issue_family_link_code('73333333-3333-4333-8333-333333333333', repeat('b', 64));
-
+select public.issue_family_link_code('72222222-2222-4222-8222-222222222222', repeat('b', 64));
+select is(public.redeem_family_link_code('73333333-3333-4333-8333-333333333333', repeat('b', 64))->>'status', 'active', 'one guardian can link multiple students');
 set local request.jwt.claim.sub = '72222222-2222-4222-8222-222222222222';
-select is(public.redeem_family_link_code('72222222-2222-4222-8222-222222222222', repeat('b', 64))->>'status', 'active', 'one guardian can link multiple students');
 set local role authenticated;
 select is((select count(*) from public.family_links where status = 'active'), 2::bigint, 'guardian sees both active family links');
 

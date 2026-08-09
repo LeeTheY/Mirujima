@@ -9,6 +9,12 @@ verify_jwt = true
 [functions.wallet-summary]
 verify_jwt = true
 
+[functions.wallet-create-topup-order]
+verify_jwt = true
+
+[functions.wallet-confirm-topup]
+verify_jwt = true
+
 [functions.cashout-request]
 verify_jwt = true
 

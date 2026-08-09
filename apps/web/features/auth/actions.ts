@@ -3,7 +3,8 @@
 import { userRoleSchema } from "@mirujima/contracts";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { destinationForRole } from "./role-routing";
+import { reportRoleSelectionError } from "./role-error";
+import { destinationForRole, resolvePersistedRole, resolveRoleSelection } from "./role-routing";
 
 export async function signInWithGoogle(): Promise<void> {
   const supabase = await createClient();
@@ -23,13 +24,40 @@ export async function selectRole(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) redirect("/onboarding");
-  const { error } = await supabase.rpc("set_profile_role", {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", authData.user.id)
+    .maybeSingle();
+  const storedRole = userRoleSchema.safeParse(profile?.role);
+  const decision = resolveRoleSelection(storedRole.success ? storedRole.data : null, role);
+  if (!decision.shouldPersist) redirect(destinationForRole(decision.role));
+
+  const { data, error } = await supabase.rpc("set_profile_role", {
     p_role: role,
     p_timezone: timezone,
     p_locale: "ko-KR",
   });
-  if (error) throw new Error("역할을 저장하지 못했습니다.");
-  redirect(destinationForRole(role));
+  if (error?.code === "P0001" && error.message === "role is already set") {
+    const { data: currentProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", authData.user.id)
+      .maybeSingle();
+    const currentRole = userRoleSchema.safeParse(currentProfile?.role);
+    if (currentRole.success) redirect(destinationForRole(currentRole.data));
+  }
+  if (error) throw new Error(reportRoleSelectionError(error));
+  const persistedRole = resolvePersistedRole(data);
+  if (!persistedRole) {
+    throw new Error(reportRoleSelectionError({
+      code: "INVALID_RPC_RESPONSE",
+      message: "set_profile_role returned no persisted role",
+      details: JSON.stringify(data),
+      hint: null,
+    }));
+  }
+  redirect(destinationForRole(persistedRole));
 }
 
 export async function signOut(): Promise<void> {

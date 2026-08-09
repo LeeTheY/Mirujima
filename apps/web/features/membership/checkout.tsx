@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { createClient } from "@/lib/supabase/client";
 import { getTossPublicConfig } from "./payment";
+import { CheckCircle2, CreditCard, Sparkles } from "lucide-react";
 
 interface MembershipOrder { orderId: string; amount: number; orderName: string; }
 
@@ -17,6 +18,7 @@ export function MembershipCheckout({ userId, email }: { userId: string; email: s
   const idempotencyKey = useRef(`membership-order:${crypto.randomUUID()}`);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const requestPayment = async () => {
     setBusy(true);
     setError(null);
@@ -42,13 +44,55 @@ export function MembershipCheckout({ userId, email }: { userId: string; email: s
       setBusy(false);
     }
   };
-  return <section className="payment-card">
-    <div className="test-mode-banner"><strong>테스트 결제</strong><span>실제 금액은 청구되지 않습니다.</span></div>
-    <p className="eyebrow">PREMIUM · ONE MONTH</p><h1>Premium 1개월 이용권</h1>
-    <p className="payment-price"><strong>12,900원</strong><span>1개월 단건 결제</span></p>
-    <ul className="payment-benefits"><li>학습 잔디와 클라우드 동기화</li><li>화면 OCR·문법 교정·콘텐츠 요약</li><li>승인 시점부터 1개월 이용</li></ul>
-    <div className="notice"><strong>자동 갱신 없음</strong><p>한 달 뒤 자동으로 결제되지 않습니다. 계속 사용하려면 직접 다시 결제해야 합니다.</p></div>
-    <button className="button full" type="button" disabled={busy} onClick={() => void requestPayment()}>{busy ? "결제창 준비 중…" : "Toss 테스트 결제하기"}</button>
-    {error && <div className="notice error" role="alert"><strong>결제창을 열지 못했습니다.</strong><p>{error}</p></div>}
-  </section>;
+
+  return (
+    <section className="payment-card">
+      <div className="test-mode-banner">
+        <strong className="flex items-center gap-1.5">
+          <CreditCard className="w-4 h-4" /> 멤버십 안전 결제
+        </strong>
+        <span>Toss Payments 공식 결제 모듈</span>
+      </div>
+
+      <p className="eyebrow">PREMIUM · ONE MONTH</p>
+      <h1>Premium 1개월 이용권</h1>
+
+      <p className="payment-price">
+        <strong>12,900 원</strong>
+        <span>1개월 단건 결제</span>
+      </p>
+
+      <ul className="payment-benefits list-none p-4 rounded-2xl bg-gray-50 space-y-2">
+        <li className="flex items-center gap-2 text-sm text-gray-700">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>학습 잔디와 클라우드 동기화</span>
+        </li>
+        <li className="flex items-center gap-2 text-sm text-gray-700">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>화면 OCR · 문법 교정 · 콘텐츠 요약</span>
+        </li>
+        <li className="flex items-center gap-2 text-sm text-gray-700">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>승인 시점부터 1개월 이용</span>
+        </li>
+      </ul>
+
+      <div className="notice">
+        <strong>자동 갱신 없음</strong>
+        <p>한 달 뒤 자동으로 결제되지 않습니다. 계속 사용하려면 직접 다시 결제해야 합니다.</p>
+      </div>
+
+      <button className="button full" type="button" disabled={busy} onClick={() => void requestPayment()}>
+        <Sparkles className="w-4 h-4" />
+        <span>{busy ? "결제창 준비 중…" : "Toss 결제하기"}</span>
+      </button>
+
+      {error && (
+        <div className="notice error" role="alert">
+          <strong>결제창을 열지 못했습니다.</strong>
+          <p>{error}</p>
+        </div>
+      )}
+    </section>
+  );
 }

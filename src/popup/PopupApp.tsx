@@ -1,76 +1,139 @@
 import { useEffect, useState } from "react";
-import { openExtensionPage, sendMessage } from "../shared/chrome/messaging";
+import { sendMessage } from "../shared/chrome/messaging";
 import { useApp } from "../shared/ui/AppContext";
-import { BrandHeader, ProgressBar } from "../shared/ui/components";
-import { elapsedBreakSeconds, elapsedFocusSeconds, formatClock, getBreakTimeState, toDateKey } from "../shared/time/time";
+import { BrandHeader } from "../shared/ui/components";
+import { openWebApp } from "../shared/ui/extension-navigation";
+import { elapsedFocusSeconds, formatClock, remainingFocusSeconds } from "../shared/time/time";
 import { useNow } from "../shared/time/useNow";
+import { popupPrimaryAction } from "./popup-state";
 
 export function PopupApp() {
   const { snapshot, run, actionError, dismissActionError } = useApp();
   const now = useNow();
   const [currentWindowId, setCurrentWindowId] = useState<number | null>(null);
-  const [sidePanelError, setSidePanelError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [organizingTabs, setOrganizingTabs] = useState(false);
-  const startFocus = (scheduleId: string) => {
-    const shouldOrganize = snapshot.tabOrganizerSettings.enabled
-      && snapshot.tabOrganizerSettings.organizeOnFocusStart
-      && window.confirm("집중을 시작하기 전에 현재 창의 탭을 그룹화할까요?\n취소를 눌러도 집중은 그대로 시작합니다.");
-    void run({ type: "FOCUS_START", scheduleId, organizeTabs: shouldOrganize });
-  };
+  const session = snapshot.activeSession;
+  const schedule = session ? snapshot.schedules.find((item) => item.id === session.scheduleId) : undefined;
+  const elapsed = session ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now) : 0;
+  const remaining = remainingFocusSeconds(schedule?.targetFocusMinutes ?? 0, elapsed);
+  const primaryAction = popupPrimaryAction(Boolean(session && schedule));
+
   useEffect(() => {
     void chrome.windows.getCurrent().then((currentWindow) => setCurrentWindowId(currentWindow.id ?? null));
   }, []);
-  const openSidePanel = () => {
-    if (currentWindowId === null) {
-      setSidePanelError("현재 Chrome 창을 확인하고 있어요. 잠시 후 다시 눌러주세요.");
-      return;
-    }
-    setSidePanelError(null);
+
+  function openSidePanel() {
+    if (currentWindowId === null) return setLocalError("현재 Chrome 창을 확인하고 있습니다. 잠시 후 다시 눌러 주세요.");
+    setLocalError(null);
     void chrome.sidePanel.open({ windowId: currentWindowId })
       .then(() => window.close())
-      .catch((cause: unknown) => setSidePanelError(cause instanceof Error ? cause.message : "Side Panel을 열지 못했습니다."));
-  };
-  const today = snapshot.schedules.filter((item) => item.dateKey === toDateKey());
-  const completed = today.filter((item) => item.status === "completed").length;
-  const rate = today.length ? Math.round(completed / today.length * 100) : 0;
-  const session = snapshot.activeSession;
-  const current = session ? snapshot.schedules.find((item) => item.id === session.scheduleId) : undefined;
-  const elapsed = current && session ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now) : 0;
-  const timeEnded = Boolean(current && session && (session.status === "awaiting-result" || elapsed >= current.targetFocusMinutes * 60));
-  const onBreak = Boolean(session?.status === "paused" && session.breakStartedAt);
-  const currentBreakSeconds = session?.breakStartedAt ? Math.max(0, Math.floor((now - new Date(session.breakStartedAt).getTime()) / 1000)) : 0;
-  const plannedBreakSeconds = (current?.breakMinutes ?? 0) * 60;
-  const totalBreakSeconds = session ? elapsedBreakSeconds(session.breakStartedAt, session.accumulatedBreakSeconds, now) : 0;
-  const { overtime: breakOvertime, remaining: breakRemaining } = getBreakTimeState(plannedBreakSeconds, totalBreakSeconds);
-  const next = today.find((item) => item.status === "scheduled" || item.status === "snoozed");
-  const confirmFinish = async (result: "completed" | "incomplete") => {
-    const confirmed = window.confirm(result === "completed"
-      ? "이 일정을 정말 완료로 기록할까요?"
-      : "이 일정을 정말 미완료로 기록할까요?");
-    if (!confirmed || !session) return;
-    if (snapshot.tabOrganizerSettings.restoreLayoutOnFinish === "ask" && window.confirm("탭을 정리 전 배치로 복원할까요?\n취소를 누르면 현재 그룹을 유지합니다.")) {
-      try { await sendMessage({ type: "TAB_LAYOUT_RESTORE", sessionId: session.id }); } catch { /* 집중 종료는 계속 */ }
+      .catch((cause: unknown) => setLocalError(cause instanceof Error ? cause.message : "Side Panel을 열지 못했습니다."));
+  }
+
+  async function organizeTabs() {
+    setOrganizingTabs(true);
+    setLocalError(null);
+    try {
+      await sendMessage({ type: "TAB_ORGANIZE", mode: "smart" });
+    } catch (cause) {
+      setLocalError(cause instanceof Error ? cause.message : "탭을 정리하지 못했습니다.");
+    } finally {
+      setOrganizingTabs(false);
     }
+  }
+
+  async function finish(result: "completed" | "incomplete") {
+    if (!window.confirm(result === "completed" ? "집중을 완료로 기록할까요?" : "집중을 미완료로 종료할까요?")) return;
     await run({ type: "FOCUS_FINISH", result });
-  };
-  return <div className="app-shell popup">
-    <BrandHeader subtitle="빠른 집중 컨트롤" />
-    <main className="content">
-      {actionError && <div className="action-error-banner" role="alert"><span>{actionError}</span><button type="button" onClick={dismissActionError} aria-label="오류 메시지 닫기">닫기</button></div>}
-      {sidePanelError && <div className="action-error-banner" role="alert"><span>{sidePanelError}</span><button type="button" onClick={() => setSidePanelError(null)} aria-label="오류 메시지 닫기">닫기</button></div>}
-      <div className="stack">
-        {current && session ? <article className="card schedule-card popup-focus-card">
-          <div className="schedule-card-header"><div><span className="eyebrow">{timeEnded ? "결과 선택 대기" : onBreak ? "휴식 시간 측정 중" : "현재 일정"}</span><h2>{current.title}</h2></div><span className="badge">{timeEnded ? "시간 종료" : onBreak ? breakOvertime > 0 ? "휴식 초과" : "휴식 중" : session.status === "paused" ? "일시정지" : "집중 중"}</span></div>
-          <div className="timer">{onBreak ? breakOvertime > 0 ? `+${formatClock(breakOvertime)}` : formatClock(breakRemaining) : formatClock(Math.min(elapsed, current.targetFocusMinutes * 60))}</div>
-          <div className="schedule-meta">{onBreak && <><span>이번 휴식 {formatClock(currentBreakSeconds)}</span><span>누적 {formatClock(totalBreakSeconds)}</span></>}<span>{onBreak ? `권장 총 ${current.breakMinutes}분` : `${current.targetFocusMinutes}분 목표`}</span>{!onBreak && <span>{current.breakMinutes > 0 ? `${current.breakMinutes}분 권장 휴식` : "휴식 미설정"}</span>}<span>{current.blockingMode === "allowlist" ? "허용 사이트만" : current.blockingMode === "blocklist" ? "방해 사이트 차단" : "차단 꺼짐"}</span></div>
-          <div className="schedule-card-actions">{!timeEnded && (session.status === "active" ? <><button className="button secondary" onClick={() => run({ type: "FOCUS_PAUSE" })}>멈춤</button><button className="button secondary" onClick={() => run({ type: "FOCUS_BREAK" })}>휴식 시작</button></> : <button className="button" onClick={() => run({ type: "FOCUS_RESUME" })}>{onBreak ? "집중 재개" : "재개"}</button>)}{!timeEnded && <button className="button ghost" disabled={organizingTabs || !snapshot.tabOrganizerSettings.enabled} onClick={() => { setOrganizingTabs(true); void sendMessage({ type: "TAB_ORGANIZE", mode: "smart" }).catch((cause: unknown) => setSidePanelError(cause instanceof Error ? cause.message : "탭을 정리하지 못했습니다.")).finally(() => setOrganizingTabs(false)); }}>{organizingTabs ? "정리 중…" : "탭 정리"}</button>}<button className="button" onClick={() => void confirmFinish("completed")}>{timeEnded ? "완료했어요" : "완료"}</button><button className="button ghost" onClick={() => void confirmFinish("incomplete")}>{timeEnded ? "미완료예요" : "종료"}</button></div>
-        </article> : <article className="card schedule-card">
-          <div className="schedule-card-header"><div><span className="eyebrow">다음 일정</span><h2>{next?.title ?? "예정된 일정 없음"}</h2></div>{next && <span className="badge">예정</span>}</div>
-          {next && <><div className="schedule-meta"><span>{new Date(next.startAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span><span>{next.targetFocusMinutes}분 집중</span><span>{next.breakMinutes > 0 ? `${next.breakMinutes}분 권장 휴식` : "휴식 미설정"}</span></div><div className="schedule-card-actions"><button className="button" onClick={() => startFocus(next.id)}>집중 시작</button><button className="button secondary" onClick={() => run({ type: "SCHEDULE_SNOOZE", scheduleId: next.id, minutes: 5 })}>5분 미루기</button></div></>}
-        </article>}
-        <article className="card"><h3>오늘 달성률</h3><ProgressBar value={rate} label={`${completed}/${today.length}개 완료`} /></article>
-        <div className="popup-footer-actions"><button className="button secondary" onClick={openSidePanel} disabled={currentWindowId === null}>{currentWindowId === null ? "Side Panel 준비 중…" : "Side Panel 열기"}</button><button className="button ghost" onClick={() => openExtensionPage()}>전체 화면</button></div>
-      </div>
-    </main>
-  </div>;
+  }
+
+  return (
+    <div className="app-shell popup">
+      <BrandHeader subtitle="브라우저 집중 컨트롤러" />
+      <main className="content">
+        {actionError && (
+          <div className="action-error-banner" role="alert">
+            <span>{actionError}</span>
+            <button type="button" onClick={dismissActionError}>닫기</button>
+          </div>
+        )}
+        {localError && (
+          <div className="action-error-banner" role="alert">
+            <span>{localError}</span>
+            <button type="button" onClick={() => setLocalError(null)}>닫기</button>
+          </div>
+        )}
+        <div className="stack">
+          {session && schedule ? (
+            <article className="focus-timer-panel popup-focus-card">
+              <div className="flex items-center justify-between w-full">
+                <span className="focus-section-label">
+                  {session.status === "paused" ? "일시정지" : "현재 집중 중"}
+                </span>
+                <span className={`badge ${session.status === "paused" ? "warning" : ""}`}>
+                  {remaining === 0 ? "결과 대기" : session.status === "paused" ? "멈춤" : "집중 보호 중"}
+                </span>
+              </div>
+              <h2 className="text-white text-xl font-extrabold m-0 mt-1">{schedule.title}</h2>
+              <div className="focus-timer">{formatClock(remaining)}</div>
+              <div className="focus-time-meta">
+                <span>{schedule.targetFocusMinutes}분 목표</span>
+                <span>
+                  {schedule.blockingMode === "allowlist"
+                    ? "허용 사이트만"
+                    : schedule.blockingMode === "blocklist"
+                    ? "방해 사이트 차단"
+                    : "차단 꺼짐"}
+                </span>
+              </div>
+              <div className="schedule-card-actions w-full mt-2">
+                {remaining > 0 &&
+                  (session.status === "active" ? (
+                    <button className="button secondary" onClick={() => run({ type: "FOCUS_PAUSE" })}>
+                      일시정지
+                    </button>
+                  ) : (
+                    <button className="button" onClick={() => run({ type: "FOCUS_RESUME" })}>
+                      집중 재개
+                    </button>
+                  ))}
+                <button
+                  className="button ghost"
+                  disabled={organizingTabs || !snapshot.tabOrganizerSettings.enabled}
+                  onClick={() => void organizeTabs()}
+                >
+                  {organizingTabs ? "정리 중…" : "탭 정리"}
+                </button>
+                <button className="button" onClick={() => void finish("completed")}>
+                  완료
+                </button>
+                <button className="button danger" onClick={() => void finish("incomplete")}>
+                  종료
+                </button>
+              </div>
+            </article>
+          ) : (
+            <article className="card schedule-card">
+              <span className="eyebrow">WEB CONTROL PLANE</span>
+              <h2>진행 중인 집중이 없습니다.</h2>
+              <p>계획 작성과 기록 관리는 Web에서 진행하고, 시작된 집중은 이곳에서 계속 제어할 수 있습니다.</p>
+              <button className="button full" onClick={() => openWebApp(primaryAction.path ?? "/focus")}>
+                {primaryAction.label}
+              </button>
+            </article>
+          )}
+
+          <div className="popup-footer-actions">
+            <button className="button secondary" onClick={openSidePanel} disabled={currentWindowId === null}>
+              Side Panel 열기
+            </button>
+            <button className="button ghost" onClick={() => openWebApp("/home")}>
+              Web 홈 이동
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
 }

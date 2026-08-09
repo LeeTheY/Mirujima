@@ -1,14 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   assertTossTestMode,
+  assertSandboxTestMode,
   confirmTossPayment,
   fetchTossPayment,
   parseMembershipConfirmationRequest,
   parseMembershipOrderRequest,
+  parseTopupConfirmationRequest,
+  parseTopupOrderRequest,
   PREMIUM_PRICE_KRW
 } from "./toss";
 
 describe("Toss test payment boundary", () => {
+  it("accepts only fixed wallet topup requests", () => {
+    expect(parseTopupOrderRequest({ points: 10000, idempotencyKey: "topup-order:123" }))
+      .toEqual({ points: 10000, idempotencyKey: "topup-order:123" });
+    expect(parseTopupOrderRequest({ points: 300000, idempotencyKey: "topup-order:300k" }).points).toBe(300000);
+    expect(() => parseTopupOrderRequest({ points: 200000, idempotencyKey: "topup-order:200k" })).toThrow("충전 금액");
+    expect(() => parseTopupOrderRequest({ points: 20000, idempotencyKey: "topup-order:123" })).toThrow("충전 금액");
+    expect(parseTopupConfirmationRequest({ paymentKey: "payment_123", orderId: "mirujima_topup_123", amount: 150000 }).amount).toBe(150000);
+  });
+
+  it("allows non-provider cashout simulation without a Toss secret", () => {
+    expect(assertSandboxTestMode({ TOSS_PAYMENT_MODE: "test" })).toBeUndefined();
+    expect(() => assertSandboxTestMode({ TOSS_PAYMENT_MODE: "live" })).toThrow("테스트 모드");
+  });
   it("accepts only bounded membership request identifiers", () => {
     expect(parseMembershipOrderRequest({ idempotencyKey: "membership-idem-123" }))
       .toEqual({ idempotencyKey: "membership-idem-123" });

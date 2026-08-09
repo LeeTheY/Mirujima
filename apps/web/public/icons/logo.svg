@@ -1,0 +1,7 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' width='512' height='512'>
+  <rect width='512' height='512' rx='128' fill='#2F6FF2'/>
+  <!-- Minimalist Book M Monogram -->
+  <path d='M 128 350 L 128 190 Q 128 170 148 170 L 236 170 L 256 210 L 276 170 L 364 170 Q 384 170 384 190 L 384 350 Q 384 330 364 330 L 276 330 L 256 370 L 236 330 L 148 330 Q 128 330 128 350 Z' fill='none' stroke='#FFFFFF' stroke-width='28' stroke-linecap='round' stroke-linejoin='round'/>
+  <!-- Clean Coral Bookmark -->
+  <path d='M 256 170 L 256 270 L 240 250 L 256 270 L 272 250 Z' fill='#FF6B4A' stroke='#FF6B4A' stroke-width='14' stroke-linecap='round' stroke-linejoin='round'/>
+</svg>

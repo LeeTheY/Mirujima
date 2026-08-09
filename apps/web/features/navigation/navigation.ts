@@ -16,7 +16,7 @@ const guardianNavigation: NavigationItem[] = [
   { label: "홈", href: "/guardian" },
   { label: "학생", href: "/guardian/students" },
   { label: "기록", href: "/guardian/history" },
-  { label: "마이페이지", href: "/my" },
+  { label: "마이페이지", href: "/guardian/my" },
 ];
 
 export function navigationForRole(role: UserRole): NavigationItem[] {

@@ -1,0 +1,9 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' width='512' height='512'>
+  <rect width='512' height='512' rx='128' fill='#2F6FF2'/>
+  
+  <!-- Crisp Pure Geometric 'M' Monogram -->
+  <path d='M 80 384 V 128 H 140 L 256 296 L 372 128 H 432 V 384 H 372 V 208 L 276 348 H 236 L 140 208 V 384 H 80 Z' fill='#FFFFFF'/>
+  
+  <!-- Flush Coral Ribbon Bookmark starting flat from top stroke of M stem -->
+  <polygon points='372,128 412,128 412,248 392,230 372,248' fill='#FF6B4A'/>
+</svg>

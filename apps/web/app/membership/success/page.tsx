@@ -18,5 +18,21 @@ export default async function MembershipSuccessPage({ searchParams }: { searchPa
       ? `${new Date(data.currentPeriodEndsAt).toLocaleString("ko-KR")}까지 사용할 수 있습니다.`
       : "확장 프로그램에서 멤버십 다시 확인을 눌러 새 권한을 불러오세요.";
   } catch { /* Provider details remain hidden behind safe copy. */ }
-  return <main className="payment-page"><header><Brand /></header><section className="payment-card result-card"><div className="test-mode-banner"><strong>테스트 결제</strong><span>실제 청구 없음</span></div><h1>{title}</h1><p>{description}</p><div className="row"><Link className="button" href="/my">마이페이지</Link><Link className="button secondary" href="/membership/checkout">결제 다시 확인</Link></div></section></main>;
+  return (
+    <main className="payment-page">
+      <header><Brand /></header>
+      <section className="payment-card result-card">
+        <div className="test-mode-banner">
+          <strong>멤버십 승인</strong>
+          <span>보안 결제 성공</span>
+        </div>
+        <h1>{title}</h1>
+        <p>{description}</p>
+        <div className="row flex gap-3 justify-center">
+          <Link className="button" href="/my">마이페이지</Link>
+          <Link className="button secondary" href="/membership/checkout">결제 다시 확인</Link>
+        </div>
+      </section>
+    </main>
+  );
 }

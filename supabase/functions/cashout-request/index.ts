@@ -1,16 +1,13 @@
 import { parseCashoutRequest } from "../_shared/cashout.ts";
 import { authenticatedClient, corsHeaders, json } from "../_shared/membership.ts";
-import { assertTossTestMode } from "../_shared/toss.ts";
+import { assertSandboxTestMode } from "../_shared/toss.ts";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   try {
     const { admin, user } = await authenticatedClient(request);
-    assertTossTestMode({
-      TOSS_PAYMENT_MODE: Deno.env.get("TOSS_PAYMENT_MODE"),
-      TOSS_SECRET_KEY: Deno.env.get("TOSS_SECRET_KEY")
-    });
+    assertSandboxTestMode({ TOSS_PAYMENT_MODE: Deno.env.get("TOSS_PAYMENT_MODE") });
     const input = parseCashoutRequest(await request.json().catch(() => ({})));
     const { data, error } = await admin.rpc("request_test_cashout", {
       p_user_id: user.id,

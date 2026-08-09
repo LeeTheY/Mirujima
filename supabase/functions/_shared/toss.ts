@@ -63,6 +63,30 @@ export function assertTossTestMode(env: Record<string, string | undefined>): Tos
   return { secretKey };
 }
 
+export function assertSandboxTestMode(env: Record<string, string | undefined>): void {
+  if (env.TOSS_PAYMENT_MODE !== "test") throw new Error("Toss 테스트 모드가 아닙니다.");
+}
+
+const TOPUP_PRESETS = [10_000, 30_000, 50_000, 100_000, 150_000, 300_000];
+export function parseTopupOrderRequest(value: unknown): { points: number; idempotencyKey: string } {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const points = input.points;
+  const idempotencyKey = typeof input.idempotencyKey === "string" ? input.idempotencyKey.trim() : "";
+  if (typeof points !== "number" || !TOPUP_PRESETS.includes(points)) throw new Error("충전 금액이 올바르지 않습니다.");
+  if (!/^[A-Za-z0-9._:-]{8,200}$/.test(idempotencyKey)) throw new Error("주문 요청 식별자가 올바르지 않습니다.");
+  return { points, idempotencyKey };
+}
+
+export function parseTopupConfirmationRequest(value: unknown): MembershipConfirmationRequest {
+  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const paymentKey = typeof input.paymentKey === "string" ? input.paymentKey.trim() : "";
+  const orderId = typeof input.orderId === "string" ? input.orderId.trim() : "";
+  const amount = input.amount;
+  if (paymentKey.length < 6 || paymentKey.length > 200 || !/^[A-Za-z0-9_-]{6,64}$/.test(orderId)
+    || typeof amount !== "number" || !TOPUP_PRESETS.includes(amount)) throw new Error("충전 승인 정보가 올바르지 않습니다.");
+  return { paymentKey, orderId, amount };
+}
+
 function authorization(secretKey: string): string {
   return `Basic ${btoa(`${secretKey}:`)}`;
 }
@@ -109,7 +133,7 @@ export async function confirmTossPayment(
   input: TossPaymentInput,
   fetcher: typeof fetch = fetch
 ): Promise<SanitizedTossPayment> {
-  if (input.amount !== PREMIUM_PRICE_KRW) throw new Error("Premium 결제 금액이 올바르지 않습니다.");
+  if (!Number.isSafeInteger(input.amount) || input.amount <= 0) throw new Error("결제 금액이 올바르지 않습니다.");
   const payload = await tossRequest(config, "https://api.tosspayments.com/v1/payments/confirm", {
     method: "POST",
     headers: { "Idempotency-Key": input.idempotencyKey },
