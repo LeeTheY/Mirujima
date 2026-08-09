@@ -10,8 +10,11 @@ import { registerIdleListener } from "./idle";
 import { checkFocusHealth } from "./activity";
 import { realtimeOrganizeIfEnabled, recordManualTabMove, recordNewTabMode, safelyOrganizeActiveSession } from "./tab-organizer";
 import { cloudSyncService } from "../features/cloud-sync/service";
+import { registerExternalMessageHandler } from "../features/web-bridge/external-handler";
+import { resyncCanonicalFocus } from "../features/web-bridge/canonical-focus";
 
 registerMessageHandler();
+registerExternalMessageHandler();
 registerIdleListener();
 chrome.tabs.onCreated.addListener((tab) => { if (tab.id !== undefined) void recordNewTabMode(tab.id); });
 chrome.tabs.onMoved.addListener((tabId) => { void recordManualTabMove(tabId); });
@@ -64,6 +67,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       await generateReport(dateKeyDaysAgo(1));
     } else if (alarm.name === ALARM_PREFIX.cloudSync) {
       try { await cloudSyncService.sync(); } catch (error) { console.warn("예약 cloud 동기화를 건너뛰었습니다.", error); }
+    } else if (alarm.name === ALARM_PREFIX.canonicalFocusSync) {
+      try { await resyncCanonicalFocus(); } catch (error) { console.warn("웹 집중 세션 재동기화를 건너뛰었습니다.", error); }
     }
   })();
 });
@@ -132,3 +137,4 @@ chrome.notifications.onButtonClicked.addListener((id, buttonIndex) => {
 });
 
 void bootstrap();
+void chrome.alarms.create(ALARM_PREFIX.canonicalFocusSync, { periodInMinutes: 1 });

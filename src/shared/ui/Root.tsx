@@ -1,7 +1,7 @@
 import { useApp } from "./AppContext";
-import { Onboarding } from "../../features/onboarding/Onboarding";
 import { MainShell } from "./MainShell";
 import { PopupApp } from "../../popup/PopupApp";
+import { extensionEntrySurface } from "./extension-navigation";
 
 export function Root({ variant }: { variant: "sidepanel" | "popup" | "app" }) {
   const { snapshot, loading, error, refresh, dismissError } = useApp();
@@ -15,6 +15,8 @@ export function Root({ variant }: { variant: "sidepanel" | "popup" | "app" }) {
       <button className="button ghost" onClick={() => { dismissError(); if (history.length > 1) history.back(); }}>이전 화면으로</button>
     </div>
   </main>;
-  if (!snapshot.settings.onboardingCompleted) return <Onboarding />;
-  return variant === "popup" ? <PopupApp /> : <MainShell variant={variant} />;
+  if (extensionEntrySurface(snapshot.settings.onboardingCompleted) === "agent") {
+    if (variant === "popup") return <PopupApp />;
+    return <MainShell variant={variant} />;
+  }
 }

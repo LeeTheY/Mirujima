@@ -22,6 +22,9 @@
     "service_worker": "assets/background.js",
     "type": "module"
   },
+  "externally_connectable": {
+    "matches": ["https://mirujima.vercel.app/*"]
+  },
   "action": {
     "default_title": "미루지마",
     "default_popup": "popup.html",

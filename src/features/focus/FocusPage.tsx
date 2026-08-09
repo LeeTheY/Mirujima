@@ -5,6 +5,7 @@ import { elapsedBreakSeconds, elapsedFocusSeconds, formatClock, getBreakTimeStat
 import { useNow } from "../../shared/time/useNow";
 import { TabOrganizerCard } from "../tab-organizer/TabOrganizerCard";
 import { sendMessage } from "../../shared/chrome/messaging";
+import { openWebApp } from "../../shared/ui/extension-navigation";
 
 export function FocusPage() {
   const { snapshot, run } = useApp();
@@ -14,7 +15,7 @@ export function FocusPage() {
   const elapsed = useMemo(() => session ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now) : 0, [session, now]);
   const target = (schedule?.targetFocusMinutes ?? 0) * 60;
   const remaining = remainingFocusSeconds(schedule?.targetFocusMinutes ?? 0, elapsed);
-  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><EmptyState>Plan 또는 Today에서 일정을 선택해 집중을 시작하세요.</EmptyState></section>;
+  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><EmptyState><span>Web에서 계획을 만들고 집중을 시작하세요.</span><button className="button" onClick={() => openWebApp("/focus")}>Web 집중 페이지 열기</button></EmptyState></section>;
 
   const progress = target ? Math.min(100, Math.round(elapsed / target * 100)) : 0;
   const sessionDomains = schedule.blockingMode === "blocklist" ? schedule.blockedDomains : schedule.allowedDomains;

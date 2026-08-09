@@ -1,6 +1,24 @@
 project_id = "mirujima"
 
-[functions.activate-membership]
+[functions.membership-create-order]
+verify_jwt = true
+
+[functions.membership-confirm-payment]
+verify_jwt = true
+
+[functions.wallet-summary]
+verify_jwt = true
+
+[functions.wallet-create-topup-order]
+verify_jwt = true
+
+[functions.wallet-confirm-topup]
+verify_jwt = true
+
+[functions.cashout-request]
+verify_jwt = true
+
+[functions.cashout-complete-test]
 verify_jwt = true
 
 [functions.get-membership-entitlements]
@@ -10,4 +28,10 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.ai-writing]
+verify_jwt = true
+
+[functions.family-link-issue]
+verify_jwt = true
+
+[functions.family-link-redeem]
 verify_jwt = true

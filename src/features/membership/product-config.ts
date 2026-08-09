@@ -1,17 +1,22 @@
-import type { BillingIntegration } from "./types";
-
 function env(name: keyof ImportMetaEnv): string {
   return String(import.meta.env[name] ?? "").trim();
 }
 
-const billing = env("VITE_BILLING_INTEGRATION");
-
 export const MEMBERSHIP_PRODUCT = {
   monthlyPriceLabel: env("VITE_PREMIUM_MONTHLY_PRICE_LABEL") || "월 가격 미설정",
-  billingIntegration: (billing === "stripe" ? "stripe" : "deferred") as BillingIntegration,
   supabaseUrl: env("VITE_SUPABASE_URL"),
-  supabasePublishableKey: env("VITE_SUPABASE_PUBLISHABLE_KEY")
+  supabasePublishableKey: env("VITE_SUPABASE_PUBLISHABLE_KEY"),
+  webAppOrigin: env("VITE_WEB_APP_ORIGIN")
 } as const;
+
+export function membershipCheckoutUrl(origin: string): string {
+  let parsed: URL;
+  try { parsed = new URL(origin); } catch { throw new Error("Web 앱 origin이 올바르지 않습니다."); }
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== origin.replace(/\/$/, "") || parsed.hostname.includes("*")) {
+    throw new Error("Web 앱 origin이 올바르지 않습니다.");
+  }
+  return `${parsed.origin}/membership/checkout`;
+}
 
 export function assertMembershipConfiguration(): void {
   if (!MEMBERSHIP_PRODUCT.supabaseUrl || !MEMBERSHIP_PRODUCT.supabasePublishableKey) {
@@ -20,4 +25,5 @@ export function assertMembershipConfiguration(): void {
   if (!env("VITE_PREMIUM_MONTHLY_PRICE_LABEL")) {
     throw new Error("Premium 월 가격 표시가 설정되지 않았습니다.");
   }
+  membershipCheckoutUrl(MEMBERSHIP_PRODUCT.webAppOrigin);
 }

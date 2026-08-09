@@ -33,6 +33,12 @@ export interface Schedule {
   snoozedUntil?: string;
   createdAt: string;
   updatedAt: string;
+  ownerUserId?: string;
+  plannedStartAt?: string | null;
+  priority?: "low" | "medium" | "high";
+  selfDepositPoints?: number;
+  guardianRewardRequestPoints?: number;
+  webStatus?: "draft" | "planned" | "ready" | "active" | "completed" | "failed" | "cancelled";
 }
 
 export interface FocusSession {
@@ -51,6 +57,8 @@ export interface FocusSession {
   breakEndsAt?: string | null;
   breakStartedAt?: string | null;
   accumulatedBreakSeconds?: number;
+  endsAt?: string;
+  canonical?: boolean;
 }
 
 export type ActivityEventType =

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useApp } from "../shared/ui/AppContext";
-import { DomainChips } from "../shared/ui/components";
+import { DomainChips, MirujimaLogoIcon } from "../shared/ui/components";
 import { elapsedFocusSeconds, formatClock, remainingFocusSeconds } from "../shared/time/time";
 import { useNow } from "../shared/time/useNow";
 
@@ -25,8 +25,11 @@ export function BlockedApp() {
     <section className="blocked-card">
       <header className="blocked-hero">
         <div className="blocked-brand-row">
-          <img className="blocked-brand-icon" src="/icons/Mirujima_Icon.png" alt="" />
-          <div className="blocked-brand-copy"><strong>미루지마</strong><span>집중을 지키는 중</span></div>
+          <MirujimaLogoIcon size={44} />
+          <div className="blocked-brand-copy">
+            <strong style={{ fontSize: "1.5rem", fontWeight: 850 }}>미루<span className="brand-accent">지마</span></strong>
+            <span>집중을 지키는 중</span>
+          </div>
           <span className="badge warning">집중 보호 중</span>
         </div>
         <div className="blocked-title-group">

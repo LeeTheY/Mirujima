@@ -1,6 +1,6 @@
 export type MembershipPlan = "free" | "premium";
-export type BillingIntegration = "deferred" | "stripe";
-export type MembershipActivationSource = "onboarding_deferred" | "stripe_subscription";
+export type BillingIntegration = "toss";
+export type MembershipActivationSource = "toss_payment";
 
 export type PremiumEntitlement =
   | "learning-grass"
@@ -22,7 +22,7 @@ export const PREMIUM_ENTITLEMENTS: PremiumEntitlement[] = [
 export interface MembershipSnapshot {
   plan: MembershipPlan;
   status: "inactive" | "active";
-  billingIntegration: BillingIntegration;
+  billingIntegration: BillingIntegration | null;
   activationSource: MembershipActivationSource | null;
   userId: string | null;
   email: string | null;
@@ -30,13 +30,15 @@ export interface MembershipSnapshot {
   entitlements: PremiumEntitlement[];
   deviceCount: number;
   lastCheckedAt: string | null;
+  currentPeriodStartedAt: string | null;
+  currentPeriodEndsAt: string | null;
   error: string | null;
 }
 
 export const FREE_MEMBERSHIP: MembershipSnapshot = {
   plan: "free",
   status: "inactive",
-  billingIntegration: "deferred",
+  billingIntegration: null,
   activationSource: null,
   userId: null,
   email: null,
@@ -44,6 +46,8 @@ export const FREE_MEMBERSHIP: MembershipSnapshot = {
   entitlements: [],
   deviceCount: 0,
   lastCheckedAt: null,
+  currentPeriodStartedAt: null,
+  currentPeriodEndsAt: null,
   error: null
 };
 
@@ -62,17 +66,24 @@ export function normalizeMembershipSnapshot(value: unknown): MembershipSnapshot 
   const entitlements = Array.isArray(input.entitlements)
     ? input.entitlements.filter((item): item is PremiumEntitlement => PREMIUM_ENTITLEMENTS.includes(item as PremiumEntitlement))
     : [];
+  const billingIntegration = input.billingIntegration === "toss" ? "toss" : null;
+  const activationSource = input.activationSource === "toss_payment" ? "toss_payment" : null;
+  const currentPeriodStartedAt = typeof input.currentPeriodStartedAt === "string" ? input.currentPeriodStartedAt : null;
+  const currentPeriodEndsAt = typeof input.currentPeriodEndsAt === "string" ? input.currentPeriodEndsAt : null;
+  const periodActive = Boolean(currentPeriodEndsAt && new Date(currentPeriodEndsAt).getTime() > Date.now());
   return {
     plan: input.plan === "premium" ? "premium" : "free",
-    status: input.status === "active" ? "active" : "inactive",
-    billingIntegration: input.billingIntegration === "stripe" ? "stripe" : "deferred",
-    activationSource: input.activationSource === "onboarding_deferred" || input.activationSource === "stripe_subscription" ? input.activationSource : null,
+    status: input.status === "active" && billingIntegration === "toss" && activationSource === "toss_payment" && periodActive ? "active" : "inactive",
+    billingIntegration,
+    activationSource,
     userId: typeof input.userId === "string" ? input.userId : null,
     email: typeof input.email === "string" ? input.email : null,
     chromeAccountEmail: typeof input.chromeAccountEmail === "string" ? input.chromeAccountEmail : null,
     entitlements,
     deviceCount: typeof input.deviceCount === "number" && input.deviceCount >= 0 ? input.deviceCount : 0,
     lastCheckedAt: typeof input.lastCheckedAt === "string" ? input.lastCheckedAt : null,
+    currentPeriodStartedAt,
+    currentPeriodEndsAt,
     error: typeof input.error === "string" ? input.error : null
   };
 }

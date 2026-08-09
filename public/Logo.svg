@@ -1,0 +1,15 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 840 220' width='840' height='220'>
+  <!-- Mirujima Icon Badge (Larger Scale) -->
+  <g transform='translate(24, 25)'>
+    <rect width='170' height='170' rx='44' fill='#2F6FF2'/>
+    <!-- Pure M Monogram -->
+    <path d='M 27 127 V 42 H 46 L 85 98 L 124 42 H 143 V 127 H 124 V 69 L 92 116 H 78 L 46 69 V 127 H 27 Z' fill='#FFFFFF'/>
+    <!-- Flush Coral Ribbon Bookmark -->
+    <polygon points='124,42 137,42 137,82 130.5,76 124,82' fill='#FF6B4A'/>
+  </g>
+  
+  <!-- Korean Brand Text: 미루(#101C32)지마(#2F6FF2) -->
+  <text x='225' y='148' font-family='Pretendard, Inter, system-ui, sans-serif' font-size='114' font-weight='850' letter-spacing='-2'>
+    <tspan fill='#101C32'>미루</tspan><tspan fill='#2F6FF2'>지마</tspan>
+  </text>
+</svg>

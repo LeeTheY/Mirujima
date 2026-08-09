@@ -20,7 +20,9 @@ export async function bootstrap(): Promise<void> {
   const schedule = session ? snapshot.schedules.find((item) => item.id === session.scheduleId) : undefined;
   if (session && schedule && session.status === "active") {
     const elapsed = elapsedFocusSeconds(session.startedAt, null, session.accumulatedFocusSeconds);
-    const remainingSeconds = schedule.targetFocusMinutes * 60 - elapsed;
+    const remainingSeconds = session.endsAt
+      ? Math.max(0, Math.floor((new Date(session.endsAt).getTime() - Date.now()) / 1000))
+      : schedule.targetFocusMinutes * 60 - elapsed;
     if (remainingSeconds <= 0) {
       await markFocusAwaitingResult();
     } else {
@@ -28,7 +30,7 @@ export async function bootstrap(): Promise<void> {
       await chrome.action.setBadgeBackgroundColor({ color: "#315A4A" });
       await chrome.action.setBadgeText({ text: "ON" });
       await ensureFocusCheckAlarm(true);
-      await setFocusEndAlarm(session.id, new Date(Date.now() + remainingSeconds * 1000).toISOString());
+      await setFocusEndAlarm(session.id, session.endsAt ?? new Date(Date.now() + remainingSeconds * 1000).toISOString());
     }
   } else if (session?.status === "awaiting-result") {
     await clearBlockingRules();

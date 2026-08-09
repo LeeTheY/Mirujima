@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { MEMBERSHIP_PRODUCT, assertMembershipConfiguration } from "./product-config";
+import { MEMBERSHIP_PRODUCT, assertMembershipConfiguration, membershipCheckoutUrl } from "./product-config";
 import {
   clearMembershipAccountData,
   getMembershipCache,
@@ -14,8 +14,10 @@ import { cloudSyncStorage } from "../cloud-sync/storage";
 interface EntitlementsResponse {
   plan: "free" | "premium";
   status: "inactive" | "active";
-  billingIntegration: "deferred" | "stripe";
-  activationSource: "onboarding_deferred" | "stripe_subscription" | null;
+  billingIntegration: "toss" | null;
+  activationSource: "toss_payment" | null;
+  currentPeriodStartedAt: string | null;
+  currentPeriodEndsAt: string | null;
   entitlements: Array<{ featureKey: PremiumEntitlement; enabled: boolean; validUntil: string | null }>;
   deviceCount: number;
 }
@@ -57,7 +59,7 @@ export async function membershipDevicePayload() {
   };
 }
 
-async function invokeEntitlements(functionName: "activate-membership" | "get-membership-entitlements"): Promise<EntitlementsResponse> {
+async function invokeEntitlements(functionName: "get-membership-entitlements"): Promise<EntitlementsResponse> {
   const { data, error } = await membershipSupabaseClient().functions.invoke<EntitlementsResponse>(functionName, {
     body: await membershipDevicePayload()
   });
@@ -83,6 +85,8 @@ async function cacheServerMembership(data: EntitlementsResponse, email: string, 
     entitlements,
     deviceCount: data.deviceCount,
     lastCheckedAt: new Date().toISOString(),
+    currentPeriodStartedAt: data.currentPeriodStartedAt,
+    currentPeriodEndsAt: data.currentPeriodEndsAt,
     error: null
   };
   await setMembershipCache(membership);
@@ -147,18 +151,9 @@ export const membershipService = {
     return next;
   },
 
-  async activate(): Promise<MembershipSnapshot> {
-    if (MEMBERSHIP_PRODUCT.billingIntegration !== "deferred") {
-      throw new Error("현재 결제 연동 설정에서는 무료 Premium 활성화를 사용할 수 없습니다.");
-    }
-    const account = await chromeAccount();
-    const { data: sessionData } = await membershipSupabaseClient().auth.getSession();
-    const user = sessionData.session?.user;
-    if (!user) throw new Error("먼저 Google 로그인을 완료해 주세요.");
-    if (normalizedEmail(user.email) !== normalizedEmail(account.email)) {
-      throw new Error("Chrome 기본 계정과 로그인 계정이 일치하지 않습니다.");
-    }
-    return cacheServerMembership(await invokeEntitlements("activate-membership"), user.email ?? account.email, user.id, account.email);
+  async openCheckout(): Promise<void> {
+    assertMembershipConfiguration();
+    await chrome.tabs.create({ url: membershipCheckoutUrl(MEMBERSHIP_PRODUCT.webAppOrigin) });
   },
 
   async restore(): Promise<MembershipSnapshot> {

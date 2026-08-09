@@ -29,7 +29,7 @@ export type ExtensionMessage =
   | { type: "TAB_ORGANIZER_SETTINGS_UPDATE"; payload: TabOrganizerSettings }
   | { type: "MEMBERSHIP_CHECK_ACCOUNT" }
   | { type: "MEMBERSHIP_SIGN_IN" }
-  | { type: "MEMBERSHIP_ACTIVATE" }
+  | { type: "MEMBERSHIP_OPEN_CHECKOUT" }
   | { type: "MEMBERSHIP_RESTORE" }
   | { type: "MEMBERSHIP_SIGN_OUT" }
   | { type: "CLOUD_INITIAL_BACKUP" }
