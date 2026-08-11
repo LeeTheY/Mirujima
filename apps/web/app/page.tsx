@@ -10,7 +10,7 @@ export default function LandingPage() {
         <nav className="flex items-center gap-8">
           <a href="#how" className="hover:text-blue-600 transition-colors">작동 방식</a>
           <a href="#privacy" className="hover:text-blue-600 transition-colors">개인정보</a>
-          <Link className="button small ml-4" href="/onboarding">
+          <Link className="button small ml-4" href="/login">
             시작하기
           </Link>
         </nav>
@@ -26,7 +26,7 @@ export default function LandingPage() {
             할 일을 적는 데서 끝나지 않습니다. 계획한 시간에는 방해 사이트를 막고, 집중 결과는 안전하게 기록합니다.
           </p>
           <div className="hero-actions">
-            <Link className="button" href="/onboarding">
+            <Link className="button" href="/login">
               <span>무료로 시작하기</span>
               <ChevronRight className="w-4 h-4" />
             </Link>

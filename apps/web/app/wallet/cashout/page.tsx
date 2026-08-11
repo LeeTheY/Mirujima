@@ -19,7 +19,7 @@ export default async function CashoutPage() {
 
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) redirect("/onboarding");
+  if (!auth.user) redirect("/login");
 
   const { data } = await supabase.functions.invoke("wallet-summary", { body: {} });
   const initialBalances = {

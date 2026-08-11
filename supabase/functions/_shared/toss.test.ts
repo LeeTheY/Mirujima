@@ -2,13 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assertTossTestMode,
   assertSandboxTestMode,
+  cancelTossPayment,
   confirmTossPayment,
   fetchTossPayment,
   parseMembershipConfirmationRequest,
   parseMembershipOrderRequest,
   parseTopupConfirmationRequest,
   parseTopupOrderRequest,
-  PREMIUM_PRICE_KRW
+  parseTopupRefundRequest,
+  PREMIUM_PRICE_KRW,
+  sandboxRefundPayload,
 } from "./toss";
 
 describe("Toss test payment boundary", () => {
@@ -25,14 +28,38 @@ describe("Toss test payment boundary", () => {
     expect(assertSandboxTestMode({ TOSS_PAYMENT_MODE: "test" })).toBeUndefined();
     expect(() => assertSandboxTestMode({ TOSS_PAYMENT_MODE: "live" })).toThrow("테스트 모드");
   });
+
+  it("builds a sandbox refund record without a provider call", () => {
+    expect(sandboxRefundPayload("payment_key_123", new Date("2026-08-10T09:10:00.000Z"))).toMatchObject({
+      status: "CANCELED",
+      paymentKey: "payment_key_123",
+      sandbox: true,
+      actualRefund: false,
+    });
+  });
+  it("validates and cancels a topup refund with an idempotency key", async () => {
+    expect(parseTopupRefundRequest({ idempotencyKey: "topup-refund:123" })).toEqual({ idempotencyKey: "topup-refund:123" });
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      status: "CANCELED", paymentKey: "payment_key_1", cancels: [{ cancelStatus: "DONE" }]
+    }), { status: 200 }));
+    await cancelTossPayment({ secretKey: "test_sk_example" }, {
+      paymentKey: "payment_key_1", idempotencyKey: "topup-refund:123", cancelReason: "미사용 충전 포인트 환불"
+    }, fetcher);
+    expect(fetcher).toHaveBeenCalledWith(
+      "https://api.tosspayments.com/v1/payments/payment_key_1/cancel",
+      expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "Idempotency-Key": "topup-refund:123" }) })
+    );
+  });
   it("accepts only bounded membership request identifiers", () => {
     expect(parseMembershipOrderRequest({ idempotencyKey: "membership-idem-123" }))
-      .toEqual({ idempotencyKey: "membership-idem-123" });
+      .toEqual({ idempotencyKey: "membership-idem-123", orderKind: "membership" });
+    expect(parseMembershipOrderRequest({ idempotencyKey: "membership-seat-123", orderKind: "family_seat" }).orderKind).toBe("family_seat");
     expect(parseMembershipConfirmationRequest({
       paymentKey: "payment_key_123",
       orderId: "membership_order_123",
       amount: 12900
     })).toEqual({ paymentKey: "payment_key_123", orderId: "membership_order_123", amount: 12900 });
+    expect(parseMembershipConfirmationRequest({ paymentKey: "payment_key_456", orderId: "membership_order_456", amount: 9900 }).amount).toBe(9900);
     expect(() => parseMembershipConfirmationRequest({ paymentKey: "x", orderId: "bad order", amount: 1 })).toThrow("결제 승인 정보");
   });
 

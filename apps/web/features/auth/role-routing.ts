@@ -24,5 +24,5 @@ export function resolvePersistedRole(result: unknown): UserRole | null {
 export function destinationForRole(role: UserRole | null): string {
   if (role === "student") return "/home";
   if (role === "guardian") return "/guardian";
-  return "/onboarding";
+  return "/login";
 }

@@ -15,10 +15,10 @@ verify_jwt = true
 [functions.wallet-confirm-topup]
 verify_jwt = true
 
-[functions.cashout-request]
+[functions.wallet-refund-topup]
 verify_jwt = true
 
-[functions.cashout-complete-test]
+[functions.cashout-request]
 verify_jwt = true
 
 [functions.get-membership-entitlements]

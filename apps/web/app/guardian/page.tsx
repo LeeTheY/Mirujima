@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { UserCheck, ShieldCheck, HeartHandshake, ArrowRight } from "lucide-react";
+import { UserCheck, ShieldCheck, HeartHandshake, CreditCard, ChevronRight } from "lucide-react";
 import { requireAuthenticatedRole } from "@/features/auth/require-role";
 import { loadGuardianLinkedStudents } from "@/features/family/linked-students-data";
 import { LinkedStudentsList } from "@/features/family/linked-students-list";
+
+import { GuardianHomeWalletCard } from "@/features/profile/guardian-home-wallet-card";
 
 export default async function GuardianHome() {
   await requireAuthenticatedRole("/guardian");
@@ -32,7 +34,7 @@ export default async function GuardianHome() {
           <div className="mt-4">
             <Link className="button secondary inline-flex items-center gap-2" href="/guardian/my">
               <span>연결 코드 입력하기</span>
-              <ArrowRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         </article>
@@ -46,13 +48,7 @@ export default async function GuardianHome() {
           </div>
         </article>
 
-        <article className="card">
-          <div>
-            <div className="flex items-center justify-between mb-2"><span className="card-label">보호자 지갑</span><ShieldCheck className="w-4 h-4 text-blue-600" /></div>
-            <p className="m-0">학생 보상에 사용할 테스트 포인트를 안전하게 관리합니다.</p>
-            <Link className="text-button text-xs font-bold mt-4" href="/wallet/charge">포인트 충전하기</Link>
-          </div>
-        </article>
+        <GuardianHomeWalletCard />
 
         <article className="card wide">
           <div>

@@ -7,8 +7,8 @@ describe("role destination", () => {
     expect(destinationForRole("guardian")).toBe("/guardian");
   });
 
-  it("routes incomplete profiles to onboarding", () => {
-    expect(destinationForRole(null)).toBe("/onboarding");
+  it("routes incomplete profiles to login", () => {
+    expect(destinationForRole(null)).toBe("/login");
   });
 
   it("preserves an existing role instead of attempting to overwrite it", () => {

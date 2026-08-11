@@ -11,6 +11,29 @@ type WritingStyle = "proofread" | "natural" | "concise";
 type AnalysisTask = "content-summary" | "study-organize";
 interface OcrBlock { id: string; type: typeof BLOCK_TYPES[number]; text: string }
 
+const focusCoachSchema = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    recommendedTitle: { type: "string" },
+    recommendedFocusMinutes: { type: "integer", minimum: 1, maximum: 720 },
+    recommendedBreakMinutes: { type: "integer", minimum: 0, maximum: 120 },
+    steps: { type: "array", minItems: 1, maxItems: 6, items: { type: "string" } },
+    reason: { type: "string" }
+  },
+  required: ["summary", "recommendedTitle", "recommendedFocusMinutes", "recommendedBreakMinutes", "steps", "reason"],
+  additionalProperties: false
+} as const;
+
+const guardianSummarySchema = {
+  type: "object",
+  properties: {
+    title: { type: "string" }, summary: { type: "string" },
+    suggestions: { type: "array", minItems: 1, maxItems: 4, items: { type: "string" } }
+  },
+  required: ["title", "summary", "suggestions"], additionalProperties: false
+} as const;
+
 const writingSchema = {
   type: "object",
   properties: {
@@ -153,15 +176,70 @@ Deno.serve(async (request) => {
     const body: Record<string, unknown> = await request.json();
     const { client, user } = await authenticatedClient(request);
     await registerDevice(client, user.id, body);
-    let rateTask: "ocr" | "grammar-correction" | AnalysisTask;
+    let rateTask: "ocr" | "grammar-correction" | "focus-plan-review" | "guardian-summary" | AnalysisTask;
     if (body.action === "ocr") { await assertEntitlement(client, user.id, "screen-ocr"); rateTask = "ocr"; }
     else if (body.action === "correct") { await assertEntitlement(client, user.id, "grammar-correction"); rateTask = "grammar-correction"; }
     else if (body.action === "analyze" && (body.task === "content-summary" || body.task === "study-organize")) {
       await assertEntitlement(client, user.id, "screen-ocr"); await assertEntitlement(client, user.id, "content-summary"); rateTask = body.task;
-    } else return json({ error: "unsupported_action" }, 400);
+    } else if (body.action === "focus-coach") { await assertEntitlement(client, user.id, "ai-focus-coach"); rateTask = "focus-plan-review"; }
+    else if (body.action === "guardian-summary") { await assertEntitlement(client, user.id, "ai-guardian-summary"); rateTask = "guardian-summary"; }
+    else return json({ error: "unsupported_action" }, 400);
     const { data: allowed, error: rateError } = await client.rpc("consume_ai_task_rate_limit", { p_task: rateTask });
     if (rateError) throw rateError;
     if (!allowed) return json({ error: "rate_limited", message: "이 AI 작업의 1분 요청 한도를 넘었습니다. 잠시 후 다시 시도해 주세요." }, 429);
+
+    if (body.action === "focus-coach") {
+      const title = typeof body.title === "string" ? body.title.trim().slice(0, 120) : "";
+      const targetFocusMinutes = Number(body.targetFocusMinutes);
+      const goals = Array.isArray(body.goals) ? body.goals.slice(0, 10).map((goal) => {
+        if (!goal || typeof goal !== "object") return null;
+        const item = goal as Record<string, unknown>;
+        const name = typeof item.name === "string" ? item.name.trim().slice(0, 120) : "";
+        const detail = typeof item.detail === "string" ? item.detail.trim().slice(0, 500) : "";
+        const minutes = Number(item.minutes);
+        return name && Number.isSafeInteger(minutes) && minutes >= 1 && minutes <= 720 ? { name, detail, minutes } : null;
+      }).filter(Boolean) : [];
+      if (!title || !Number.isSafeInteger(targetFocusMinutes) || targetFocusMinutes < 1 || targetFocusMinutes > 720 || goals.length === 0) {
+        return json({ error: "invalid_focus_plan" }, 400);
+      }
+      const response = await groqRequest({
+        model: WRITING_MODEL,
+        messages: [
+          { role: "system", content: "당신은 학생의 집중 계획을 현실적으로 다듬는 코치입니다. 결제·포인트 이동·계획 확정은 하지 말고, 입력된 목표와 시간만 근거로 한국어로 제안하세요." },
+          { role: "user", content: JSON.stringify({ title, targetFocusMinutes, goals }) }
+        ], reasoning_effort: "low", reasoning_format: "hidden", temperature: 0.2, max_completion_tokens: 1200, store: false,
+        response_format: { type: "json_schema", json_schema: { name: "focus_plan_review", strict: true, schema: focusCoachSchema } }
+      });
+      const result = parseJsonResponse(response);
+      if (!result || typeof result !== "object") return json({ error: "invalid_ai_result" }, 502);
+      return json(result);
+    }
+
+    if (body.action === "guardian-summary") {
+      const students = Array.isArray(body.students) ? body.students.slice(0, 5).map((student) => {
+        if (!student || typeof student !== "object") return null;
+        const item = student as Record<string, unknown>;
+        return {
+          displayName: typeof item.displayName === "string" ? item.displayName.slice(0, 80) : "학생",
+          completionRate: Math.max(0, Math.min(100, Number(item.completionRate) || 0)),
+          totalFocusMinutes: Math.max(0, Math.min(10080, Number(item.totalFocusMinutes) || 0)),
+          rewardStatus: typeof item.rewardStatus === "string" ? item.rewardStatus.slice(0, 80) : "정보 없음",
+          aiSummary: typeof item.aiSummary === "string" ? item.aiSummary.slice(0, 1000) : null
+        };
+      }).filter(Boolean) : [];
+      if (students.length === 0) return json({ error: "guardian_summary_data_required" }, 400);
+      const response = await groqRequest({
+        model: WRITING_MODEL,
+        messages: [
+          { role: "system", content: "당신은 가족 학습 지원 요약 도우미입니다. 제공된 동의 집계 정보만 사용하고 감정·의학·심리 상태를 추측하지 마세요. 방문 사이트나 검색 내용을 추측하지 마세요." },
+          { role: "user", content: JSON.stringify(students) }
+        ], reasoning_effort: "low", reasoning_format: "hidden", temperature: 0.2, max_completion_tokens: 1000, store: false,
+        response_format: { type: "json_schema", json_schema: { name: "guardian_family_summary", strict: true, schema: guardianSummarySchema } }
+      });
+      const result = parseJsonResponse(response);
+      if (!result || typeof result !== "object") return json({ error: "invalid_ai_result" }, 502);
+      return json(result);
+    }
 
     if (body.action === "ocr") {
       if (typeof body.imageDataUrl !== "string" || !/^data:image\/(jpeg|png);base64,/i.test(body.imageDataUrl) || body.imageDataUrl.length > MAX_IMAGE_DATA_URL_LENGTH) return json({ error: "invalid_image" }, 400);
@@ -212,6 +290,7 @@ Deno.serve(async (request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "AI 요청을 처리하지 못했습니다.";
     const status = message.includes("entitlement") ? 403 : message.includes("로그인") ? 401 : 502;
+    if (status === 403) return json({ error: "membership_entitlement_required", message: "AI 기능을 사용하려면 활성 멤버십이 필요합니다." }, 403);
     return json({ error: "ai_writing_failed", message }, status);
   }
 });

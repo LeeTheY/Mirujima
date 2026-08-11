@@ -2,6 +2,7 @@ import Link from "next/link";
 
 interface BrandProps {
   showSubtitle?: boolean;
+  href?: string;
 }
 
 export function MirujimaLogoIcon({ size = 38 }: { size?: number }) {
@@ -27,9 +28,9 @@ export function MirujimaLogoIcon({ size = 38 }: { size?: number }) {
   );
 }
 
-export function Brand({ showSubtitle = false }: BrandProps) {
+export function Brand({ showSubtitle = false, href = "/" }: BrandProps) {
   return (
-    <Link className="brand" href="/" aria-label="미루지마 홈" style={{ gap: "10px" }}>
+    <Link className="brand" href={href} aria-label="미루지마 홈" style={{ gap: "10px" }}>
       <MirujimaLogoIcon size={38} />
       <span className="brand-name" style={{ fontSize: "1.45rem", fontWeight: 850, letterSpacing: "-0.03em" }}>
         미루<span className="brand-accent">지마</span>

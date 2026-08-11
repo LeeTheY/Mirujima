@@ -23,7 +23,7 @@ export function DashboardShell({
   return (
     <div className="app-frame">
       <header className="app-header">
-        <Brand />
+        <Brand href={role === "guardian" ? "/guardian" : "/home"} />
         <nav aria-label="주요 메뉴" className="pill-nav-container">
           <div className="pill-nav">
             {navigationForRole(role).map((item) => (

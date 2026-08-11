@@ -34,7 +34,9 @@ Deno.serve(async (request) => {
       ...input,
       idempotencyKey: `membership-confirm:${input.orderId}`
     });
-    const { error: confirmationError } = await admin.rpc("confirm_toss_membership_payment", {
+    const { data: order } = await admin.from("membership_payment_orders").select("order_kind").eq("user_id", user.id).eq("order_id", input.orderId).maybeSingle();
+    const confirmationFunction = order?.order_kind === "family_seat" ? "confirm_toss_family_seat_payment" : "confirm_toss_membership_payment";
+    const { error: confirmationError } = await admin.rpc(confirmationFunction, {
       p_user_id: user.id,
       p_order_id: input.orderId,
       p_payment_key: input.paymentKey,
@@ -60,6 +62,14 @@ Deno.serve(async (request) => {
     if (error instanceof TossApiError) {
       return json({ error: error.retryable ? "payment_temporarily_unavailable" : "payment_rejected" }, error.retryable ? 502 : 400);
     }
-    return json({ error: "membership_confirmation_failed" }, 400);
+    const code = message.includes("student membership conflict") ? "student_membership_conflict"
+      : message.includes("guardian membership conflict") ? "guardian_membership_conflict"
+      : message.includes("seat limit") ? "family_seat_limit_reached"
+      : message.includes("period changed") || message.includes("stale") ? "membership_order_expired"
+      : message.includes("amount mismatch") ? "membership_payment_amount_mismatch"
+      : message.includes("already active") ? "membership_already_active"
+      : message.includes("role") ? "membership_role_mismatch"
+      : "membership_confirmation_failed";
+    return json({ error: code }, 400);
   }
 });

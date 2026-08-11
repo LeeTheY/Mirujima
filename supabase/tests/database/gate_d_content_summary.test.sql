@@ -11,14 +11,15 @@ select is((select count(*) from public.memberships membership left join public.m
   where membership.plan = 'premium' and membership.status = 'active' and entitlement.user_id is null), 0::bigint, 'existing active Premium users are backfilled');
 
 insert into auth.users (id, email) values ('66666666-6666-4666-8666-666666666666', 'gate-d@example.com');
+update public.profiles set role='student', onboarding_completed=true where id='66666666-6666-4666-8666-666666666666';
 do $$
 declare order_id text;
 begin
   order_id := public.create_membership_payment_order('66666666-6666-4666-8666-666666666666', 'gate-d-payment-0001')->>'orderId';
-  perform public.claim_membership_payment('66666666-6666-4666-8666-666666666666', order_id, 'gate_d_payment_key', 12900);
+  perform public.claim_membership_payment('66666666-6666-4666-8666-666666666666', order_id, 'gate_d_payment_key', 9900);
   perform public.confirm_toss_membership_payment('66666666-6666-4666-8666-666666666666', order_id, 'gate_d_payment_key', '{"status":"DONE"}'::jsonb);
 end $$;
-select is((select count(*) from public.membership_entitlements where user_id = '66666666-6666-4666-8666-666666666666'), 6::bigint, 'activation grants all six entitlements');
+select is((select count(*) from public.membership_entitlements where user_id = '66666666-6666-4666-8666-666666666666'), 8::bigint, 'student activation grants all eight entitlements');
 select ok((select enabled from public.membership_entitlements where user_id = '66666666-6666-4666-8666-666666666666' and feature_key = 'content-summary'), 'content summary entitlement is enabled');
 
 set local role authenticated;

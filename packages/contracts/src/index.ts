@@ -55,6 +55,25 @@ export type DomainRule = z.infer<typeof domainRuleSchema>;
 
 const isoDateTimeSchema = z.string().datetime({ offset: true });
 
+export const focusGoalSchema = z.object({
+  id: z.string().trim().min(1).max(128),
+  name: z.string().trim().min(1).max(120),
+  detail: z.string().trim().max(1_000),
+  minutes: z.number().int().min(1).max(720),
+  priority: z.enum(["low", "medium", "high"])
+});
+export type FocusGoal = z.infer<typeof focusGoalSchema>;
+
+export const focusGoalsSchema = z.array(focusGoalSchema).min(1).max(100).superRefine((goals, context) => {
+  const seen = new Set<string>();
+  goals.forEach((goal, index) => {
+    if (seen.has(goal.id)) {
+      context.addIssue({ code: "custom", path: [index, "id"], message: "목표 ID는 중복될 수 없습니다." });
+    }
+    seen.add(goal.id);
+  });
+});
+
 export const focusPlanSchema = z.object({
   id: z.string().trim().min(1).max(300),
   ownerUserId: z.string().uuid(),
@@ -71,6 +90,7 @@ export const focusPlanSchema = z.object({
   priority: z.enum(["low", "medium", "high"]),
   selfDepositPoints: z.number().int().min(0).max(1_000_000_000),
   guardianRewardRequestPoints: z.number().int().min(0).max(1_000_000_000),
+  goals: focusGoalsSchema,
   status: z.enum(["draft", "planned", "ready", "active", "completed", "failed", "cancelled"]),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema
@@ -89,6 +109,7 @@ export const canonicalFocusSessionSchema = z.object({
   endsAt: isoDateTimeSchema,
   targetFocusMinutes: z.number().int().min(1).max(720),
   blockingMode: z.enum(["allowlist", "blocklist", "off"]),
+  goals: focusGoalsSchema.optional().default([]),
   status: z.enum(["starting", "active", "paused", "awaiting-result", "success", "failed", "cancelled"])
 });
 export type CanonicalFocusSession = z.infer<typeof canonicalFocusSessionSchema>;

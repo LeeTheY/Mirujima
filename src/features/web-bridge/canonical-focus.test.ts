@@ -18,6 +18,7 @@ const plan: FocusPlan = {
   priority: "high",
   selfDepositPoints: 0,
   guardianRewardRequestPoints: 0,
+  goals: [{ id: "goal-1", name: "수학 문제 풀이", detail: "", minutes: 50, priority: "high" }],
   status: "active",
   createdAt: "2026-08-08T10:00:00.000Z",
   updatedAt: "2026-08-08T10:00:00.000Z",
@@ -31,6 +32,7 @@ const session: CanonicalFocusSession = {
   endsAt: "2026-08-08T10:50:00.000Z",
   targetFocusMinutes: 50,
   blockingMode: "blocklist",
+  goals: plan.goals,
   status: "active",
 };
 

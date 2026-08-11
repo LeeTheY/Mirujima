@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabasePublicConfig, getSupabasePublicConfig } from "@/lib/supabase/config";
 
-const publicPaths = new Set(["/", "/onboarding", "/auth/callback"]);
+const publicPaths = new Set(["/", "/login", "/auth/callback"]);
 
 export async function proxy(request: NextRequest) {
   if (!hasSupabasePublicConfig()) return NextResponse.next();
@@ -20,7 +20,7 @@ export async function proxy(request: NextRequest) {
   });
   const { data } = await supabase.auth.getClaims();
   const isPublic = publicPaths.has(request.nextUrl.pathname);
-  if (!data?.claims?.sub && !isPublic) return NextResponse.redirect(new URL("/onboarding", request.url));
+  if (!data?.claims?.sub && !isPublic) return NextResponse.redirect(new URL("/login", request.url));
   return response;
 }
 
