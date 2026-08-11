@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { Sparkles, ArrowRight, Wallet, Flame, Target, ChevronRight } from "lucide-react";
+import { Sparkles, CreditCard, Wallet, Flame, Target, ChevronRight } from "lucide-react";
+import { loadWalletSummary } from "@/features/wallet/wallet-data";
 
-export default function StudentHome() {
+export default async function StudentHome() {
+  const walletSummary = await loadWalletSummary();
   return (
     <DashboardShell role="student" activeHref="/home">
       <section className="dashboard-hero">
@@ -30,7 +32,7 @@ export default function StudentHome() {
           <div className="mt-4">
             <Link className="button full" href="/focus">
               <span>집중 세션 시작하기</span>
-              <ArrowRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
         </article>
@@ -44,17 +46,17 @@ export default function StudentHome() {
             <div className="wallet-box-grid">
               <div className="wallet-box">
                 <span>사용 가능</span>
-                <strong>0 P</strong>
+                <strong>{walletSummary.topupAvailable.toLocaleString()} P</strong>
               </div>
               <div className="wallet-box earned">
                 <span>획득 포인트</span>
-                <strong>0 P</strong>
+                <strong>{walletSummary.earnedAvailable.toLocaleString()} P</strong>
               </div>
             </div>
           </div>
-          <Link className="button secondary full text-center flex items-center justify-center gap-1" href="/my">
+          <Link className="button secondary full text-center flex items-center justify-center gap-2" href="/wallet/charge">
+            <CreditCard className="w-4 h-4" />
             <span>포인트 충전하기</span>
-            <ChevronRight className="w-4 h-4" />
           </Link>
         </article>
 

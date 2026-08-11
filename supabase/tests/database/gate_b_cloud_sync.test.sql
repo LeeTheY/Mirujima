@@ -21,6 +21,7 @@ select ok(not has_function_privilege('anon', 'public.apply_cloud_mutation(uuid,t
 insert into auth.users (id, email) values
   ('33333333-3333-4333-8333-333333333333', 'sync-owner@example.com'),
   ('44444444-4444-4444-8444-444444444444', 'sync-other@example.com');
+update public.profiles set role='guardian', onboarding_completed=true where id='33333333-3333-4333-8333-333333333333';
 do $$
 declare order_id text;
 begin

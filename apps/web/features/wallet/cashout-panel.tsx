@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cashoutErrorCopy, cashoutFullAmount, parseCashoutPoints } from "./cashout";
-import { Wallet, ArrowRight, CheckCircle2, Clock, ShieldCheck, AlertCircle, RefreshCw } from "lucide-react";
+import { Wallet, ChevronRight, CheckCircle2, Clock, ShieldCheck, AlertCircle } from "lucide-react";
 
 interface WalletBalances {
   earnedAvailable: number;
@@ -60,7 +60,6 @@ export function CashoutPanel({ initialBalances }: { initialBalances: WalletBalan
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestKey = useRef(`cashout-request:${crypto.randomUUID()}`);
-  const settlementKeys = useRef<Record<string, string>>({});
   const amountInput = useRef<HTMLInputElement>(null);
 
   const invoke = async (name: string, body: Record<string, unknown>) => {
@@ -87,27 +86,8 @@ export function CashoutPanel({ initialBalances }: { initialBalances: WalletBalan
       });
       setCurrent(response);
       setWallet(response.balances);
-    } catch (cause) {
-      setError(cashoutErrorCopy(cause instanceof Error ? cause.message : "cashout_failed"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const settle = async (outcome: "completed" | "rejected") => {
-    if (!current) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const keyName = `${current.requestId}:${outcome}`;
-      settlementKeys.current[keyName] ??= `cashout-${outcome}:${crypto.randomUUID()}`;
-      const response = await invoke("cashout-complete-test", {
-        requestId: current.requestId,
-        outcome,
-        idempotencyKey: settlementKeys.current[keyName],
-      });
-      setCurrent(response);
-      setWallet(response.balances);
+      setAmount("");
+      requestKey.current = `cashout-request:${crypto.randomUUID()}`;
     } catch (cause) {
       setError(cashoutErrorCopy(cause instanceof Error ? cause.message : "cashout_failed"));
     } finally {
@@ -117,6 +97,10 @@ export function CashoutPanel({ initialBalances }: { initialBalances: WalletBalan
 
   return (
     <section className="cashout-layout space-y-6">
+      <div className="test-mode-banner">
+        <strong>Toss Payments 테스트 현금화</strong>
+        <span>실제 계좌 송금 없음 · DB 원장 반영</span>
+      </div>
       {/* 3 Metric Summary Cards */}
       <div className="wallet-metrics grid grid-cols-3 gap-6">
         <article className="card challenge-card">
@@ -191,12 +175,12 @@ export function CashoutPanel({ initialBalances }: { initialBalances: WalletBalan
           </button>
         </div>
 
-        <div className="flex items-end gap-4">
-          <div className="flex-1">
+        <div className="cashout-request-row">
+          <div className="cashout-input-column">
             <label className="text-xs text-navy font-bold block mb-2">신청 포인트</label>
             <input
               ref={amountInput}
-              className="w-full text-base font-bold"
+              className="cashout-amount-input w-full text-base font-bold"
               inputMode="numeric"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
@@ -205,13 +189,13 @@ export function CashoutPanel({ initialBalances }: { initialBalances: WalletBalan
             />
           </div>
           <button
-            className="button shrink-0"
+            className="button cashout-submit-button shrink-0"
             type="button"
             disabled={busy || current?.status === "requested" || wallet.earnedAvailable === 0}
             onClick={() => void requestCashout()}
           >
             <span>환급 신청하기</span>
-            <ArrowRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -241,26 +225,6 @@ export function CashoutPanel({ initialBalances }: { initialBalances: WalletBalan
               : "예약 포인트가 사용 가능 잔액으로 반환되었습니다."}
           </p>
 
-          {current.status === "requested" && (
-            <div className="flex gap-3">
-              <button
-                className="button small"
-                type="button"
-                disabled={busy}
-                onClick={() => void settle("completed")}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5 inline mr-1" /> 승인 완료 확인
-              </button>
-              <button
-                className="button secondary small"
-                type="button"
-                disabled={busy}
-                onClick={() => void settle("rejected")}
-              >
-                <RefreshCw className="w-3.5 h-3.5 inline mr-1" /> 신청 취소
-              </button>
-            </div>
-          )}
         </div>
       )}
 

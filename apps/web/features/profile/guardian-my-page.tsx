@@ -1,10 +1,17 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, ShieldCheck, Sparkles } from "lucide-react";
+import { CreditCard, ShieldCheck, History, Sparkles, Award, X } from "lucide-react";
 import { DashboardShell } from "../../components/dashboard-shell";
 import { FamilyCodeIssuer } from "../family/family-link-panel";
 import { LinkedStudentsList } from "../family/linked-students-list";
 import type { LinkedStudent } from "../family/linked-students";
 import { GUARDIAN_MY_CARDS } from "./guardian-my-cards";
+import { MembershipStatusSummary } from "../membership/membership-status-card";
+import type { MembershipStatusView } from "../membership/membership-status";
+import type { WalletSummary } from "../wallet/wallet-data";
+import { TopupHistoryModal } from "../wallet/topup-history-modal";
 
 export { GUARDIAN_MY_CARDS } from "./guardian-my-cards";
 
@@ -12,9 +19,13 @@ interface GuardianMyPageProps {
   displayName: string;
   students: LinkedStudent[];
   studentLoadFailed: boolean;
+  membershipStatus: MembershipStatusView;
+  walletSummary: WalletSummary;
 }
 
-export function GuardianMyPage({ displayName, students, studentLoadFailed }: GuardianMyPageProps) {
+export function GuardianMyPage({ displayName, students, studentLoadFailed, membershipStatus, walletSummary }: GuardianMyPageProps) {
+  const [isTopupHistoryModalOpen, setIsTopupHistoryModalOpen] = useState(false);
+  const [isBenefitModalOpen, setIsBenefitModalOpen] = useState(false);
   const showConnectionHeading = GUARDIAN_MY_CARDS.find((card) => card.label === "연결 학생")?.showHeading !== false;
   return (
     <DashboardShell role="guardian" activeHref="/guardian/my">
@@ -50,22 +61,19 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed }: Gua
           </div>
         </article>
 
-        <article className="card">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="card-label">멤버십 서비스</span>
-              <span className="badge-pill membership">기본 이용 중</span>
-            </div>
-            <h2>Mirujima 서비스 이용 중</h2>
-            <p>프리미엄 가입 시 학생이 동의한 가족 AI 요약과 분석을 제공합니다.</p>
-          </div>
-          <div className="space-y-2 mt-4">
-            <div className="sub-card flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-600" />
-              <span className="text-xs text-muted">가족 협력 가이드와 주간 요약</span>
-            </div>
+        <article className={`card membership-card membership-card-${membershipStatus.tier}`}>
+          <MembershipStatusSummary membership={membershipStatus} />
+          <div className="card-action-footer">
+            <button
+              className="button secondary full small flex items-center justify-center gap-1"
+              type="button"
+              onClick={() => setIsBenefitModalOpen(true)}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+              <span>Premium 혜택 알아보기</span>
+            </button>
             <Link className="button secondary full small text-center flex items-center justify-center" href="/membership/checkout">
-              구독 / 결제 정보 확인
+              <span>{membershipStatus.tier === "premium" ? "결제 정보 확인" : "가입 / 결제 정보 확인"}</span>
             </Link>
           </div>
         </article>
@@ -80,26 +88,33 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed }: Gua
               <div className="sub-card flex items-center justify-between" style={{ background: "#EAF2FF", borderColor: "#C9DCFF" }}>
                 <div>
                   <span className="text-xs text-blue-600 font-bold block">학생 보상 가능 포인트</span>
-                  <strong className="text-lg font-extrabold text-navy block mt-1">0 P</strong>
+                  <strong className="text-xl font-extrabold text-navy block mt-1">{walletSummary.topupAvailable.toLocaleString()} P</strong>
                 </div>
-                <ShieldCheck className="w-5 h-5 text-blue-600" />
+                <ShieldCheck className="w-6 h-6 text-blue-600" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="sub-card text-center">
-                  <span className="text-xs text-muted font-bold block">예약 포인트</span>
-                  <strong className="text-base font-extrabold text-navy block mt-1">0 P</strong>
-                </div>
-                <div className="sub-card text-center">
-                  <span className="text-xs text-muted font-bold block">지급 완료</span>
-                  <strong className="text-base font-extrabold text-navy block mt-1">0 P</strong>
-                </div>
+              <div className="sub-card flex items-center justify-between">
+                <span className="text-xs text-muted font-bold">누적 지급 완료</span>
+                <strong className="text-base font-extrabold text-navy">{walletSummary.guardianRewardCompleted.toLocaleString()} P</strong>
               </div>
             </div>
           </div>
-          <Link className="text-button text-xs font-bold mt-4" href="/wallet/charge">
-            <span>포인트 충전하기</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="card-action-footer space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Link className="button secondary full small text-center flex items-center justify-center" href="/wallet/charge">
+                포인트 충전하기
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsTopupHistoryModalOpen(true)}
+                className="button secondary full small text-center flex items-center justify-center"
+              >
+                충전·환불 내역
+              </button>
+            </div>
+            <Link className="button refund-action-button full small text-center flex items-center justify-center" href="/wallet/refund">
+              <span>충전 포인트 환불 신청</span>
+            </Link>
+          </div>
         </article>
 
         <article className="card guardian-family-card">
@@ -107,10 +122,10 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed }: Gua
             {showConnectionHeading ? <div className="flex items-center justify-between mb-2">
               <span className="card-label">연결 학생</span>
             </div> : null}
-            <FamilyCodeIssuer />
-            <div className="mt-4">
-              <span className="card-label mb-2">연결된 학생</span>
-              <LinkedStudentsList students={students} loadFailed={studentLoadFailed} />
+            <FamilyCodeIssuer activeStudentCount={students.length} />
+            <div className="mt-2">
+              <span className="card-label mb-1.5 block">연결된 학생</span>
+              <LinkedStudentsList students={students} loadFailed={studentLoadFailed} allowDisconnect />
             </div>
           </div>
         </article>
@@ -133,7 +148,9 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed }: Gua
             </div>
             <p className="text-xs text-muted mt-3">학생이 허용한 달성 여부와 총 집중 시간만 표시됩니다.</p>
           </div>
-          <Link className="button secondary full small" href="/guardian/history">가족 기록 보기</Link>
+          <div className="card-action-footer">
+            <Link className="button secondary full small" href="/guardian/history">가족 기록 보기</Link>
+          </div>
         </article>
 
         <article className="card">
@@ -149,9 +166,44 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed }: Gua
               <strong className="text-navy text-sm font-extrabold block mt-1">승인한 포인트만 안전하게 예약</strong>
             </div>
           </div>
-          <Link className="button secondary full small" href="/guardian/students">보상 요청 확인</Link>
+          <div className="card-action-footer">
+            <Link className="button secondary full small" href="/guardian/rewards">보상 요청 확인</Link>
+          </div>
         </article>
       </section>
+
+      {/* Benefit Modal */}
+      {isBenefitModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsBenefitModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h2 className="text-xl font-extrabold text-navy m-0">Mirujima Premium 혜택</h2>
+              <button className="icon-close-button" onClick={() => setIsBenefitModalOpen(false)}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <ul className="space-y-3 text-sm text-gray-600 pl-0 list-none">
+              <li className="flex gap-2 items-center">
+                <Sparkles className="w-4 h-4 text-blue-600 shrink-0" /> AI 스마트 집중 분석 및 과목 추천
+              </li>
+              <li className="flex gap-2 items-center">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" /> 고급 사이트 차단 및 허용 리스트 세부 제어
+              </li>
+              <li className="flex gap-2 items-center">
+                <Award className="w-4 h-4 text-amber-500 shrink-0" /> 가족 보상 챌린지 무제한 생성
+              </li>
+            </ul>
+            <button className="button full" type="button" onClick={() => setIsBenefitModalOpen(false)}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
+
+      <TopupHistoryModal
+        isOpen={isTopupHistoryModalOpen}
+        onClose={() => setIsTopupHistoryModalOpen(false)}
+      />
     </DashboardShell>
   );
 }

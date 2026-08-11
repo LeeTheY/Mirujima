@@ -23,7 +23,7 @@ export async function selectRole(formData: FormData): Promise<void> {
   const timezone = String(formData.get("timezone") || "Asia/Seoul").slice(0, 80);
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError || !authData.user) redirect("/onboarding");
+  if (authError || !authData.user) redirect("/login");
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
@@ -62,6 +62,13 @@ export async function selectRole(formData: FormData): Promise<void> {
 
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut({ scope: "global" });
+  if (error) {
+    console.error("[auth.signOut] Supabase session termination failed", {
+      code: error.code,
+      message: error.message,
+    });
+    throw new Error("로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+  }
   redirect("/");
 }

@@ -13,6 +13,7 @@ describe("role route access", () => {
   it("redirects role-mismatched feature routes to the matching home", () => {
     expect(roleRedirect("/focus", "guardian")).toBe("/guardian");
     expect(roleRedirect("/guardian/students", "student")).toBe("/home");
+    expect(roleRedirect("/wallet/refund", "student")).toBe("/home");
   });
 
   it("allows shared authenticated routes for either role", () => {
@@ -23,11 +24,13 @@ describe("role route access", () => {
   it("classifies public routes without requiring a role", () => {
     expect(routeAccess("/privacy")).toBe("public");
     expect(routeAccess("/how")).toBe("public");
+    expect(routeAccess("/login")).toBe("public");
+    expect(routeAccess("/onboarding")).not.toBe("public");
   });
 
-  it("sends missing authentication or profile roles to onboarding", () => {
-    expect(resolveAccess("/home", null, "student")).toEqual({ redirectTo: "/onboarding" });
-    expect(resolveAccess("/home", "user-id", null)).toEqual({ redirectTo: "/onboarding" });
+  it("sends missing authentication or profile roles to login", () => {
+    expect(resolveAccess("/home", null, "student")).toEqual({ redirectTo: "/login" });
+    expect(resolveAccess("/home", "user-id", null)).toEqual({ redirectTo: "/login" });
   });
 
   it("returns the validated role or its role redirect", () => {

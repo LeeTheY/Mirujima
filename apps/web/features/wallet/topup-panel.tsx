@@ -5,7 +5,7 @@ import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { createClient } from "@/lib/supabase/client";
 import { getTossPublicConfig } from "@/features/membership/payment";
 import { parseTopupOrder, selectTopupPreset, TOPUP_PRESETS, type TopupPreset } from "./topup";
-import { CreditCard, Sparkles, ShieldCheck } from "lucide-react";
+import { CreditCard, ShieldCheck } from "lucide-react";
 
 export function TopupPanel({ userId, email }: { userId: string; email: string | null }) {
   const [selected, setSelected] = useState<TopupPreset>(30_000);
@@ -34,7 +34,7 @@ export function TopupPanel({ userId, email }: { userId: string; email: string | 
         customerEmail: email ?? undefined,
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "결제창을 열지 못했습니다.");
+      setError(cause instanceof Error ? cause.message : "Toss 테스트 결제창을 열지 못했습니다.");
       setBusy(false);
     }
   }
@@ -42,10 +42,10 @@ export function TopupPanel({ userId, email }: { userId: string; email: string | 
   return (
     <section className="payment-card">
       <div className="test-mode-banner">
-        <strong className="flex items-center gap-1.5">
-          <CreditCard className="w-4 h-4 text-blue-600" /> Toss Payments 안전 충전
+        <strong className="payment-safety-label">
+          <CreditCard className="w-4 h-4 text-blue-600" /> Toss Payments 테스트 충전
         </strong>
-        <span>공식 결제 서비스</span>
+        <span>실제 결제 없음 · DB 원장 반영</span>
       </div>
 
       <div>
@@ -90,8 +90,8 @@ export function TopupPanel({ userId, email }: { userId: string; email: string | 
         disabled={busy}
         onClick={() => void requestPayment()}
       >
-        <Sparkles className="w-4 h-4" />
-        <span>{busy ? "결제창 준비 중…" : `${selected.toLocaleString()} P 충전하기`}</span>
+        <CreditCard className="w-4 h-4" />
+        <span>{busy ? "Toss 결제창 준비 중…" : `${selected.toLocaleString()} P 테스트 충전하기`}</span>
       </button>
 
       {error && (

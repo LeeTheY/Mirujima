@@ -17,9 +17,11 @@ describe("membership payment UI boundary", () => {
     })).toThrow("테스트 client key");
   });
 
-  it("parses only the fixed Premium callback amount", () => {
+  it("parses server-verifiable role and seat callback amounts", () => {
     expect(parsePaymentCallback(new URLSearchParams("paymentKey=payment_1&orderId=membership_order_1&amount=12900")))
       .toEqual({ paymentKey: "payment_1", orderId: "membership_order_1", amount: 12900 });
+    expect(parsePaymentCallback(new URLSearchParams("paymentKey=payment_2&orderId=membership_order_2&amount=9900")).amount).toBe(9900);
+    expect(parsePaymentCallback(new URLSearchParams("paymentKey=payment_3&orderId=membership_order_3&amount=1950")).amount).toBe(1950);
     expect(() => parsePaymentCallback(new URLSearchParams("paymentKey=p&orderId=o&amount=1"))).toThrow("결제 결과");
   });
 

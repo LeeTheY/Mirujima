@@ -33,6 +33,7 @@ describe("Mirujima focus contracts", () => {
       priority: "high",
       selfDepositPoints: 0,
       guardianRewardRequestPoints: 0,
+      goals: [{ id: "goal-1", name: "오답 정리", detail: "10개", minutes: 25, priority: "high" }],
       status: "ready",
       createdAt: now,
       updatedAt: now
@@ -61,12 +62,24 @@ describe("Mirujima focus contracts", () => {
       priority: "medium",
       selfDepositPoints: -1,
       guardianRewardRequestPoints: 0,
+      goals: [{ id: "goal-1", name: "집중", detail: "", minutes: 25, priority: "medium" }],
       status: "draft",
       createdAt: now,
       updatedAt: now
     };
 
     expect(schema.safeParse(invalid).success).toBe(false);
+  });
+
+  it("requires valid focus goals with unique ids", () => {
+    const schema = Reflect.get(contracts, "focusGoalsSchema") as { safeParse(value: unknown): { success: boolean } };
+
+    expect(schema.safeParse([{ id: "goal-1", name: "수학", detail: "", minutes: 25, priority: "high" }]).success).toBe(true);
+    expect(schema.safeParse([]).success).toBe(false);
+    expect(schema.safeParse([
+      { id: "goal-1", name: "수학", detail: "", minutes: 25, priority: "high" },
+      { id: "goal-1", name: "영어", detail: "", minutes: 25, priority: "medium" },
+    ]).success).toBe(false);
   });
 
   it("rejects malformed or unknown external messages", () => {

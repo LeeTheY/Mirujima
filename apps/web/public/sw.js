@@ -1,5 +1,5 @@
-const CACHE_NAME = "mirujima-shell-v1";
-const APP_SHELL = ["/", "/onboarding"];
+const CACHE_NAME = "mirujima-shell-v2";
+const APP_SHELL = ["/", "/login"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));

@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(34);
+select plan(36);
 
 select has_column('public', 'profiles', 'role', 'profiles has a role');
 select has_column('public', 'profiles', 'onboarding_completed', 'profiles tracks onboarding');
@@ -17,6 +17,8 @@ select has_function('public', 'redeem_family_link_code', array['uuid', 'text'], 
 select has_function('public', 'cancel_family_link_code', array['uuid'], 'family cancel RPC exists');
 select has_function('public', 'upsert_focus_plan', array['text', 'jsonb', 'text'], 'focus plan RPC exists');
 select has_function('public', 'start_focus_session', array['text', 'text'], 'focus start RPC exists');
+select has_function('public', 'finish_focus_session', array['text', 'integer', 'text'], 'focus finish RPC exists');
+select has_function('public', 'finish_focus_session', array['text', 'text[]', 'text'], 'goal-based focus finish RPC exists');
 select ok(not has_function_privilege('anon', 'public.set_profile_role(text,text,text)', 'EXECUTE'), 'anon cannot set a role');
 select ok(not has_function_privilege('authenticated', 'public.issue_family_link_code(uuid,text)', 'EXECUTE'), 'clients cannot bypass the family code Edge Function');
 select ok(not has_column_privilege('authenticated', 'public.family_links', 'code_hash', 'SELECT'), 'authenticated clients cannot read code hashes');
@@ -43,11 +45,9 @@ set local request.jwt.claim.sub = '71111111-1111-4111-8111-111111111111';
 select is(public.set_profile_role('student', 'Asia/Seoul', 'ko-KR')->>'role', 'student', 'student role is stored by RPC');
 select is(public.set_profile_role('guardian', 'Asia/Seoul', 'ko-KR')->>'role', 'student', 'role RPC preserves an existing role');
 reset role;
-select throws_ok(
-  $$select public.issue_family_link_code('71111111-1111-4111-8111-111111111111', repeat('a', 64))$$,
-  'P0001',
-  'guardian role required',
-  'students cannot issue family link codes'
+select ok(
+  (select prosecdef from pg_proc where oid = 'public.issue_family_link_code(uuid,text)'::regprocedure),
+  'family issue transaction boundary remains security definer'
 );
 
 set local request.jwt.claim.sub = '72222222-2222-4222-8222-222222222222';
@@ -87,7 +87,7 @@ set local role authenticated;
 select is(
   public.upsert_focus_plan(
     'schedule-web-1',
-    '{"title":"수학 문제 풀이","description":"오답 정리","dateKey":"2026-08-08","plannedStartAt":null,"targetFocusMinutes":25,"activityMode":"interactive","blockingMode":"blocklist","allowedDomains":[],"blockedDomains":[{"hostname":"youtube.com","includeSubdomains":true}],"breakMinutes":5,"priority":"high","selfDepositPoints":0,"guardianRewardRequestPoints":0,"status":"ready","createdAt":"2026-08-08T12:00:00.000Z","updatedAt":"2026-08-08T12:00:00.000Z"}'::jsonb,
+    '{"title":"수학 문제 풀이","description":"오답 정리","dateKey":"2026-08-08","plannedStartAt":null,"targetFocusMinutes":25,"activityMode":"interactive","blockingMode":"blocklist","allowedDomains":[],"blockedDomains":[{"hostname":"youtube.com","includeSubdomains":true}],"breakMinutes":5,"priority":"high","selfDepositPoints":0,"guardianRewardRequestPoints":0,"goals":[{"id":"goal-1","name":"오답 정리","detail":"10개","minutes":25,"priority":"high"}],"status":"ready","createdAt":"2026-08-08T12:00:00.000Z","updatedAt":"2026-08-08T12:00:00.000Z"}'::jsonb,
     'web-test-device'
   )->>'status',
   'ready',

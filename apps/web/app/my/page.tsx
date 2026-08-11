@@ -3,15 +3,21 @@
 import { useState } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { ShieldCheck, Sparkles, UserCheck, Award, X, ChevronRight } from "lucide-react";
+import { ShieldCheck, Sparkles, UserCheck, Award, X, CreditCard, Unlink, History } from "lucide-react";
 import { FamilyCodeRedeemer } from "@/features/family/family-code-redeemer";
-import { useProfileDisplayName } from "@/features/profile/profile-display-provider";
+import { MembershipStatusSummary } from "@/features/membership/membership-status-card";
+import { useMembershipStatus, useProfileDisplayName, useStudentHasActiveGuardian, useWalletSummary } from "@/features/profile/profile-display-provider";
+import { TopupHistoryModal } from "@/features/wallet/topup-history-modal";
 
 export default function MyPage() {
   const displayName = useProfileDisplayName();
+  const hasActiveGuardian = useStudentHasActiveGuardian();
+  const membershipStatus = useMembershipStatus();
+  const walletSummary = useWalletSummary();
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
   const [isBenefitModalOpen, setIsBenefitModalOpen] = useState(false);
+  const [isTopupHistoryModalOpen, setIsTopupHistoryModalOpen] = useState(false);
 
   const [shareConfig, setShareConfig] = useState({
     achievement: true,
@@ -56,26 +62,19 @@ export default function MyPage() {
         </article>
 
         {/* Card 2: Membership */}
-        <article className="card">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="card-label">멤버십 서비스</span>
-              <span className="badge-pill membership">기본 이용 중</span>
-            </div>
-            <h2>Mirujima 서비스 이용 중</h2>
-            <p>플랜 가입 시 맞춤 AI 솔루션 및 프리미엄 분석을 제공합니다.</p>
-          </div>
-          <div className="space-y-2 mt-4">
+        <article className={`card membership-card membership-card-${membershipStatus.tier}`}>
+          <MembershipStatusSummary membership={membershipStatus} />
+          <div className="card-action-footer">
             <button
               className="button secondary full small"
               type="button"
               onClick={() => setIsBenefitModalOpen(true)}
             >
               <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              <span>멤버십 제공 혜택 정보</span>
+              <span>{membershipStatus.actionLabel}</span>
             </button>
             <Link className="button secondary full small text-center flex items-center justify-center" href="/membership/checkout">
-              <span>구독 / 결제 정보 확인</span>
+              <span>{membershipStatus.tier === "premium" ? "결제 정보 확인" : "가입 / 결제 정보 확인"}</span>
             </Link>
           </div>
         </article>
@@ -96,7 +95,7 @@ export default function MyPage() {
             </div>
             <div className="sub-card text-center mt-3" style={{ background: '#EAF2FF', borderColor: '#C9DCFF' }}>
               <span className="text-xs text-blue-600 font-bold block">누적 포인트 성과</span>
-              <strong className="text-xl font-extrabold text-blue-600 block mt-1">0 P</strong>
+              <strong className="text-xl font-extrabold text-blue-600 block mt-1">{(walletSummary.earnedAvailable + walletSummary.cashoutCompleted).toLocaleString()} P</strong>
             </div>
           </div>
         </article>
@@ -108,18 +107,20 @@ export default function MyPage() {
             <div className="sub-card mb-3">
               <div className="flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-emerald-600" />
-                <strong className="text-navy text-sm font-extrabold">연결된 보호자가 없습니다</strong>
+                <strong className="text-navy text-sm font-extrabold">
+                  {hasActiveGuardian ? "보호자와 연결되어 있습니다" : "연결된 보호자가 없습니다"}
+                </strong>
               </div>
-              <span className="text-xs text-muted block mt-1">6자리 코드로 보호자와 연결할 수 있습니다.</span>
+              <span className="text-xs text-muted block mt-1">
+                {hasActiveGuardian ? "동의한 집중 정보와 보상 상태가 공유됩니다." : "6자리 코드로 보호자와 연결할 수 있습니다."}
+              </span>
             </div>
             <p className="text-xs text-muted m-0">
               방문 URL, 검색어, 카메라 원본 영상은 수집되거나 공유되지 않습니다.
             </p>
-            <div className="mt-4">
-              <FamilyCodeRedeemer />
-            </div>
           </div>
-          <div className="space-y-2 mt-4">
+          <div className="card-action-footer">
+            {!hasActiveGuardian && <FamilyCodeRedeemer />}
             <button
               className="button secondary full small"
               type="button"
@@ -127,13 +128,16 @@ export default function MyPage() {
             >
               <span>공유 설정 관리</span>
             </button>
-            <button
-              className="text-button danger text-xs font-bold w-full text-center"
-              type="button"
-              onClick={() => setIsDisconnectModalOpen(true)}
-            >
-              보호자 연결 해제
-            </button>
+            {hasActiveGuardian && (
+              <button
+                className="disconnect-link-button"
+                type="button"
+                onClick={() => setIsDisconnectModalOpen(true)}
+              >
+                <Unlink className="w-4 h-4" aria-hidden="true" />
+                <span>보호자 연결 해제</span>
+              </button>
+            )}
           </div>
         </article>
 
@@ -148,7 +152,7 @@ export default function MyPage() {
               <div className="sub-card flex items-center justify-between" style={{ background: '#EAF2FF', borderColor: '#C9DCFF' }}>
                 <div>
                   <span className="text-xs text-blue-600 font-bold block">획득 포인트 (현금 환급 가능)</span>
-                  <strong className="text-lg font-extrabold text-navy block mt-1">0 P</strong>
+                  <strong className="text-lg font-extrabold text-navy block mt-1">{walletSummary.earnedAvailable.toLocaleString()} P</strong>
                 </div>
                 <Link className="button small" href="/wallet/cashout">
                   환급 신청
@@ -160,14 +164,22 @@ export default function MyPage() {
                   <span className="text-xs text-muted font-bold block">충전 포인트 (현금화 불가)</span>
                   <span className="text-xs text-muted block mt-0.5">결제 충전 자산 (앱 내 챌린지 전용)</span>
                 </div>
-                <strong className="text-base font-extrabold text-navy">0 P</strong>
+                <strong className="text-base font-extrabold text-navy">{walletSummary.topupAvailable.toLocaleString()} P</strong>
               </div>
             </div>
           </div>
-          <Link className="text-button text-xs font-bold mt-4" href="/wallet/charge">
-            <span>포인트 충전하기</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="card-action-footer grid grid-cols-2 gap-2">
+            <Link className="button secondary full small text-center flex items-center justify-center" href="/wallet/charge">
+              포인트 충전하기
+            </Link>
+            <button
+              type="button"
+              onClick={() => setIsTopupHistoryModalOpen(true)}
+              className="button secondary full small text-center flex items-center justify-center"
+            >
+              충전 내역
+            </button>
+          </div>
         </article>
 
         {/* Card 6: Sharing Overview */}
@@ -206,13 +218,15 @@ export default function MyPage() {
               </div>
             </div>
           </div>
-          <button
-            className="button full small mt-4"
-            type="button"
-            onClick={() => setIsShareModalOpen(true)}
-          >
-            <span>공유 설정 관리</span>
-          </button>
+          <div className="card-action-footer">
+            <button
+              className="button full small"
+              type="button"
+              onClick={() => setIsShareModalOpen(true)}
+            >
+              <span>공유 설정 관리</span>
+            </button>
+          </div>
         </article>
       </section>
 
@@ -321,6 +335,11 @@ export default function MyPage() {
           </div>
         </div>
       )}
+
+      <TopupHistoryModal
+        isOpen={isTopupHistoryModalOpen}
+        onClose={() => setIsTopupHistoryModalOpen(false)}
+      />
     </DashboardShell>
   );
 }

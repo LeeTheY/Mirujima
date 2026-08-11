@@ -2,9 +2,9 @@ import type { UserRole } from "@mirujima/contracts";
 
 export type RouteAccess = "public" | "shared" | UserRole;
 
-const publicRoutes = new Set(["/", "/onboarding", "/auth/callback", "/how", "/privacy"]);
+const publicRoutes = new Set(["/", "/login", "/auth/callback", "/how", "/privacy"]);
 const studentRoutes = new Set(["/home", "/focus", "/history", "/my", "/wallet/cashout"]);
-const guardianRoutes = new Set(["/guardian", "/guardian/students", "/guardian/history", "/guardian/my"]);
+const guardianRoutes = new Set(["/guardian", "/guardian/students", "/guardian/history", "/guardian/my", "/guardian/rewards", "/wallet/refund"]);
 
 function matchesRoute(pathname: string, route: string): boolean {
   return pathname === route || pathname.startsWith(`${route}/`);
@@ -26,7 +26,7 @@ export function resolveAccess(
   profileRole: unknown,
 ): AccessDecision {
   if (!userId || (profileRole !== "student" && profileRole !== "guardian")) {
-    return { redirectTo: "/onboarding" };
+    return { redirectTo: "/login" };
   }
 
   const redirectTo = roleRedirect(pathname, profileRole);

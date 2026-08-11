@@ -6,7 +6,7 @@ export interface TossPublicConfig {
 export interface PaymentCallback {
   paymentKey: string;
   orderId: string;
-  amount: 12900;
+  amount: number;
 }
 
 export function getTossPublicConfig(env: Record<string, string | undefined> = {
@@ -34,10 +34,10 @@ export function parsePaymentCallback(params: URLSearchParams): PaymentCallback {
   const amount = Number(params.get("amount"));
   if (paymentKey.length < 6 || paymentKey.length > 200
     || !/^[A-Za-z0-9_-]{6,64}$/.test(orderId)
-    || amount !== 12_900) {
+    || !Number.isSafeInteger(amount) || amount < 500 || amount > 24_600) {
     throw new Error("결제 결과가 올바르지 않습니다.");
   }
-  return { paymentKey, orderId, amount: 12_900 };
+  return { paymentKey, orderId, amount };
 }
 
 export function paymentFailureCopy(code: string | null): string {

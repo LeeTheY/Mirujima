@@ -2,8 +2,11 @@ import Link from "next/link";
 import { Brand } from "@/components/brand";
 import { parsePaymentCallback } from "@/features/membership/payment";
 import { createClient } from "@/lib/supabase/server";
+import { requireAuthenticatedRole } from "@/features/auth/require-role";
 
 export default async function MembershipSuccessPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const { role } = await requireAuthenticatedRole("/membership/success");
+  const returnHref = role === "guardian" ? "/guardian/my" : "/my";
   let title = "결제 승인 중 문제가 발생했습니다.";
   let description = "멤버십은 변경되지 않았습니다. 결제 페이지에서 다시 확인해 주세요.";
   try {
@@ -13,7 +16,7 @@ export default async function MembershipSuccessPage({ searchParams }: { searchPa
     const supabase = await createClient();
     const { data, error } = await supabase.functions.invoke("membership-confirm-payment", { body: parsePaymentCallback(query) });
     if (error || data?.status !== "active") throw new Error("confirmation_failed");
-    title = "Premium 1개월이 활성화되었습니다.";
+    title = data.productCode === "guardian_family" ? "가족 Premium 30일이 활성화되었습니다." : "학생 Premium 30일이 활성화되었습니다.";
     description = typeof data.currentPeriodEndsAt === "string"
       ? `${new Date(data.currentPeriodEndsAt).toLocaleString("ko-KR")}까지 사용할 수 있습니다.`
       : "확장 프로그램에서 멤버십 다시 확인을 눌러 새 권한을 불러오세요.";
@@ -29,7 +32,7 @@ export default async function MembershipSuccessPage({ searchParams }: { searchPa
         <h1>{title}</h1>
         <p>{description}</p>
         <div className="row flex gap-3 justify-center">
-          <Link className="button" href="/my">마이페이지</Link>
+          <Link className="button" href={returnHref}>마이페이지</Link>
           <Link className="button secondary" href="/membership/checkout">결제 다시 확인</Link>
         </div>
       </section>

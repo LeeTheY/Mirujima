@@ -28,6 +28,7 @@ insert into auth.users (id, email)
 values
   ('11111111-1111-4111-8111-111111111111', 'owner@example.com'),
   ('22222222-2222-4222-8222-222222222222', 'other@example.com');
+update public.profiles set role='guardian', onboarding_completed=true where id='11111111-1111-4111-8111-111111111111';
 do $$
 declare order_id text;
 begin

@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   description: "계획, 사이트 차단, 집중 기록을 하나로 연결하는 집중 지원 플랫폼",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ko" data-scroll-behavior="smooth"><body><PwaRegister />{children}</body></html>;
+export default function RootLayout({
+  children,
+  modal,
+}: Readonly<{
+  children: React.ReactNode;
+  modal: React.ReactNode;
+}>) {
+  return <html lang="ko" data-scroll-behavior="smooth"><body><PwaRegister />{children}{modal}</body></html>;
 }

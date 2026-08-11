@@ -15,7 +15,17 @@ Deno.serve(async (request) => {
       p_idempotency_key: input.idempotencyKey
     });
     if (error) throw error;
-    return json(data);
+    if (data?.status === "completed") return json(data);
+    if (data?.status !== "requested" || typeof data?.requestId !== "string") {
+      throw new Error("cashout request result invalid");
+    }
+    const { data: completed, error: completionError } = await admin.rpc("complete_test_cashout", {
+      p_user_id: user.id,
+      p_request_id: data.requestId,
+      p_idempotency_key: `cashout-auto-complete:${data.requestId}`,
+    });
+    if (completionError) throw completionError;
+    return json(completed);
   } catch (error) {
     const message = error instanceof Error ? error.message : "cashout_request_failed";
     if (message.includes("로그인") || message.includes("인증")) return json({ error: "authentication_required" }, 401);
