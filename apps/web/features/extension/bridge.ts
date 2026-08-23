@@ -35,6 +35,22 @@ export async function requestFocusSync(
   });
 }
 
+export async function requestFocusReconcile(
+  extensionId: string,
+  send: ExternalMessageSender,
+  scheduleId: string,
+  sessionId: string,
+  requestId = crypto.randomUUID(),
+): Promise<void> {
+  await send(extensionId, {
+    type: "mirujima:focus-reconcile-request",
+    version: 1,
+    requestId,
+    scheduleId,
+    sessionId,
+  });
+}
+
 export const chromeExternalSender: ExternalMessageSender = async (extensionId, message) => {
   const chromeApi: unknown = Reflect.get(globalThis, "chrome");
   if (!chromeApi || typeof chromeApi !== "object") {

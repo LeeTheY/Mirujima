@@ -101,7 +101,22 @@ export function normalizeFocusPlan(value: unknown): FocusPlan {
   return focusPlanSchema.parse(value);
 }
 
-export const canonicalFocusSessionSchema = z.object({
+export const focusSettlementResultSchema = z.object({
+  completedGoalIds: z.array(z.string().trim().min(1).max(128)).max(100),
+  goalResults: z.array(z.object({
+    goalId: z.string().trim().min(1).max(128),
+    completed: z.boolean()
+  })).max(100),
+  completedGoalCount: z.number().int().min(0).max(100),
+  totalGoalCount: z.number().int().min(1).max(100),
+  completionPercent: z.union([z.literal(0), z.literal(60), z.literal(80), z.literal(100)]),
+  earnedPoints: z.number().int().min(0).max(1_000_000_000),
+  returnedPoints: z.number().int().min(0).max(1_000_000_000),
+  settledAt: isoDateTimeSchema
+});
+export type FocusSettlementResult = z.infer<typeof focusSettlementResultSchema>;
+
+const canonicalFocusSessionBaseSchema = z.object({
   id: z.string().trim().min(1).max(300),
   scheduleId: z.string().trim().min(1).max(300),
   ownerUserId: z.string().uuid(),
@@ -110,9 +125,49 @@ export const canonicalFocusSessionSchema = z.object({
   targetFocusMinutes: z.number().int().min(1).max(720),
   blockingMode: z.enum(["allowlist", "blocklist", "off"]),
   goals: focusGoalsSchema.optional().default([]),
-  status: z.enum(["starting", "active", "paused", "awaiting-result", "success", "failed", "cancelled"])
+  status: z.enum(["starting", "active", "paused", "awaiting-result", "success", "failed", "cancelled"]),
+  activeSegmentStartedAt: isoDateTimeSchema.nullable().optional(),
+  pausedAt: isoDateTimeSchema.nullable().optional(),
+  accumulatedFocusSeconds: z.number().int().min(0).max(720 * 60).optional(),
+  remainingFocusSeconds: z.number().int().min(0).max(720 * 60).optional(),
+  selfDepositPoints: z.number().int().min(0).max(1_000_000_000).optional(),
+  result: focusSettlementResultSchema.nullable().optional(),
+  updatedAt: isoDateTimeSchema.optional()
+});
+
+export const canonicalFocusSessionSchema = canonicalFocusSessionBaseSchema.transform((session) => {
+  const targetSeconds = session.targetFocusMinutes * 60;
+  const accumulatedFocusSeconds = Math.min(targetSeconds, session.accumulatedFocusSeconds ?? 0);
+  const terminal = session.status === "success" || session.status === "failed" || session.status === "cancelled";
+  const remainingFocusSeconds = terminal || session.status === "awaiting-result"
+    ? 0
+    : Math.min(targetSeconds, session.remainingFocusSeconds ?? Math.max(0, targetSeconds - accumulatedFocusSeconds));
+  const activeSegmentStartedAt = session.activeSegmentStartedAt !== undefined
+    ? session.activeSegmentStartedAt
+    : session.status === "active" || session.status === "starting" ? session.startedAt : null;
+
+  return {
+    ...session,
+    activeSegmentStartedAt,
+    pausedAt: session.pausedAt ?? null,
+    accumulatedFocusSeconds,
+    remainingFocusSeconds,
+    selfDepositPoints: session.selfDepositPoints ?? 0,
+    result: session.result ?? null,
+    updatedAt: session.updatedAt ?? session.startedAt
+  };
 });
 export type CanonicalFocusSession = z.infer<typeof canonicalFocusSessionSchema>;
+
+export function completionPercentForGoals(totalGoalCount: number, completedGoalCount: number): 0 | 60 | 80 | 100 {
+  if (!Number.isSafeInteger(totalGoalCount) || totalGoalCount < 1) throw new Error("전체 목표 수가 올바르지 않습니다.");
+  if (!Number.isSafeInteger(completedGoalCount) || completedGoalCount < 0 || completedGoalCount > totalGoalCount) {
+    throw new Error("완료 목표 수가 올바르지 않습니다.");
+  }
+  if (completedGoalCount === 0) return 0;
+  if (completedGoalCount === totalGoalCount) return 100;
+  return completedGoalCount * 2 >= totalGoalCount ? 80 : 60;
+}
 
 const bridgeEnvelopeSchema = z.object({
   version: z.literal(1),
@@ -123,6 +178,11 @@ export const webToExtensionMessageSchema = z.discriminatedUnion("type", [
   bridgeEnvelopeSchema.extend({ type: z.literal("mirujima:ping") }),
   bridgeEnvelopeSchema.extend({
     type: z.literal("mirujima:focus-sync-request"),
+    scheduleId: z.string().trim().min(1).max(300),
+    sessionId: z.string().trim().min(1).max(300)
+  }),
+  bridgeEnvelopeSchema.extend({
+    type: z.literal("mirujima:focus-reconcile-request"),
     scheduleId: z.string().trim().min(1).max(300),
     sessionId: z.string().trim().min(1).max(300)
   }),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CanonicalFocusSession, FocusPlan } from "@mirujima/contracts";
+import { canonicalFocusSessionSchema, type FocusPlan } from "@mirujima/contracts";
 import { canonicalToLocalFocus } from "./canonical-focus";
 
 const plan: FocusPlan = {
@@ -24,7 +24,7 @@ const plan: FocusPlan = {
   updatedAt: "2026-08-08T10:00:00.000Z",
 };
 
-const session: CanonicalFocusSession = {
+const session = canonicalFocusSessionSchema.parse({
   id: "session-1",
   scheduleId: "plan-1",
   ownerUserId: plan.ownerUserId,
@@ -34,7 +34,7 @@ const session: CanonicalFocusSession = {
   blockingMode: "blocklist",
   goals: plan.goals,
   status: "active",
-};
+});
 
 describe("canonical focus adapter", () => {
   it("keeps canonical ids and absolute end time", () => {
@@ -44,6 +44,31 @@ describe("canonical focus adapter", () => {
     expect(local.session.id).toBe("session-1");
     expect(local.session.endsAt).toBe("2026-08-08T10:50:00.000Z");
     expect(local.session.canonical).toBe(true);
+    expect(local.session.goals).toEqual(plan.goals);
+    expect(local.session.remainingFocusSeconds).toBe(3_000);
+  });
+
+  it("maps paused and terminal canonical states without losing the result", () => {
+    const paused = canonicalFocusSessionSchema.parse({ ...session, status: "paused", remainingFocusSeconds: 1_200 });
+    expect(canonicalToLocalFocus(plan, paused).session.status).toBe("paused");
+
+    const terminal = canonicalFocusSessionSchema.parse({
+      ...session,
+      status: "success",
+      result: {
+        completedGoalIds: ["goal-1"],
+        goalResults: [{ goalId: "goal-1", completed: true }],
+        completedGoalCount: 1,
+        totalGoalCount: 1,
+        completionPercent: 100,
+        earnedPoints: 1_000,
+        returnedPoints: 0,
+        settledAt: "2026-08-08T10:50:00.000Z",
+      },
+    });
+    const local = canonicalToLocalFocus(plan, terminal);
+    expect(local.schedule.status).toBe("completed");
+    expect(local.session.result?.completionPercent).toBe(100);
   });
 
   it("rejects mismatched ownership", () => {

@@ -8,10 +8,15 @@ import { markFocusAwaitingResult } from "./message-handler";
 import { membershipService } from "../features/membership/service";
 import { cloudSyncService } from "../features/cloud-sync/service";
 import { ALARM_PREFIX } from "../shared/constants";
+import { resyncCanonicalFocus, retryPendingCanonicalSettlements } from "../features/web-bridge/canonical-focus";
 
 export async function bootstrap(): Promise<void> {
   await repository.initialize();
   try { await membershipService.restore(); } catch (error) { console.warn("멤버십 복구를 건너뛰었습니다.", error); }
+  try {
+    await retryPendingCanonicalSettlements();
+    await resyncCanonicalFocus();
+  } catch (error) { console.warn("서버 집중 세션 복구를 건너뛰었습니다.", error); }
   const snapshot = await repository.getSnapshot();
   await syncMainUI(snapshot.settings.mainUI);
   await syncScheduleAlarms(snapshot.schedules);

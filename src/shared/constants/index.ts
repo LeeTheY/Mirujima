@@ -1,7 +1,7 @@
 import type { TabOrganizerSettings, TabOrganizerSummary, UserSettings } from "../types/models";
 
 export const DEFAULT_MAIN_UI = "sidepanel" as const;
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 export const EVENT_RETENTION_DAYS = 30;
 export const DNR_RULE_ID_START = 20_000;
 export const DNR_RULE_ID_END = 29_999;
@@ -31,7 +31,8 @@ export const STORAGE_KEYS = {
   cloudRecordMetadata: "mirujima:cloud-record-metadata",
   cloudSyncState: "mirujima:cloud-sync-state",
   cloudLearningDays: "mirujima:cloud-learning-days",
-  cloudRestoreRecords: "mirujima:cloud-restore-records"
+  cloudRestoreRecords: "mirujima:cloud-restore-records",
+  canonicalPendingSettlements: "mirujima:canonical-pending-settlements"
 } as const;
 
 export const TAB_ORGANIZER_SCHEMA_VERSION = 1;

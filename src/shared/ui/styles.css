@@ -361,6 +361,14 @@ textarea { resize: none !important; }
 .focus-timer { max-width: 100%; font-variant-numeric: tabular-nums; font-size: clamp(44px, 16vw, 68px); font-weight: 850; line-height: 1; letter-spacing: -.06em; color: white; overflow-wrap: anywhere; }
 .focus-time-meta { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
 .focus-time-meta span { padding: 5px 12px; color: #AAB7CA; background: rgba(255, 255, 255, 0.12); border-radius: 999px; font-size: 11px; font-weight: 700; }
+.canonical-goal-checklist { display: grid; gap: 10px; width: 100%; }
+.canonical-goal-checklist label { display: flex; align-items: center; gap: 12px; padding: 13px 14px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 14px; cursor: pointer; }
+.canonical-goal-checklist label.selected { background: var(--primary-soft); border-color: var(--primary); }
+.canonical-goal-checklist input { width: 18px; height: 18px; accent-color: var(--primary); }
+.canonical-goal-checklist span { display: grid; gap: 3px; min-width: 0; }
+.canonical-goal-checklist strong { color: var(--navy); font-size: 13px; }
+.canonical-goal-checklist small { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.canonical-settlement-summary { display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 14px; color: var(--primary-strong); background: var(--primary-soft); border-radius: 14px; font-size: 12px; }
 
 /* Popup Extension Layout */
 .popup-document, .popup-document body, .popup-document #root { width: 380px; min-width: 380px; max-width: 380px; }

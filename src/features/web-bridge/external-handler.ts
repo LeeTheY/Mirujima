@@ -1,7 +1,7 @@
 import { parseWebToExtensionMessage } from "@mirujima/contracts";
 import { repository } from "../../shared/storage/repository";
 import { membershipSupabaseClient } from "../membership/service";
-import { activateCanonicalFocus } from "./canonical-focus";
+import { reconcileCanonicalFocus } from "./canonical-focus";
 
 export function isAllowedExternalSender(senderUrl: string | undefined, expectedOrigin: string): boolean {
   if (!senderUrl || !expectedOrigin) return false;
@@ -29,8 +29,8 @@ async function handleExternalMessage(message: unknown, sender: chrome.runtime.Me
       const session = await repository.getActiveSession();
       return { ok: true, sessionId: session?.id ?? null, status: session?.status ?? "idle" };
     }
-    await activateCanonicalFocus(parsed.scheduleId, parsed.sessionId);
-    return { ok: true, sessionId: parsed.sessionId, status: "active" };
+    const session = await reconcileCanonicalFocus(parsed.scheduleId, parsed.sessionId);
+    return { ok: true, sessionId: parsed.sessionId, status: session?.status ?? "idle" };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "집중 동기화에 실패했습니다." };
   }

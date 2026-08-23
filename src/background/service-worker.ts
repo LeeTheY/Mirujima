@@ -11,7 +11,7 @@ import { checkFocusHealth } from "./activity";
 import { realtimeOrganizeIfEnabled, recordManualTabMove, recordNewTabMode, safelyOrganizeActiveSession } from "./tab-organizer";
 import { cloudSyncService } from "../features/cloud-sync/service";
 import { registerExternalMessageHandler } from "../features/web-bridge/external-handler";
-import { resyncCanonicalFocus } from "../features/web-bridge/canonical-focus";
+import { resyncCanonicalFocus, retryPendingCanonicalSettlements } from "../features/web-bridge/canonical-focus";
 
 registerMessageHandler();
 registerExternalMessageHandler();
@@ -44,7 +44,15 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       const session = await repository.getActiveSession();
       if (session?.id === sessionId) {
         await markFocusAwaitingResult();
-        await showNotification("focus-end", session.id, "집중 시간이 끝났습니다 — 결과를 선택하세요", "타이머와 사이트 차단을 멈췄어요. 완료 또는 미완료를 선택해야 기록이 확정됩니다.", ["완료", "미완료"]);
+        await showNotification(
+          "focus-end",
+          session.id,
+          "집중 시간이 끝났습니다 — 결과를 선택하세요",
+          session.canonical
+            ? "완료한 세부 목표를 집중 화면에서 선택해야 기록과 포인트 정산이 확정됩니다."
+            : "타이머와 사이트 차단을 멈췄어요. 완료 또는 미완료를 선택해야 기록이 확정됩니다.",
+          session.canonical ? ["결과 선택", "집중 화면 열기"] : ["완료", "미완료"],
+        );
       }
     } else if (alarm.name.startsWith(ALARM_PREFIX.breakEnd)) {
       const sessionId = alarm.name.slice(ALARM_PREFIX.breakEnd.length);
@@ -68,7 +76,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     } else if (alarm.name === ALARM_PREFIX.cloudSync) {
       try { await cloudSyncService.sync(); } catch (error) { console.warn("예약 cloud 동기화를 건너뛰었습니다.", error); }
     } else if (alarm.name === ALARM_PREFIX.canonicalFocusSync) {
-      try { await resyncCanonicalFocus(); } catch (error) { console.warn("웹 집중 세션 재동기화를 건너뛰었습니다.", error); }
+      try {
+        await retryPendingCanonicalSettlements();
+        await resyncCanonicalFocus();
+      } catch (error) { console.warn("웹 집중 세션 재동기화를 건너뛰었습니다.", error); }
     }
   })();
 });
@@ -106,6 +117,11 @@ chrome.notifications.onButtonClicked.addListener((id, buttonIndex) => {
     }
     if (id.startsWith("focus-end:") && buttonIndex <= 1) {
       const sessionId = id.slice("focus-end:".length);
+      const active = await repository.getActiveSession();
+      if (active?.id === sessionId && active.canonical) {
+        await openMainUI();
+        return;
+      }
       const result = buttonIndex === 0 ? "completed" : "incomplete";
       await showNotification(
         "finish-confirm",

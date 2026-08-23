@@ -2,10 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { CanonicalFocusSession, FocusPlan } from "@mirujima/contracts";
+import { canonicalFocusSessionSchema, completionPercentForGoals, type CanonicalFocusSession, type FocusPlan } from "@mirujima/contracts";
 import { createClient } from "@/lib/supabase/client";
-import { completionPercentForGoals, parseFocusDraft, parseFocusGoals } from "./focus-form";
-import { chromeExternalSender, pingExtension, requestFocusSync, requiresExtension } from "@/features/extension/bridge";
+import { parseFocusDraft, parseFocusGoals } from "./focus-form";
+import { chromeExternalSender, pingExtension, requestFocusReconcile, requestFocusSync, requiresExtension } from "@/features/extension/bridge";
+import {
+  finishCanonicalFocusSession,
+  getCurrentCanonicalFocusSession,
+  pauseCanonicalFocusSession,
+  resumeCanonicalFocusSession,
+  type FocusRpcClient,
+} from "./canonical-focus-service";
 import { Plus, Trash2, ArrowUp, ArrowDown, Sparkles, Shield, Flame, CheckCircle2, HelpCircle, X } from "lucide-react";
 
 interface GoalItem {
@@ -16,19 +23,7 @@ interface GoalItem {
   priority: "low" | "medium" | "high";
 }
 
-interface FocusSettlementResult {
-  completionPercent: number;
-  earnedPoints: number;
-  returnedPoints: number;
-  completedGoalIds: string[];
-  completedGoalCount: number;
-  totalGoalCount: number;
-}
-
-interface ActiveFocusSession extends CanonicalFocusSession {
-  selfDepositPoints?: number;
-  result?: FocusSettlementResult | null;
-}
+type ActiveFocusSession = CanonicalFocusSession;
 
 interface FocusCoachResult {
   summary: string;
@@ -134,7 +129,7 @@ function getDeviceId(): string {
 
 export function FocusPlanner() {
   const formRef = useRef<HTMLFormElement>(null);
-  const [status, setStatus] = useState<"idle" | "saving" | "active" | "completed" | "error">("idle");
+  const [status, setStatus] = useState<"recovering" | "idle" | "saving" | "active" | "paused" | "awaiting-result" | "completed" | "error">("recovering");
   const [message, setMessage] = useState("사이트 차단 계획은 확장 프로그램 설치와 로그인 상태를 확인한 뒤 시작할 수 있습니다.");
   const [remainingSeconds, setRemainingSeconds] = useState(50 * 60);
   const [activeSession, setActiveSession] = useState<ActiveFocusSession | null>(null);
@@ -157,6 +152,49 @@ export function FocusPlanner() {
   const [goals, setGoals] = useState<GoalItem[]>([
     { id: "goal-1", name: "", detail: "", minutes: 50, priority: "medium" },
   ]);
+
+  const hasCurrentSession = status === "active" || status === "paused" || status === "awaiting-result";
+
+  function applyCanonicalSession(session: CanonicalFocusSession) {
+    setActiveSession(session);
+    setTargetFocusMinutes(session.targetFocusMinutes);
+    setSelfDepositPoints(session.selfDepositPoints);
+    setBlockingMode(session.blockingMode);
+    setGoals(session.goals.map((goal) => ({ ...goal })));
+    setCompletedGoalIds(session.result?.completedGoalIds ?? []);
+    if (!title.trim()) setTitle("진행 중인 집중 계획");
+    if (session.status === "paused") {
+      setRemainingSeconds(session.remainingFocusSeconds);
+      setStatus("paused");
+      setMessage("일시정지된 집중 세션을 서버에서 복구했습니다.");
+    } else if (session.status === "awaiting-result") {
+      setRemainingSeconds(0);
+      setStatus("awaiting-result");
+      setMessage("목표 시간이 끝났습니다. 완료한 목표를 선택해 결과를 제출해 주세요.");
+    } else {
+      setRemainingSeconds(Math.max(0, Math.ceil((Date.parse(session.endsAt) - Date.now()) / 1000)));
+      setStatus("active");
+      setMessage("진행 중인 집중 세션을 서버에서 복구했습니다.");
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    void getCurrentCanonicalFocusSession()
+      .then((session) => {
+        if (cancelled) return;
+        if (session) applyCanonicalSession(session);
+        else setStatus("idle");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStatus("error");
+        setMessage("진행 중인 집중 세션을 불러오지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+      });
+    return () => { cancelled = true; };
+    // Initial canonical recovery must run only once for this mounted planner.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (blockingMode === "off") {
@@ -201,7 +239,9 @@ export function FocusPlanner() {
   useEffect(() => {
     if (status !== "active" || !activeSession) return;
     const updateRemaining = () => {
-      setRemainingSeconds(Math.max(0, Math.ceil((Date.parse(activeSession.endsAt) - Date.now()) / 1000)));
+      const next = Math.max(0, Math.ceil((Date.parse(activeSession.endsAt) - Date.now()) / 1000));
+      setRemainingSeconds(next);
+      if (next === 0) setStatus("awaiting-result");
     };
     updateRemaining();
     const timer = window.setInterval(updateRemaining, 1000);
@@ -237,6 +277,10 @@ export function FocusPlanner() {
   };
 
   async function submit(formData: FormData) {
+    if (activeSession && hasCurrentSession) {
+      setMessage("진행 중인 집중 세션을 먼저 완료해 주세요.");
+      return;
+    }
     setStatus("saving");
     try {
       const draft = parseFocusDraft(Object.fromEntries(formData));
@@ -293,7 +337,7 @@ export function FocusPlanner() {
         }
         throw new Error("집중 세션을 시작하지 못했습니다. 진행 중인 세션이 있는지 확인해 주세요.");
       }
-      const session = data as CanonicalFocusSession;
+      const session = canonicalFocusSessionSchema.parse(data);
       if (requiresExtension(draft.blockingMode)) {
         await requestFocusSync(extensionId, chromeExternalSender, scheduleId, session.id);
       }
@@ -312,23 +356,15 @@ export function FocusPlanner() {
 
   async function finish(goalIds: string[]) {
     if (!activeSession) return;
+    const fallbackStatus = remainingSeconds > 0 ? "active" : "awaiting-result";
     setStatus("saving");
     try {
-      const { data, error } = await createClient().rpc("finish_focus_session", {
-        p_session_id: activeSession.id,
-        p_completed_goal_ids: goalIds,
-        p_device_id: getDeviceId(),
-      });
-      if (error) {
-        if (error.message.includes("has not reached target time")) {
-          throw new Error("목표 시간이 끝난 뒤 완료한 목표를 제출할 수 있습니다.");
-        }
-        if (error.message.includes("invalid completed goal")) {
-          throw new Error("목표 정보가 변경되었습니다. 세션을 새로 불러온 뒤 다시 시도해 주세요.");
-        }
-        throw new Error("집중 결과와 포인트를 정산하지 못했습니다. 다시 시도해 주세요.");
-      }
-      const settled = data as ActiveFocusSession;
+      const settled = await finishCanonicalFocusSession(
+        createClient() as unknown as FocusRpcClient,
+        activeSession.id,
+        goalIds,
+        getDeviceId(),
+      );
       const result = settled.result;
       setActiveSession(settled);
       setRemainingSeconds(0);
@@ -336,9 +372,45 @@ export function FocusPlanner() {
       setMessage(result
         ? `${result.totalGoalCount}개 중 ${result.completedGoalCount}개 완료 · ${result.completionPercent}%: ${result.earnedPoints.toLocaleString()}P 획득, ${result.returnedPoints.toLocaleString()}P 충전 포인트 반환`
         : "집중 결과 정산이 완료되었습니다.");
+      const extensionId = process.env.NEXT_PUBLIC_MIRUJIMA_EXTENSION_ID ?? "";
+      if (extensionId) {
+        void requestFocusReconcile(extensionId, chromeExternalSender, settled.scheduleId, settled.id).catch(() => undefined);
+      }
     } catch (error) {
-      setStatus("active");
+      setStatus(fallbackStatus);
       setMessage(error instanceof Error ? error.message : "집중 결과 정산 중 문제가 발생했습니다.");
+    }
+  }
+
+  async function pauseFocus() {
+    if (!activeSession || status !== "active") return;
+    setStatus("saving");
+    try {
+      const session = await pauseCanonicalFocusSession(
+        createClient() as unknown as FocusRpcClient,
+        activeSession.id,
+        getDeviceId(),
+      );
+      applyCanonicalSession(session);
+    } catch {
+      setStatus("active");
+      setMessage("집중 세션을 일시정지하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+    }
+  }
+
+  async function resumeFocus() {
+    if (!activeSession || status !== "paused") return;
+    setStatus("saving");
+    try {
+      const session = await resumeCanonicalFocusSession(
+        createClient() as unknown as FocusRpcClient,
+        activeSession.id,
+        getDeviceId(),
+      );
+      applyCanonicalSession(session);
+    } catch {
+      setStatus("paused");
+      setMessage("집중 세션을 재개하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
     }
   }
 
@@ -674,8 +746,14 @@ export function FocusPlanner() {
 
           <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
             <strong>
-              {status === "active"
+              {status === "recovering"
+                ? "진행 중인 세션 확인"
+                : status === "active"
                 ? "집중 시작 완료"
+                : status === "paused"
+                ? "집중 일시정지"
+                : status === "awaiting-result"
+                ? "집중 결과 확인"
                 : status === "saving"
                 ? "집중 준비 중"
                 : "확장 프로그램 연결"}
@@ -694,8 +772,14 @@ export function FocusPlanner() {
           ) : null}
 
           <div className="focus-actions-row">
-            <button className="button full" type="submit" disabled={status === "saving"}>
-              {status === "saving" ? "확인하고 있습니다..." : "계획 확정 및 집중 준비"}
+            <button className="button full" type="submit" disabled={status === "saving" || status === "recovering" || hasCurrentSession}>
+              {status === "recovering"
+                ? "진행 중인 세션 확인 중..."
+                : hasCurrentSession
+                ? "진행 중인 세션을 먼저 완료해 주세요"
+                : status === "saving"
+                ? "확인하고 있습니다..."
+                : "계획 확정 및 집중 준비"}
             </button>
             <button className="button secondary full" type="button" disabled={aiBusy} onClick={() => void requestAiRecommendation()}>
               <Sparkles className="w-4 h-4 text-blue-400" />
@@ -707,27 +791,31 @@ export function FocusPlanner() {
         <aside className="timer-preview">
           <div className="timer-top">
             <span>FOCUS SESSION</span>
-            <span className={`status-dot ${status === "active" ? "" : "idle"}`}>
+            <span className={`status-dot ${hasCurrentSession ? "" : "idle"}`}>
               <Flame className="w-3.5 h-3.5 inline" />
-              {status === "active" ? "집중 중" : "준비 전"}
+              {status === "active" ? "집중 중" : status === "paused" ? "일시정지" : status === "awaiting-result" ? "결과 확인" : "준비 전"}
             </span>
           </div>
 
           <strong>
-            {status === "active"
+            {hasCurrentSession
               ? `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`
               : `${String(Number(targetFocusMinutes) || 0).padStart(2, "0")}:00`}
           </strong>
           <p>
             {status === "active"
-              ? "확장 프로그램에서도 같은 세션을 확인할 수 있습니다."
+              ? "웹과 확장 프로그램이 같은 서버 세션을 사용합니다."
+              : status === "paused"
+              ? "남은 시간이 서버에 보존되었습니다. 재개하면 이어서 진행합니다."
+              : status === "awaiting-result"
+              ? "완료한 세부 목표를 선택해 포인트 정산을 마쳐 주세요."
               : title.trim()
               ? `“${truncateText(title, 10)}” (${Number(targetFocusMinutes) || 0}분) 세션을 시작할 준비가 되었습니다.`
               : `계획을 저장하면 ${Number(targetFocusMinutes) || 0}분 타이머가 준비됩니다.`}
           </p>
 
           <div className="timer-track">
-            <i style={{ width: status === "active" ? "100%" : "0%" }} />
+            <i style={{ width: hasCurrentSession ? `${Math.max(0, Math.min(100, 100 - (remainingSeconds / Math.max(1, Number(targetFocusMinutes) * 60)) * 100))}%` : "0%" }} />
           </div>
 
           <div className="timer-meta">
@@ -744,7 +832,7 @@ export function FocusPlanner() {
             <span>
               확장 상태
               <strong>
-                {status === "active"
+                {hasCurrentSession
                   ? "동기화됨"
                   : blockingMode === "off"
                   ? "필요 없음"
@@ -792,11 +880,16 @@ export function FocusPlanner() {
             </div>
           </div>
 
-          {activeSession && status === "active" && (
+          {activeSession && hasCurrentSession && (
             <div className="focus-settlement-actions">
-              {remainingSeconds > 0 ? (
+              {status !== "awaiting-result" && remainingSeconds > 0 ? (
                 <>
-                  <p>목표 시간이 끝나면 완료한 목표를 선택해 포인트를 정산할 수 있습니다.</p>
+                  <p>{status === "paused" ? "남은 시간과 차단 상태가 서버에 보존되어 있습니다." : "목표 시간이 끝나면 완료한 목표를 선택해 포인트를 정산할 수 있습니다."}</p>
+                  {status === "active" ? (
+                    <button className="button secondary small" type="button" onClick={() => void pauseFocus()}>일시정지</button>
+                  ) : (
+                    <button className="button secondary small" type="button" onClick={() => void resumeFocus()}>집중 재개</button>
+                  )}
                   <button className="button family-code-cancel small" type="button" onClick={abandonFocus}>집중 포기</button>
                 </>
               ) : (
