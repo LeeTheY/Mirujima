@@ -64,6 +64,86 @@ export const focusGoalSchema = z.object({
 });
 export type FocusGoal = z.infer<typeof focusGoalSchema>;
 
+export const aiCoachingTaskSchema = z.enum([
+  "focus-plan-review",
+  "study-recommendation",
+  "guardian-summary",
+  "weekly-report",
+]);
+export type AiCoachingTask = z.infer<typeof aiCoachingTaskSchema>;
+
+const aiTextSchema = z.string().trim().min(1).max(1_000);
+const aiSuggestionListSchema = z.array(aiTextSchema).min(1).max(6);
+
+export const focusCoachRequestSchema = z.object({
+  action: z.literal("focus-coach"),
+  title: z.string().trim().min(1).max(120),
+  targetFocusMinutes: z.number().int().min(1).max(720),
+  goals: z.array(z.object({
+    name: z.string().trim().min(1).max(120),
+    detail: z.string().trim().max(500),
+    minutes: z.number().int().min(1).max(720),
+  }).strict()).min(1).max(10),
+}).strict();
+export type FocusCoachRequest = z.infer<typeof focusCoachRequestSchema>;
+
+export const focusCoachResultSchema = z.object({
+  task: z.literal("focus-plan-review"),
+  summary: aiTextSchema,
+  recommendedTitle: z.string().trim().min(1).max(120),
+  recommendedFocusMinutes: z.number().int().min(1).max(720),
+  recommendedBreakMinutes: z.number().int().min(0).max(120),
+  steps: aiSuggestionListSchema,
+  reason: aiTextSchema,
+}).strict();
+export type FocusCoachResult = z.infer<typeof focusCoachResultSchema>;
+
+export const studyRecommendationResultSchema = z.object({
+  task: z.literal("study-recommendation"),
+  title: z.string().trim().min(1).max(120),
+  summary: aiTextSchema,
+  recommendedOrder: z.array(z.object({
+    subject: z.string().trim().min(1).max(120),
+    focusMinutes: z.number().int().min(5).max(180),
+    reason: aiTextSchema,
+  }).strict()).min(1).max(5),
+  nextAction: aiTextSchema,
+}).strict();
+export type StudyRecommendationResult = z.infer<typeof studyRecommendationResultSchema>;
+
+export const guardianSummaryResultSchema = z.object({
+  task: z.literal("guardian-summary"),
+  title: z.string().trim().min(1).max(120),
+  summary: aiTextSchema,
+  suggestions: z.array(aiTextSchema).min(1).max(4),
+}).strict();
+export type GuardianSummaryResult = z.infer<typeof guardianSummaryResultSchema>;
+
+export const weeklyReportResultSchema = z.object({
+  task: z.literal("weekly-report"),
+  title: z.string().trim().min(1).max(120),
+  achievementSummary: aiTextSchema,
+  wins: z.array(aiTextSchema).min(1).max(4),
+  improvements: z.array(aiTextSchema).min(1).max(4),
+  nextWeekPlan: z.array(aiTextSchema).min(1).max(4),
+}).strict();
+export type WeeklyReportResult = z.infer<typeof weeklyReportResultSchema>;
+
+export const aiCoachingRequestSchema = z.discriminatedUnion("action", [
+  focusCoachRequestSchema,
+  z.object({ action: z.literal("study-recommendation") }).strict(),
+  z.object({ action: z.literal("guardian-summary") }).strict(),
+  z.object({ action: z.literal("weekly-report") }).strict(),
+]);
+
+export const aiCoachingResultSchema = z.discriminatedUnion("task", [
+  focusCoachResultSchema,
+  studyRecommendationResultSchema,
+  guardianSummaryResultSchema,
+  weeklyReportResultSchema,
+]);
+export type AiCoachingResult = z.infer<typeof aiCoachingResultSchema>;
+
 export const focusGoalsSchema = z.array(focusGoalSchema).min(1).max(100).superRefine((goals, context) => {
   const seen = new Set<string>();
   goals.forEach((goal, index) => {

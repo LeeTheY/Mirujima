@@ -4,12 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-
-interface SummaryResult {
-  title: string;
-  summary: string;
-  suggestions: string[];
-}
+import { guardianSummaryResultSchema, type GuardianSummaryResult } from "@mirujima/contracts";
 
 async function safeFunctionCode(error: unknown): Promise<string> {
   if (!error || typeof error !== "object") return "unknown";
@@ -25,7 +20,7 @@ async function safeFunctionCode(error: unknown): Promise<string> {
 
 export function GuardianAiSummary() {
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<SummaryResult | null>(null);
+  const [result, setResult] = useState<GuardianSummaryResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
 
@@ -33,18 +28,20 @@ export function GuardianAiSummary() {
     setBusy(true); setMessage(null);
     try {
       const client = createClient();
-      const aggregate = await client.rpc("get_guardian_ai_summary_input");
-      if (aggregate.error) throw new Error("학생의 공유 정보를 불러오지 못했습니다.");
-      if (!Array.isArray(aggregate.data) || aggregate.data.length === 0) throw new Error("요약할 연결 학생 정보가 없습니다.");
-      const response = await client.functions.invoke("ai-writing", { body: { action: "guardian-summary", students: aggregate.data } });
+      const response = await client.functions.invoke("ai-writing", { body: { action: "guardian-summary" } });
       if (response.error) {
-        if (await safeFunctionCode(response.error) === "membership_entitlement_required") {
+        const code = await safeFunctionCode(response.error);
+        if (code === "membership_entitlement_required") {
           setMembershipModalOpen(true); return;
         }
+        if (code === "guardian_summary_data_required") throw new Error("요약할 연결 학생의 공유 정보가 없습니다.");
+        if (code === "rate_limited") throw new Error("AI 요약 요청 한도를 넘었습니다. 1분 뒤 다시 시도해 주세요.");
+        if (code === "invalid_ai_result") throw new Error("AI 요약 결과 형식을 확인하지 못했습니다. 이전 결과는 유지됩니다.");
         throw new Error("가족 AI 요약을 만들지 못했습니다.");
       }
-      if (!response.data || typeof response.data !== "object" || !Array.isArray(response.data.suggestions)) throw new Error("가족 AI 요약 결과를 확인하지 못했습니다.");
-      setResult(response.data as SummaryResult);
+      const parsed = guardianSummaryResultSchema.safeParse(response.data);
+      if (!parsed.success) throw new Error("AI 요약 결과 형식을 확인하지 못했습니다. 이전 결과는 유지됩니다.");
+      setResult(parsed.data);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "가족 AI 요약을 만들지 못했습니다.");
     } finally { setBusy(false); }

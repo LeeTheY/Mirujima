@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { canonicalFocusSessionSchema, completionPercentForGoals, type CanonicalFocusSession, type FocusPlan } from "@mirujima/contracts";
+import {
+  canonicalFocusSessionSchema,
+  completionPercentForGoals,
+  focusCoachRequestSchema,
+  focusCoachResultSchema,
+  type CanonicalFocusSession,
+  type FocusCoachResult,
+  type FocusPlan,
+} from "@mirujima/contracts";
 import { createClient } from "@/lib/supabase/client";
 import { parseFocusDraft, parseFocusGoals } from "./focus-form";
 import { chromeExternalSender, pingExtension, requestFocusReconcile, requestFocusSync, requiresExtension } from "@/features/extension/bridge";
@@ -26,15 +34,6 @@ interface GoalItem {
 }
 
 type ActiveFocusSession = CanonicalFocusSession;
-
-interface FocusCoachResult {
-  summary: string;
-  recommendedTitle: string;
-  recommendedFocusMinutes: number;
-  recommendedBreakMinutes: number;
-  steps: string[];
-  reason: string;
-}
 
 interface RealismEvaluation {
   score: number;
@@ -139,12 +138,14 @@ export function FocusPlanner() {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState<FocusCoachResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
   const [completedGoalIds, setCompletedGoalIds] = useState<string[]>([]);
 
   const [title, setTitle] = useState("");
   const [todayDate, setTodayDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [targetFocusMinutes, setTargetFocusMinutes] = useState<number | "">(50);
+  const [breakMinutes, setBreakMinutes] = useState<number | "">(10);
   const [selfDepositPoints, setSelfDepositPoints] = useState<number | "">(0);
   const [extensionConnected, setExtensionConnected] = useState<boolean | null>(null);
 
@@ -494,15 +495,17 @@ export function FocusPlanner() {
 
   async function requestAiRecommendation() {
     setAiBusy(true);
+    setAiError(null);
     try {
       const form = formRef.current ? new FormData(formRef.current) : new FormData();
+      const requestBody = focusCoachRequestSchema.parse({
+        action: "focus-coach",
+        title: String(form.get("title") ?? goals[0]?.name ?? "오늘의 집중 계획"),
+        targetFocusMinutes: Number(form.get("targetFocusMinutes") ?? 50),
+        goals: goals.map(({ name, detail, minutes }) => ({ name: name || "집중 목표", detail, minutes: Number(minutes) })),
+      });
       const { data, error } = await createClient().functions.invoke("ai-writing", {
-        body: {
-          action: "focus-coach",
-          title: String(form.get("title") ?? goals[0]?.name ?? "오늘의 집중 계획"),
-          targetFocusMinutes: Number(form.get("targetFocusMinutes") ?? 50),
-          goals: goals.map(({ name, detail, minutes }) => ({ name: name || "집중 목표", detail, minutes })),
-        },
+        body: requestBody,
       });
       if (error) {
         const context = error.context;
@@ -511,15 +514,27 @@ export function FocusPlanner() {
           setMembershipModalOpen(true);
           return;
         }
+        if (body?.error === "rate_limited") throw new Error("AI 추천 요청 한도를 넘었습니다. 1분 뒤 다시 시도해 주세요.");
+        if (body?.error === "invalid_ai_result") throw new Error("AI 추천 결과 형식을 확인하지 못했습니다. 입력은 그대로 유지되며 다시 시도할 수 있습니다.");
         throw new Error("AI 추천을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
       }
-      if (!data || typeof data !== "object" || !Array.isArray(data.steps)) throw new Error("AI 추천 결과를 확인하지 못했습니다.");
-      setAiRecommendation(data as FocusCoachResult);
+      const parsed = focusCoachResultSchema.safeParse(data);
+      if (!parsed.success) throw new Error("AI 추천 결과 형식을 확인하지 못했습니다. 입력은 그대로 유지되며 다시 시도할 수 있습니다.");
+      setAiRecommendation(parsed.data);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "AI 추천을 불러오지 못했습니다.");
+      setAiError(error instanceof Error ? error.message : "AI 추천을 불러오지 못했습니다.");
     } finally {
       setAiBusy(false);
     }
+  }
+
+  function applyAiRecommendation() {
+    if (!aiRecommendation) return;
+    setTitle(aiRecommendation.recommendedTitle);
+    setTargetFocusMinutes(aiRecommendation.recommendedFocusMinutes);
+    setBreakMinutes(Math.max(1, aiRecommendation.recommendedBreakMinutes));
+    setAiError(null);
+    setMessage("AI 추천의 계획명과 시간만 적용했습니다. 목표와 포인트를 확인한 뒤 직접 계획을 확정해 주세요.");
   }
 
   const settlementGoals = activeSession?.goals ?? [];
@@ -568,6 +583,24 @@ export function FocusPlanner() {
                 type="date"
                 value={todayDate}
                 onChange={(e) => setTodayDate(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="field-row">
+            <label>
+              기본 휴식 시간 (분)
+              <input
+                name="breakMinutes"
+                type="number"
+                value={breakMinutes}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setBreakMinutes(value === "" ? "" : Math.max(1, Number(value)));
+                }}
+                min="1"
+                max="120"
+                placeholder="예: 10"
               />
             </label>
           </div>
@@ -835,8 +868,11 @@ export function FocusPlanner() {
               <p><b>권장 시간:</b> 집중 {aiRecommendation.recommendedFocusMinutes}분 · 휴식 {aiRecommendation.recommendedBreakMinutes}분</p>
               <ol>{aiRecommendation.steps.map((step) => <li key={step}>{step}</li>)}</ol>
               <p>{aiRecommendation.reason}</p>
+              <button className="button secondary small" type="button" onClick={applyAiRecommendation}>추천 계획명·시간 적용</button>
             </div>
           ) : null}
+
+          {aiError ? <div className="notice error" role="alert"><strong>AI 추천을 표시하지 못했습니다.</strong><p>{aiError}</p></div> : null}
 
           <div className="focus-actions-row">
             <button className="button full" type="submit" disabled={status === "saving" || status === "recovering" || hasCurrentSession}>

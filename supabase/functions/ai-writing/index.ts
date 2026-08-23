@@ -1,4 +1,21 @@
-import { assertEntitlement, authenticatedClient, corsHeaders, json, registerDevice } from "../_shared/membership.ts";
+import {
+  assertActiveMembership,
+  assertEntitlement,
+  assertProfileRole,
+  authenticatedClient,
+  corsHeaders,
+  json,
+  registerDevice,
+} from "../_shared/membership.ts";
+import {
+  isFocusCoachResult,
+  isGuardianSummaryResult,
+  isStudyRecommendationResult,
+  isWeeklyReportResult,
+  minimalGuardianAggregates,
+  minimalStudentHistory,
+  parseFocusCoachInput,
+} from "../_shared/ai-coaching.ts";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const OCR_MODEL = Deno.env.get("GROQ_OCR_MODEL") ?? "qwen/qwen3.6-27b";
@@ -34,6 +51,29 @@ const guardianSummarySchema = {
   required: ["title", "summary", "suggestions"], additionalProperties: false
 } as const;
 
+const studyRecommendationSchema = {
+  type: "object",
+  properties: {
+    title: { type: "string" }, summary: { type: "string" },
+    recommendedOrder: { type: "array", minItems: 1, maxItems: 5, items: { type: "object", properties: {
+      subject: { type: "string" }, focusMinutes: { type: "integer", minimum: 5, maximum: 180 }, reason: { type: "string" }
+    }, required: ["subject", "focusMinutes", "reason"], additionalProperties: false } },
+    nextAction: { type: "string" }
+  },
+  required: ["title", "summary", "recommendedOrder", "nextAction"], additionalProperties: false
+} as const;
+
+const weeklyReportSchema = {
+  type: "object",
+  properties: {
+    title: { type: "string" }, achievementSummary: { type: "string" },
+    wins: { type: "array", minItems: 1, maxItems: 4, items: { type: "string" } },
+    improvements: { type: "array", minItems: 1, maxItems: 4, items: { type: "string" } },
+    nextWeekPlan: { type: "array", minItems: 1, maxItems: 4, items: { type: "string" } }
+  },
+  required: ["title", "achievementSummary", "wins", "improvements", "nextWeekPlan"], additionalProperties: false
+} as const;
+
 const writingSchema = {
   type: "object",
   properties: {
@@ -64,14 +104,6 @@ const analysisSchema = {
 
 function delay(milliseconds: number): Promise<void> { return new Promise((resolve) => setTimeout(resolve, milliseconds)); }
 
-async function groqErrorDetail(response: Response): Promise<string> {
-  try {
-    const body = await response.json() as { error?: { message?: unknown }; message?: unknown };
-    const detail = body.error?.message ?? body.message;
-    return typeof detail === "string" ? detail.slice(0, 500) : "";
-  } catch { return ""; }
-}
-
 async function groqRequest(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   const apiKey = Deno.env.get("GROQ_API_KEY");
   if (!apiKey) throw new Error("AI 서버 secret이 설정되지 않았습니다.");
@@ -89,9 +121,9 @@ async function groqRequest(payload: Record<string, unknown>): Promise<Record<str
         await response.body?.cancel(); await delay(retrySeconds * 1000); continue;
       }
       if (response.status === 429) throw new Error("AI 요청이 많습니다. 잠시 후 다시 시도해 주세요.");
-      const detail = await groqErrorDetail(response);
-      if (response.status === 413) throw new Error(`Groq 요청 크기가 현재 요금제 한도를 넘었습니다 (413)${detail ? `: ${detail}` : ". 입력 영역을 줄이거나 잠시 후 다시 시도해 주세요."}`);
-      throw new Error(response.status >= 500 ? "AI 서버가 잠시 응답하지 않습니다." : `AI 요청을 처리하지 못했습니다 (${response.status})${detail ? `: ${detail}` : ""}`);
+      await response.body?.cancel();
+      if (response.status === 413) throw new Error("AI 요청 크기가 허용 범위를 넘었습니다. 입력 영역을 줄여 다시 시도해 주세요.");
+      throw new Error(response.status >= 500 ? "AI 서버가 잠시 응답하지 않습니다." : "AI 요청 구성이 올바르지 않습니다.");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         if (attempt === 0) continue;
@@ -175,59 +207,53 @@ Deno.serve(async (request) => {
   try {
     const body: Record<string, unknown> = await request.json();
     const { client, user } = await authenticatedClient(request);
-    await registerDevice(client, user.id, body);
-    let rateTask: "ocr" | "grammar-correction" | "focus-plan-review" | "guardian-summary" | AnalysisTask;
-    if (body.action === "ocr") { await assertEntitlement(client, user.id, "screen-ocr"); rateTask = "ocr"; }
-    else if (body.action === "correct") { await assertEntitlement(client, user.id, "grammar-correction"); rateTask = "grammar-correction"; }
+    let rateTask: "ocr" | "grammar-correction" | "focus-plan-review" | "study-recommendation" | "guardian-summary" | "weekly-report" | AnalysisTask;
+    let allowedRoles: Array<"student" | "guardian"> = ["student", "guardian"];
+    let entitlementKeys: string[];
+    if (body.action === "ocr") { entitlementKeys = ["screen-ocr"]; rateTask = "ocr"; }
+    else if (body.action === "correct") { entitlementKeys = ["grammar-correction"]; rateTask = "grammar-correction"; }
     else if (body.action === "analyze" && (body.task === "content-summary" || body.task === "study-organize")) {
-      await assertEntitlement(client, user.id, "screen-ocr"); await assertEntitlement(client, user.id, "content-summary"); rateTask = body.task;
-    } else if (body.action === "focus-coach") { await assertEntitlement(client, user.id, "ai-focus-coach"); rateTask = "focus-plan-review"; }
-    else if (body.action === "guardian-summary") { await assertEntitlement(client, user.id, "ai-guardian-summary"); rateTask = "guardian-summary"; }
+      entitlementKeys = ["screen-ocr", "content-summary"]; rateTask = body.task;
+    } else if (body.action === "focus-coach") {
+      allowedRoles = ["student"]; entitlementKeys = ["ai-focus-coach"]; rateTask = "focus-plan-review";
+    } else if (body.action === "study-recommendation") {
+      allowedRoles = ["student"]; entitlementKeys = ["ai-study-recommendation"]; rateTask = "study-recommendation";
+    } else if (body.action === "guardian-summary") {
+      allowedRoles = ["guardian"]; entitlementKeys = ["ai-guardian-summary"]; rateTask = "guardian-summary";
+    } else if (body.action === "weekly-report") {
+      allowedRoles = ["student"]; entitlementKeys = ["ai-weekly-report"]; rateTask = "weekly-report";
+    }
     else return json({ error: "unsupported_action" }, 400);
+
+    await assertProfileRole(client, user.id, allowedRoles);
+    await assertActiveMembership(client, user.id);
+    for (const entitlementKey of entitlementKeys) await assertEntitlement(client, user.id, entitlementKey);
     const { data: allowed, error: rateError } = await client.rpc("consume_ai_task_rate_limit", { p_task: rateTask });
     if (rateError) throw rateError;
     if (!allowed) return json({ error: "rate_limited", message: "이 AI 작업의 1분 요청 한도를 넘었습니다. 잠시 후 다시 시도해 주세요." }, 429);
+    await registerDevice(client, user.id, body);
 
     if (body.action === "focus-coach") {
-      const title = typeof body.title === "string" ? body.title.trim().slice(0, 120) : "";
-      const targetFocusMinutes = Number(body.targetFocusMinutes);
-      const goals = Array.isArray(body.goals) ? body.goals.slice(0, 10).map((goal) => {
-        if (!goal || typeof goal !== "object") return null;
-        const item = goal as Record<string, unknown>;
-        const name = typeof item.name === "string" ? item.name.trim().slice(0, 120) : "";
-        const detail = typeof item.detail === "string" ? item.detail.trim().slice(0, 500) : "";
-        const minutes = Number(item.minutes);
-        return name && Number.isSafeInteger(minutes) && minutes >= 1 && minutes <= 720 ? { name, detail, minutes } : null;
-      }).filter(Boolean) : [];
-      if (!title || !Number.isSafeInteger(targetFocusMinutes) || targetFocusMinutes < 1 || targetFocusMinutes > 720 || goals.length === 0) {
-        return json({ error: "invalid_focus_plan" }, 400);
-      }
+      const input = parseFocusCoachInput(body);
+      if (!input) return json({ error: "invalid_focus_plan" }, 400);
       const response = await groqRequest({
         model: WRITING_MODEL,
         messages: [
           { role: "system", content: "당신은 학생의 집중 계획을 현실적으로 다듬는 코치입니다. 결제·포인트 이동·계획 확정은 하지 말고, 입력된 목표와 시간만 근거로 한국어로 제안하세요." },
-          { role: "user", content: JSON.stringify({ title, targetFocusMinutes, goals }) }
+          { role: "user", content: JSON.stringify(input) }
         ], reasoning_effort: "low", reasoning_format: "hidden", temperature: 0.2, max_completion_tokens: 1200, store: false,
         response_format: { type: "json_schema", json_schema: { name: "focus_plan_review", strict: true, schema: focusCoachSchema } }
       });
       const result = parseJsonResponse(response);
-      if (!result || typeof result !== "object") return json({ error: "invalid_ai_result" }, 502);
-      return json(result);
+      if (!isFocusCoachResult(result)) return json({ error: "invalid_ai_result" }, 502);
+      return json({ task: "focus-plan-review", ...result });
     }
 
     if (body.action === "guardian-summary") {
-      const students = Array.isArray(body.students) ? body.students.slice(0, 5).map((student) => {
-        if (!student || typeof student !== "object") return null;
-        const item = student as Record<string, unknown>;
-        return {
-          displayName: typeof item.displayName === "string" ? item.displayName.slice(0, 80) : "학생",
-          completionRate: Math.max(0, Math.min(100, Number(item.completionRate) || 0)),
-          totalFocusMinutes: Math.max(0, Math.min(10080, Number(item.totalFocusMinutes) || 0)),
-          rewardStatus: typeof item.rewardStatus === "string" ? item.rewardStatus.slice(0, 80) : "정보 없음",
-          aiSummary: typeof item.aiSummary === "string" ? item.aiSummary.slice(0, 1000) : null
-        };
-      }).filter(Boolean) : [];
-      if (students.length === 0) return json({ error: "guardian_summary_data_required" }, 400);
+      const aggregate = await client.rpc("get_guardian_ai_summary_input");
+      if (aggregate.error) throw aggregate.error;
+      const students = minimalGuardianAggregates(aggregate.data);
+      if (!students) return json({ error: "guardian_summary_data_required" }, 400);
       const response = await groqRequest({
         model: WRITING_MODEL,
         messages: [
@@ -237,8 +263,37 @@ Deno.serve(async (request) => {
         response_format: { type: "json_schema", json_schema: { name: "guardian_family_summary", strict: true, schema: guardianSummarySchema } }
       });
       const result = parseJsonResponse(response);
-      if (!result || typeof result !== "object") return json({ error: "invalid_ai_result" }, 502);
-      return json(result);
+      if (!isGuardianSummaryResult(result)) return json({ error: "invalid_ai_result" }, 502);
+      return json({ task: "guardian-summary", ...result });
+    }
+
+    if (body.action === "study-recommendation" || body.action === "weekly-report") {
+      const anchorDate = new Date().toISOString().slice(0, 10);
+      const historyResponse = await client.rpc("get_student_focus_history", { p_period: "weekly", p_anchor_date: anchorDate });
+      if (historyResponse.error) throw historyResponse.error;
+      const history = minimalStudentHistory(historyResponse.data);
+      if (!history) return json({ error: "student_history_unavailable" }, 422);
+      const weekly = body.action === "weekly-report";
+      const response = await groqRequest({
+        model: WRITING_MODEL,
+        messages: [
+          { role: "system", content: weekly
+            ? "당신은 학생 주간 집중 기록 요약 도우미입니다. 제공된 집계와 목표 이름만 사용하고 감정·의학·심리 상태를 추측하지 마세요. 다음 주 계획은 사용자가 확인할 제안으로만 작성하세요."
+            : "당신은 학생 학습 순서 추천 도우미입니다. 제공된 최근 집중 집계와 목표 이름만 근거로 과목·목표 순서와 시간을 제안하세요. 계획을 확정하거나 포인트를 변경하지 마세요." },
+          { role: "user", content: JSON.stringify(history) }
+        ],
+        reasoning_effort: "low", reasoning_format: "hidden", temperature: 0.2, max_completion_tokens: 1200, store: false,
+        response_format: { type: "json_schema", json_schema: weekly
+          ? { name: "student_weekly_report", strict: true, schema: weeklyReportSchema }
+          : { name: "student_study_recommendation", strict: true, schema: studyRecommendationSchema } }
+      });
+      const result = parseJsonResponse(response);
+      if (weekly) {
+        if (!isWeeklyReportResult(result)) return json({ error: "invalid_ai_result" }, 502);
+        return json({ task: "weekly-report", ...result });
+      }
+      if (!isStudyRecommendationResult(result)) return json({ error: "invalid_ai_result" }, 502);
+      return json({ task: "study-recommendation", ...result });
     }
 
     if (body.action === "ocr") {
@@ -289,7 +344,7 @@ Deno.serve(async (request) => {
     return json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : "AI 요청을 처리하지 못했습니다.";
-    const status = message.includes("entitlement") ? 403 : message.includes("로그인") ? 401 : 502;
+    const status = message.includes("entitlement") || message.includes("membership") || message.includes("role") ? 403 : message.includes("로그인") ? 401 : 502;
     if (status === 403) return json({ error: "membership_entitlement_required", message: "AI 기능을 사용하려면 활성 멤버십이 필요합니다." }, 403);
     return json({ error: "ai_writing_failed", message }, status);
   }

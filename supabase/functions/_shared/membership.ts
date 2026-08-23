@@ -93,3 +93,23 @@ export async function assertEntitlement(client: ReturnType<typeof createClient>,
     throw new Error(`${featureKey} entitlement required`);
   }
 }
+
+export async function assertProfileRole(
+  client: ReturnType<typeof createClient>,
+  userId: string,
+  allowedRoles: Array<"student" | "guardian">,
+): Promise<"student" | "guardian"> {
+  const { data, error } = await client.from("profiles").select("role").eq("id", userId).maybeSingle();
+  if (error) throw error;
+  const role = data?.role;
+  if ((role !== "student" && role !== "guardian") || !allowedRoles.includes(role)) throw new Error("AI role required");
+  return role;
+}
+
+export async function assertActiveMembership(client: ReturnType<typeof createClient>, userId: string): Promise<void> {
+  const { data, error } = await client.rpc("get_effective_membership", { p_user_id: userId });
+  if (error) throw error;
+  if (!data || typeof data !== "object" || (data as Record<string, unknown>).status !== "active") {
+    throw new Error("active membership required");
+  }
+}

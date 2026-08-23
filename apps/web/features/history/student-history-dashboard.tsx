@@ -5,6 +5,7 @@ import { BarChart3, Calendar, Flame, HelpCircle, ShieldAlert, Target, X } from "
 import type { HistoryPeriod, StudentFocusHistory } from "@mirujima/contracts";
 import { HistoryControls } from "./history-controls";
 import { formatFocusMinutes, formatHistoryRange, shortDateLabel, trendBarPercent } from "./history-format";
+import { StudentAiInsights } from "./student-ai-insights";
 
 export function StudentHistoryDashboard({ history, error, period, anchorDate }: { history: StudentFocusHistory | null; error: string | null; period: HistoryPeriod; anchorDate: string }) {
   const [guideOpen, setGuideOpen] = useState(false);
@@ -25,6 +26,8 @@ export function StudentHistoryDashboard({ history, error, period, anchorDate }: 
         <Metric label="차단 시도" value={`${history.summary.blockedAttemptCount}회`} detail="원본 사이트 정보는 저장하지 않음" />
         <Metric label="기록된 세션" value={`${history.sessionCount}개`} detail={history.sessionsTruncated ? "최신 200개 표시" : "조회 기간 전체"} />
       </section>
+
+      <StudentAiInsights />
 
       <section className="card chart-card history-chart-card">
         <div className="history-section-heading"><div><span className="card-label">날짜별 집중 추이</span><h2>집중 시간과 달성률</h2></div><BarChart3 className="w-5 h-5 text-muted" /></div>
