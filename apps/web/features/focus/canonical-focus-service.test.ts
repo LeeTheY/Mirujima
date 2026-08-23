@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   finishCanonicalFocusSession,
+  getCanonicalFocusSession,
   getCurrentCanonicalFocusSession,
   pauseCanonicalFocusSession,
   resumeCanonicalFocusSession,
@@ -23,6 +24,12 @@ describe("canonical focus web service", () => {
     const client = { rpc: vi.fn().mockResolvedValue({ data: null, error: null }) };
     await expect(getCurrentCanonicalFocusSession(client)).resolves.toBeNull();
     expect(client.rpc).toHaveBeenCalledWith("get_current_focus_session");
+  });
+
+  it("re-fetches a realtime invalidated session through its RPC", async () => {
+    const client = { rpc: vi.fn().mockResolvedValue({ data: session, error: null }) };
+    await expect(getCanonicalFocusSession(client, "session-1")).resolves.toMatchObject({ id: "session-1" });
+    expect(client.rpc).toHaveBeenCalledWith("get_focus_session", { p_session_id: "session-1" });
   });
 
   it("normalizes lifecycle RPC responses", async () => {

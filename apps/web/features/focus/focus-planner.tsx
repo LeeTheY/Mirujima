@@ -8,11 +8,13 @@ import { parseFocusDraft, parseFocusGoals } from "./focus-form";
 import { chromeExternalSender, pingExtension, requestFocusReconcile, requestFocusSync, requiresExtension } from "@/features/extension/bridge";
 import {
   finishCanonicalFocusSession,
+  getCanonicalFocusSession,
   getCurrentCanonicalFocusSession,
   pauseCanonicalFocusSession,
   resumeCanonicalFocusSession,
   type FocusRpcClient,
 } from "./canonical-focus-service";
+import { canonicalSessionIdFromRealtimePayload } from "./canonical-focus-realtime";
 import { Plus, Trash2, ArrowUp, ArrowDown, Sparkles, Shield, Flame, CheckCircle2, HelpCircle, X } from "lucide-react";
 
 interface GoalItem {
@@ -163,7 +165,13 @@ export function FocusPlanner() {
     setGoals(session.goals.map((goal) => ({ ...goal })));
     setCompletedGoalIds(session.result?.completedGoalIds ?? []);
     if (!title.trim()) setTitle("진행 중인 집중 계획");
-    if (session.status === "paused") {
+    if (session.status === "success" || session.status === "failed" || session.status === "cancelled") {
+      setRemainingSeconds(0);
+      setStatus("completed");
+      setMessage(session.result
+        ? `집중 결과 ${session.result.completionPercent}% · ${session.result.earnedPoints.toLocaleString()}P 획득 · ${session.result.returnedPoints.toLocaleString()}P 반환`
+        : "집중 세션이 종료되었습니다.");
+    } else if (session.status === "paused") {
       setRemainingSeconds(session.remainingFocusSeconds);
       setStatus("paused");
       setMessage("일시정지된 집중 세션을 서버에서 복구했습니다.");
@@ -193,6 +201,62 @@ export function FocusPlanner() {
       });
     return () => { cancelled = true; };
     // Initial canonical recovery must run only once for this mounted planner.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let disposed = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let refreshInFlight = false;
+    let queuedSessionId: string | null = null;
+
+    const refresh = async (sessionId: string) => {
+      queuedSessionId = sessionId;
+      if (refreshInFlight) return;
+      refreshInFlight = true;
+      try {
+        while (!disposed && queuedSessionId) {
+          const nextSessionId = queuedSessionId;
+          queuedSessionId = null;
+          const session = await getCanonicalFocusSession(
+            supabase as unknown as FocusRpcClient,
+            nextSessionId,
+          );
+          if (!disposed && session) applyCanonicalSession(session);
+        }
+      } catch {
+        if (!disposed) setMessage("서버 집중 상태가 변경됐지만 최신 상태를 불러오지 못했습니다. 잠시 후 다시 시도합니다.");
+      } finally {
+        refreshInFlight = false;
+      }
+    };
+
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (disposed || error || !data.user) return;
+      channel = supabase
+        .channel(`focus-session:${data.user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "cloud_focus_sessions",
+            filter: `user_id=eq.${data.user.id}`,
+          },
+          (payload) => {
+            const sessionId = canonicalSessionIdFromRealtimePayload(payload);
+            if (sessionId) void refresh(sessionId);
+          },
+        )
+        .subscribe();
+    });
+
+    return () => {
+      disposed = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+    // Realtime events are invalidations only; the RPC applies validated canonical state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

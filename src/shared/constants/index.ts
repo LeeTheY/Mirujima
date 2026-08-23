@@ -6,6 +6,8 @@ export const EVENT_RETENTION_DAYS = 30;
 export const DNR_RULE_ID_START = 20_000;
 export const DNR_RULE_ID_END = 29_999;
 export const NOTIFICATION_COOLDOWN_MS = 10 * 60 * 1000;
+export const EXTERNAL_REQUEST_RECEIPT_TTL_MS = 10 * 60 * 1000;
+export const EXTERNAL_REQUEST_RECEIPT_LIMIT = 100;
 
 export const STORAGE_KEYS = {
   schemaVersion: "mirujima:schema-version",
@@ -32,7 +34,9 @@ export const STORAGE_KEYS = {
   cloudSyncState: "mirujima:cloud-sync-state",
   cloudLearningDays: "mirujima:cloud-learning-days",
   cloudRestoreRecords: "mirujima:cloud-restore-records",
-  canonicalPendingSettlements: "mirujima:canonical-pending-settlements"
+  canonicalPendingSettlements: "mirujima:canonical-pending-settlements",
+  canonicalRuntimeUserId: "mirujima:canonical-runtime-user-id",
+  externalRequestReceipts: "mirujima:external-request-receipts"
 } as const;
 
 export const TAB_ORGANIZER_SCHEMA_VERSION = 1;

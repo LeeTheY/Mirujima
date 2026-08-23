@@ -33,6 +33,15 @@ export async function getCurrentCanonicalFocusSession(
   return data === null ? null : parseSession(data);
 }
 
+export async function getCanonicalFocusSession(
+  client: FocusRpcClient,
+  sessionId: string,
+): Promise<CanonicalFocusSession | null> {
+  const { data, error } = await client.rpc("get_focus_session", { p_session_id: sessionId });
+  if (error) throw new Error("집중 세션 상태를 불러오지 못했습니다.");
+  return data === null ? null : parseSession(data);
+}
+
 export function pauseCanonicalFocusSession(
   client: FocusRpcClient,
   sessionId: string,

@@ -15,7 +15,7 @@ import { membershipService } from "../features/membership/service";
 import { cloudSyncService } from "../features/cloud-sync/service";
 import { ALARM_PREFIX } from "../shared/constants";
 import { applyWritingToTab, captureWritingArea } from "./writing-capture";
-import { finishCanonicalFocus, pauseCanonicalFocus, reconcileCanonicalFocus, resumeCanonicalFocus } from "../features/web-bridge/canonical-focus";
+import { clearCanonicalRuntimeForSignOut, finishCanonicalFocus, pauseCanonicalFocus, reconcileCanonicalFocus, resumeCanonicalFocus } from "../features/web-bridge/canonical-focus";
 
 export function isStrongSnoozeWarning(snoozeCount: number): boolean {
   return snoozeCount >= 3;
@@ -370,6 +370,7 @@ export async function handleMessage(message: ExtensionMessage): Promise<AppSnaps
     case "MEMBERSHIP_OPEN_CHECKOUT": await membershipService.openCheckout(); break;
     case "MEMBERSHIP_RESTORE": await membershipService.restore(); break;
     case "MEMBERSHIP_SIGN_OUT":
+      await clearCanonicalRuntimeForSignOut();
       await membershipService.signOut();
       await chrome.alarms.clear(ALARM_PREFIX.cloudSync);
       break;

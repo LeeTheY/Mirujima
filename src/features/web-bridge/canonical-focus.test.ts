@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { canonicalFocusSessionSchema, type FocusPlan } from "@mirujima/contracts";
-import { canonicalMetricPayload, canonicalToLocalFocus, syncCanonicalMetricsBestEffort } from "./canonical-focus";
+import {
+  canonicalMetricPayload,
+  canonicalRuntimeOwnershipChanged,
+  canonicalToLocalFocus,
+  isStaleCanonicalUpdate,
+  shouldRetryPendingSettlement,
+  syncCanonicalMetricsBestEffort,
+} from "./canonical-focus";
 
 const plan: FocusPlan = {
   id: "plan-1",
@@ -46,6 +53,38 @@ describe("canonical focus adapter", () => {
     expect(local.session.canonical).toBe(true);
     expect(local.session.goals).toEqual(plan.goals);
     expect(local.session.remainingFocusSeconds).toBe(3_000);
+    expect(local.session.canonicalUpdatedAt).toBe(session.updatedAt);
+  });
+
+  it("rejects an older canonical update for the same local session", () => {
+    const current = {
+      ...canonicalToLocalFocus(plan, session).session,
+      canonicalUpdatedAt: "2026-08-08T10:10:00.000Z",
+    };
+    expect(isStaleCanonicalUpdate(current, session)).toBe(true);
+    expect(isStaleCanonicalUpdate({ ...current, id: "other-session" }, session)).toBe(false);
+  });
+
+  it("detects account boundaries and never retries another user's settlement", () => {
+    const userId = plan.ownerUserId;
+    expect(canonicalRuntimeOwnershipChanged(userId, userId, userId)).toBe(false);
+    expect(canonicalRuntimeOwnershipChanged("22222222-2222-4222-8222-222222222222", userId, userId)).toBe(true);
+    expect(canonicalRuntimeOwnershipChanged(null, "22222222-2222-4222-8222-222222222222", userId)).toBe(true);
+
+    const pending = {
+      idempotencyKey: "focus-finish:session-1",
+      sessionId: "session-1",
+      scheduleId: plan.id,
+      completedGoalIds: [],
+      deviceId: "device-1",
+      createdAt: session.startedAt,
+      lastAttemptAt: session.startedAt,
+      attempts: 0,
+      ownerUserId: userId,
+    };
+    expect(shouldRetryPendingSettlement(pending, userId, userId, userId)).toBe(true);
+    expect(shouldRetryPendingSettlement(pending, "22222222-2222-4222-8222-222222222222", userId, userId)).toBe(false);
+    expect(shouldRetryPendingSettlement({ ...pending, ownerUserId: undefined }, userId, userId, null)).toBe(true);
   });
 
   it("maps paused and terminal canonical states without losing the result", () => {

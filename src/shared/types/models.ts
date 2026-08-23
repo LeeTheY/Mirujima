@@ -68,6 +68,7 @@ export interface FocusSession {
   remainingFocusSeconds?: number;
   selfDepositPoints?: number;
   canonicalStatus?: "starting" | "active" | "paused" | "awaiting-result" | "success" | "failed" | "cancelled";
+  canonicalUpdatedAt?: string;
 }
 
 export interface PendingCanonicalSettlement {
@@ -79,6 +80,14 @@ export interface PendingCanonicalSettlement {
   createdAt: string;
   lastAttemptAt: string;
   attempts: number;
+  ownerUserId?: string;
+}
+
+export interface ExternalRequestReceipt {
+  requestId: string;
+  userId: string;
+  processedAt: string;
+  response: Record<string, unknown>;
 }
 
 export type ActivityEventType =

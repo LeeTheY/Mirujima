@@ -130,6 +130,7 @@ export function canonicalToLocalFocus(plan: FocusPlan, canonical: CanonicalFocus
     remainingFocusSeconds: canonical.remainingFocusSeconds,
     selfDepositPoints: canonical.selfDepositPoints,
     canonicalStatus: canonical.status,
+    canonicalUpdatedAt: canonical.updatedAt,
   };
   return { schedule, session };
 }
@@ -174,6 +175,64 @@ async function clearCanonicalRuntime(sessionId: string): Promise<void> {
   await clearBreakEndAlarm(sessionId);
 }
 
+export function isStaleCanonicalUpdate(current: FocusSession | null, incoming: CanonicalFocusSession): boolean {
+  if (!current?.canonical || current.id !== incoming.id || !current.canonicalUpdatedAt) return false;
+  return Date.parse(incoming.updatedAt) < Date.parse(current.canonicalUpdatedAt);
+}
+
+export function canonicalRuntimeOwnershipChanged(
+  trackedUserId: string | null,
+  activeOwnerUserId: string | undefined,
+  nextUserId: string,
+): boolean {
+  return Boolean(
+    (trackedUserId && trackedUserId !== nextUserId)
+    || (activeOwnerUserId && activeOwnerUserId !== nextUserId),
+  );
+}
+
+export function shouldRetryPendingSettlement(
+  record: PendingCanonicalSettlement,
+  ownerUserId: string,
+  scheduleOwnerUserId: string | undefined,
+  trackedUserId: string | null,
+): boolean {
+  if (record.ownerUserId) return record.ownerUserId === ownerUserId;
+  return scheduleOwnerUserId ? scheduleOwnerUserId === ownerUserId : trackedUserId === ownerUserId;
+}
+
+async function clearCanonicalAccountRuntime(): Promise<void> {
+  const active = await repository.getActiveSession();
+  if (active?.canonical) {
+    await clearCanonicalRuntime(active.id);
+    await repository.setActiveSession(null);
+    await repository.setTemporaryAllows(
+      (await repository.getTemporaryAllows()).filter((item) => item.sessionId !== active.id),
+    );
+  }
+  await repository.setExternalRequestReceipts([]);
+  await chrome.action.setBadgeText({ text: "" });
+}
+
+export async function clearCanonicalRuntimeForSignOut(): Promise<void> {
+  await repository.initialize();
+  await clearCanonicalAccountRuntime();
+  await repository.setCanonicalRuntimeUserId(null);
+}
+
+export async function prepareCanonicalRuntimeForUser(userId: string): Promise<void> {
+  const trackedUserId = await repository.getCanonicalRuntimeUserId();
+  const active = await repository.getActiveSession();
+  const schedules = active?.canonical ? await repository.getSchedules() : [];
+  const activeOwnerUserId = active?.canonical
+    ? schedules.find((item) => item.id === active.scheduleId)?.ownerUserId
+    : undefined;
+  if (canonicalRuntimeOwnershipChanged(trackedUserId, activeOwnerUserId, userId)) {
+    await clearCanonicalAccountRuntime();
+  }
+  await repository.setCanonicalRuntimeUserId(userId);
+}
+
 async function finalizeCanonicalLocal(local: { schedule: Schedule; session: FocusSession }): Promise<void> {
   const history = await repository.getSessionHistory();
   const current = await repository.getActiveSession();
@@ -201,6 +260,7 @@ async function finalizeCanonicalLocal(local: { schedule: Schedule; session: Focu
 }
 
 async function applyCanonicalState(plan: FocusPlan, canonical: CanonicalFocusSession): Promise<void> {
+  if (isStaleCanonicalUpdate(await repository.getActiveSession(), canonical)) return;
   const local = canonicalToLocalFocus(plan, canonical);
   if (canonical.status === "success" || canonical.status === "failed" || canonical.status === "cancelled") {
     await finalizeCanonicalLocal(local);
@@ -234,11 +294,12 @@ async function applyCanonicalState(plan: FocusPlan, canonical: CanonicalFocusSes
 
 export async function reconcileCanonicalFocus(scheduleId?: string, sessionId?: string): Promise<CanonicalFocusSession | null> {
   await repository.initialize();
+  const userId = await requireUserId();
+  await prepareCanonicalRuntimeForUser(userId);
   const localBeforeReconcile = await repository.getActiveSession();
   if (localBeforeReconcile?.canonical && (!sessionId || localBeforeReconcile.id === sessionId)) {
     await syncCanonicalMetricsBestEffort(localBeforeReconcile, await getOrCreateDeviceId());
   }
-  const userId = await requireUserId();
   const canonical = sessionId
     ? await callSessionRpc("get_focus_session", { p_session_id: sessionId })
     : await callSessionRpc("get_current_focus_session");
@@ -269,6 +330,8 @@ export async function resyncCanonicalFocus(): Promise<void> {
 
 async function transitionCanonical(name: "pause_focus_session" | "resume_focus_session", sessionId: string): Promise<void> {
   const deviceId = await getOrCreateDeviceId();
+  const ownerUserId = await requireUserId();
+  await prepareCanonicalRuntimeForUser(ownerUserId);
   const local = await repository.getActiveSession();
   if (local?.canonical && local.id === sessionId) await syncCanonicalMetricsBestEffort(local, deviceId);
   await callSessionRpc(name, { p_session_id: sessionId, p_device_id: deviceId });
@@ -291,6 +354,8 @@ async function queueSettlement(record: PendingCanonicalSettlement): Promise<void
 export async function finishCanonicalFocus(sessionId: string, scheduleId: string, completedGoalIds: string[]): Promise<void> {
   const now = new Date().toISOString();
   const deviceId = await getOrCreateDeviceId();
+  const ownerUserId = await requireUserId();
+  await prepareCanonicalRuntimeForUser(ownerUserId);
   const local = await repository.getActiveSession();
   if (local?.canonical && local.id === sessionId) await syncCanonicalMetricsBestEffort(local, deviceId);
   const record: PendingCanonicalSettlement = {
@@ -302,6 +367,7 @@ export async function finishCanonicalFocus(sessionId: string, scheduleId: string
     createdAt: now,
     lastAttemptAt: now,
     attempts: 0,
+    ownerUserId,
   };
   await queueSettlement(record);
   try {
@@ -318,8 +384,14 @@ export async function finishCanonicalFocus(sessionId: string, scheduleId: string
 }
 
 export async function retryPendingCanonicalSettlements(): Promise<void> {
+  const ownerUserId = await requireUserId();
+  const trackedUserId = await repository.getCanonicalRuntimeUserId();
+  await prepareCanonicalRuntimeForUser(ownerUserId);
   const pending = await repository.getPendingCanonicalSettlements();
+  const schedules = await repository.getSchedules();
   for (const record of pending) {
+    const scheduleOwnerUserId = schedules.find((item) => item.id === record.scheduleId)?.ownerUserId;
+    if (!shouldRetryPendingSettlement(record, ownerUserId, scheduleOwnerUserId, trackedUserId)) continue;
     try {
       await callSessionRpc("finish_focus_session", {
         p_session_id: record.sessionId,
