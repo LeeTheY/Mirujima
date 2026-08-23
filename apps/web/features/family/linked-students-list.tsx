@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Unlink, X, Check } from "lucide-react";
-import { maskStudentId, type LinkedStudent } from "./linked-students";
+import type { LinkedStudent } from "./linked-students";
 
 export function LinkedStudentsList({
   students,

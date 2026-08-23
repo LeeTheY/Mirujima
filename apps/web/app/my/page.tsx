@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { ShieldCheck, Sparkles, UserCheck, Award, X, CreditCard, Unlink, History } from "lucide-react";
+import { ShieldCheck, Sparkles, UserCheck, Award, X, Unlink } from "lucide-react";
 import { FamilyCodeRedeemer } from "@/features/family/family-code-redeemer";
 import { MembershipStatusSummary } from "@/features/membership/membership-status-card";
 import { useMembershipStatus, useProfileDisplayName, useStudentHasActiveGuardian, useWalletSummary } from "@/features/profile/profile-display-provider";

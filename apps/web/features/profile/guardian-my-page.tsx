@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CreditCard, ShieldCheck, History, Sparkles, Award, X } from "lucide-react";
+import { ShieldCheck, Sparkles, Award, X } from "lucide-react";
 import { DashboardShell } from "../../components/dashboard-shell";
 import { FamilyCodeIssuer } from "../family/family-link-panel";
 import { LinkedStudentsList } from "../family/linked-students-list";

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ShieldCheck, CreditCard, History } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { TopupHistoryModal } from "@/features/wallet/topup-history-modal";
 
 export function GuardianHomeWalletCard() {

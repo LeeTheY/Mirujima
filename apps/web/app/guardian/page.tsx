@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
-import { UserCheck, ShieldCheck, HeartHandshake, CreditCard, ChevronRight } from "lucide-react";
+import { UserCheck, HeartHandshake, ChevronRight } from "lucide-react";
 import { requireAuthenticatedRole } from "@/features/auth/require-role";
 import { loadGuardianLinkedStudents } from "@/features/family/linked-students-data";
 import { LinkedStudentsList } from "@/features/family/linked-students-list";
