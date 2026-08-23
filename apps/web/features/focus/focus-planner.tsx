@@ -399,6 +399,9 @@ export function FocusPlanner() {
         if (startError.message.includes("insufficient topup points")) {
           throw new Error("걸 포인트보다 사용 가능한 충전 포인트가 부족합니다.");
         }
+        if (startError.message.includes("active guardian link required")) {
+          throw new Error("보호자 보상을 요청하려면 먼저 보호자 계정을 연결해 주세요.");
+        }
         throw new Error("집중 세션을 시작하지 못했습니다. 진행 중인 세션이 있는지 확인해 주세요.");
       }
       const session = canonicalFocusSessionSchema.parse(data);

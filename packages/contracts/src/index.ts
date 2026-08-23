@@ -275,6 +275,36 @@ export const guardianFocusHistorySchema = z.object({
 });
 export type GuardianFocusHistory = z.infer<typeof guardianFocusHistorySchema>;
 
+export const guardianRewardRequestStatusSchema = z.enum([
+  "pending", "approved", "completed", "returned", "declined", "expired",
+]);
+export type GuardianRewardRequestStatus = z.infer<typeof guardianRewardRequestStatusSchema>;
+
+export const guardianRewardRequestSchema = z.object({
+  id: z.string().uuid(),
+  studentUserId: z.string().uuid(),
+  studentDisplayName: z.string().trim().min(1).max(120),
+  points: z.number().int().positive().max(1_000_000_000),
+  scheduleId: z.string().trim().min(1).max(300),
+  sessionId: z.string().trim().min(1).max(300),
+  status: guardianRewardRequestStatusSchema,
+  createdAt: isoDateTimeSchema,
+});
+export type GuardianRewardRequest = z.infer<typeof guardianRewardRequestSchema>;
+
+export const guardianRewardRequestListSchema = z.object({
+  items: z.array(guardianRewardRequestSchema).max(100),
+});
+
+export const guardianRewardActionResultSchema = z.object({
+  requestId: z.string().uuid(),
+  status: z.enum(["approved", "declined"]),
+  points: z.number().int().positive().max(1_000_000_000),
+  studentUserId: z.string().uuid(),
+  reservationId: z.string().uuid().optional(),
+});
+export type GuardianRewardActionResult = z.infer<typeof guardianRewardActionResultSchema>;
+
 export const serverNotificationKindSchema = z.enum([
   "family_link_code_issued", "family_linked", "family_disconnected",
   "focus_plan_created", "focus_plan_updated", "focus_started", "focus_completed", "focus_failed",
