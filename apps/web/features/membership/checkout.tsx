@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { createClient } from "@/lib/supabase/client";
-import { getTossPublicConfig } from "./payment";
+import { getTossPublicConfig, readFunctionErrorCode } from "./payment";
 import { CheckCircle2, CreditCard } from "lucide-react";
 
 interface MembershipOrder {
@@ -22,18 +22,6 @@ function isMembershipOrder(value: unknown): value is MembershipOrder {
     && typeof order.orderName === "string"
     && ["student_premium", "guardian_family"].includes(String(order.productCode))
     && ["membership", "family_seat"].includes(String(order.orderKind));
-}
-
-async function functionErrorCode(error: unknown): Promise<string> {
-  if (!error || typeof error !== "object") return "membership_order_failed";
-  const context = Reflect.get(error, "context");
-  if (context && typeof context === "object" && typeof Reflect.get(context, "json") === "function") {
-    try {
-      const body = await Reflect.apply(Reflect.get(context, "json"), context, []);
-      if (body && typeof body === "object" && typeof Reflect.get(body, "error") === "string") return Reflect.get(body, "error");
-    } catch { /* safe fallback */ }
-  }
-  return "membership_order_failed";
 }
 
 function orderErrorCopy(code: string): string {
@@ -69,7 +57,7 @@ export function MembershipCheckout({
       const { data, error: orderError } = await createClient().functions.invoke("membership-create-order", {
         body: { idempotencyKey: idempotencyKey.current, orderKind }
       });
-      if (orderError) throw new Error(orderErrorCopy(await functionErrorCode(orderError)));
+      if (orderError) throw new Error(orderErrorCopy(await readFunctionErrorCode(orderError)));
       if (!isMembershipOrder(data)) throw new Error("결제 주문 정보를 확인하지 못했습니다.");
       const tossPayments = await loadTossPayments(config.clientKey);
       const payment = tossPayments.payment({ customerKey: userId });

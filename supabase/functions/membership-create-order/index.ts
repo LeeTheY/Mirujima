@@ -1,10 +1,11 @@
 import { authenticatedClient, corsHeaders, json } from "../_shared/membership.ts";
-import { parseMembershipOrderRequest } from "../_shared/toss.ts";
+import { assertSandboxTestMode, parseMembershipOrderRequest } from "../_shared/toss.ts";
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   try {
+    assertSandboxTestMode({ TOSS_PAYMENT_MODE: Deno.env.get("TOSS_PAYMENT_MODE") });
     const { admin, user } = await authenticatedClient(request);
     const input = parseMembershipOrderRequest(await request.json().catch(() => ({})));
     const { data, error } = input.orderKind === "family_seat"
@@ -14,6 +15,7 @@ Deno.serve(async (request) => {
     return json(data);
   } catch (error) {
     const message = error instanceof Error ? error.message : "membership_order_failed";
+    if (message.includes("테스트 모드")) return json({ error: "test_mode_required" }, 503);
     const status = message.includes("로그인") || message.includes("인증") ? 401 : message.includes("already active") || message.includes("conflict") || message.includes("seat") ? 409 : 400;
     const code = status === 401 ? "authentication_required"
       : message.includes("student membership conflict") ? "student_membership_conflict"

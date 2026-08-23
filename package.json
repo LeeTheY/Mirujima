@@ -19,6 +19,7 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "security:scan-public": "node scripts/check-public-secrets.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

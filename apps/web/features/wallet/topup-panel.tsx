@@ -79,7 +79,7 @@ export function TopupPanel({ userId, email }: { userId: string; email: string | 
         <div>
           <strong>안전 결제 및 유의 사항</strong>
           <p className="text-xs text-muted mt-0.5">
-            충전 포인트는 서비스 내 디파짓 용도로 사용되며 환급 대상이 아닙니다.
+            미사용 충전 포인트는 원 결제의 남은 금액과 현재 가용 잔액 범위에서 환불할 수 있습니다.
           </p>
         </div>
       </div>

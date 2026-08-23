@@ -13,6 +13,7 @@ Deno.serve(async (request) => {
     const { data: claim, error: claimError } = await admin.rpc("reserve_latest_topup_refund", {
       p_user_id: user.id,
       p_idempotency_key: input.idempotencyKey,
+      p_points: input.points,
     });
     if (claimError) throw claimError;
     if (claim?.status === "refunded") return json(claim);
@@ -22,10 +23,16 @@ Deno.serve(async (request) => {
     const { data, error } = await admin.rpc("complete_topup_refund", {
       p_user_id: user.id,
       p_refund_request_id: refundRequestId,
-      p_provider_payload: sandboxRefundPayload(claim.paymentKey),
+      p_provider_payload: sandboxRefundPayload(claim.paymentKey, claim.points),
     });
     if (error) throw error;
-    return json({ ...data, sandbox: true, actualRefund: false });
+    const { data: refundLimits } = await admin.rpc("get_topup_refund_limits", { p_user_id: user.id });
+    return json({
+      ...data,
+      maxRefundableTopup: refundLimits?.maxRefundableTopup ?? 0,
+      sandbox: true,
+      actualRefund: false,
+    });
   } catch (error) {
     if (refundRequestId) {
       try {

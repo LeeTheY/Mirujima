@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { requireAuthenticatedRole } from "@/features/auth/require-role";
 import { parseTopupCallback } from "@/features/wallet/topup";
+import { confirmationFailureCopy, readFunctionErrorCode } from "@/features/membership/payment";
 import { createClient } from "@/lib/supabase/server";
 import { X } from "lucide-react";
 
@@ -19,11 +20,14 @@ export default async function ChargeSuccessPage({ searchParams }: { searchParams
     }
     const input = parseTopupCallback(query);
     const { data, error } = await (await createClient()).functions.invoke("wallet-confirm-topup", { body: input });
-    if (error || data?.status !== "confirmed") throw new Error();
-    title = `${Number(data.points).toLocaleString()}P가 충전되었습니다.`;
-    description = `사용 가능 충전 포인트: ${Number(data.balances?.topupAvailable ?? 0).toLocaleString()}P`;
+    if (error) {
+      description = confirmationFailureCopy("topup", await readFunctionErrorCode(error));
+    } else if (data?.status === "confirmed") {
+      title = `${Number(data.points).toLocaleString()}P가 충전되었습니다.`;
+      description = `사용 가능 충전 포인트: ${Number(data.balances?.topupAvailable ?? 0).toLocaleString()}P`;
+    }
   } catch {
-    /* safe result */
+    description = "결제 결과 주소가 올바르지 않습니다. 포인트 잔액은 변경되지 않았습니다.";
   }
 
   return (

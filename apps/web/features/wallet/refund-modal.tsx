@@ -8,9 +8,10 @@ export async function RefundModal({ closeMode = "route" }: { closeMode?: "back" 
   const supabase = await createClient();
   const { data } = await supabase.functions.invoke("wallet-summary", { body: {} });
   const topupAvailable = Number.isSafeInteger(data?.topupAvailable) ? data.topupAvailable : 0;
+  const maxRefundableTopup = Number.isSafeInteger(data?.maxRefundableTopup) ? data.maxRefundableTopup : 0;
   return (
     <PaymentOverlay title="충전 포인트 환불 신청" returnHref="/guardian/my" closeMode={closeMode}>
-      <RefundPanel initialTopupAvailable={topupAvailable} />
+      <RefundPanel initialTopupAvailable={topupAvailable} initialMaxRefundableTopup={maxRefundableTopup} />
     </PaymentOverlay>
   );
 }

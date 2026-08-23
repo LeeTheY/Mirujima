@@ -7,7 +7,8 @@ Deno.serve(async (request) => {
     const { admin, user } = await authenticatedClient(request);
     const { data, error } = await admin.rpc("get_wallet_balances", { p_user_id: user.id });
     if (error) throw error;
-    return json(data);
+    const { data: refundLimits } = await admin.rpc("get_topup_refund_limits", { p_user_id: user.id });
+    return json({ ...data, maxRefundableTopup: refundLimits?.maxRefundableTopup ?? 0 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "wallet_summary_failed";
     const authenticationError = message.includes("로그인") || message.includes("인증");

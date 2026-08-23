@@ -30,15 +30,18 @@ describe("Toss test payment boundary", () => {
   });
 
   it("builds a sandbox refund record without a provider call", () => {
-    expect(sandboxRefundPayload("payment_key_123", new Date("2026-08-10T09:10:00.000Z"))).toMatchObject({
+    expect(sandboxRefundPayload("payment_key_123", 3_000, new Date("2026-08-10T09:10:00.000Z"))).toMatchObject({
       status: "CANCELED",
       paymentKey: "payment_key_123",
+      cancelAmount: 3_000,
       sandbox: true,
       actualRefund: false,
     });
   });
   it("validates and cancels a topup refund with an idempotency key", async () => {
-    expect(parseTopupRefundRequest({ idempotencyKey: "topup-refund:123" })).toEqual({ idempotencyKey: "topup-refund:123" });
+    expect(parseTopupRefundRequest({ idempotencyKey: "topup-refund:123", points: 3_000 }))
+      .toEqual({ idempotencyKey: "topup-refund:123", points: 3_000 });
+    expect(() => parseTopupRefundRequest({ idempotencyKey: "topup-refund:123", points: 0 })).toThrow("환불 금액");
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
       status: "CANCELED", paymentKey: "payment_key_1", cancels: [{ cancelStatus: "DONE" }]
     }), { status: 200 }));
@@ -109,6 +112,29 @@ describe("Toss test payment boundary", () => {
       { paymentKey: "payment_key_1", orderId: "membership_order_1", amount: PREMIUM_PRICE_KRW, idempotencyKey: "membership-idem-1" },
       mismatched
     )).rejects.toThrow("응답 검증");
+  });
+
+  it("classifies network, rate-limit, and provider failures for safe retries", async () => {
+    const networkFailure = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("network down"));
+    await expect(confirmTossPayment(
+      { secretKey: "test_sk_example" },
+      { paymentKey: "payment_key_1", orderId: "membership_order_1", amount: PREMIUM_PRICE_KRW, idempotencyKey: "membership-idem-1" },
+      networkFailure
+    )).rejects.toMatchObject({ code: "TOSS_NETWORK_ERROR", retryable: true, status: 503 });
+
+    const rateLimited = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ code: "RATE_LIMIT" }), { status: 429 }));
+    await expect(confirmTossPayment(
+      { secretKey: "test_sk_example" },
+      { paymentKey: "payment_key_1", orderId: "membership_order_1", amount: PREMIUM_PRICE_KRW, idempotencyKey: "membership-idem-1" },
+      rateLimited
+    )).rejects.toMatchObject({ code: "RATE_LIMIT", retryable: true, status: 429 });
+
+    const rejected = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ code: "REJECT_CARD_COMPANY" }), { status: 400 }));
+    await expect(confirmTossPayment(
+      { secretKey: "test_sk_example" },
+      { paymentKey: "payment_key_1", orderId: "membership_order_1", amount: PREMIUM_PRICE_KRW, idempotencyKey: "membership-idem-1" },
+      rejected
+    )).rejects.toMatchObject({ code: "REJECT_CARD_COMPANY", retryable: false, status: 400 });
   });
 
   it("queries an existing payment without exposing credentials", async () => {

@@ -21,6 +21,11 @@ Deno.serve(async (request) => {
       try { const { admin } = await authenticatedClient(request); await admin.rpc("fail_topup_payment", { p_user_id: userId, p_order_id: orderId, p_failure_code: error.code }); } catch { /* retry can reconcile */ }
     }
     if (error instanceof TossApiError) return json({ error: error.retryable ? "payment_temporarily_unavailable" : "payment_rejected" }, error.retryable ? 502 : 400);
-    return json({ error: "topup_confirmation_failed" }, 400);
+    const message = error instanceof Error ? error.message : "topup_confirmation_failed";
+    const code = message.includes("amount mismatch") ? "topup_payment_amount_mismatch"
+      : message.includes("payment key") ? "topup_payment_conflict"
+      : message.includes("로그인") || message.includes("인증") ? "authentication_required"
+      : "topup_confirmation_failed";
+    return json({ error: code }, code === "authentication_required" ? 401 : 400);
   }
 });

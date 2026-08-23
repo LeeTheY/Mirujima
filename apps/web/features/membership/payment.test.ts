@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getTossPublicConfig, parsePaymentCallback, paymentFailureCopy } from "./payment";
+import { confirmationFailureCopy, getTossPublicConfig, parsePaymentCallback, paymentFailureCopy, readFunctionErrorCode } from "./payment";
 
 describe("membership payment UI boundary", () => {
   it("accepts only API individual Toss test client keys", () => {
@@ -28,5 +28,13 @@ describe("membership payment UI boundary", () => {
   it("does not expose raw provider messages", () => {
     expect(paymentFailureCopy("PAY_PROCESS_CANCELED")).toContain("취소");
     expect(paymentFailureCopy("UNKNOWN_PROVIDER_MESSAGE")).toBe("결제를 완료하지 못했습니다. 다시 시도해 주세요.");
+  });
+
+  it("separates retryable, amount mismatch, and rejected confirmation copy", async () => {
+    expect(confirmationFailureCopy("topup", "payment_temporarily_unavailable")).toContain("같은 결과 주소");
+    expect(confirmationFailureCopy("membership", "membership_payment_amount_mismatch")).toContain("일치하지 않습니다");
+    expect(confirmationFailureCopy("topup", "payment_rejected")).toContain("잔액은 변경되지 않았습니다");
+    expect(await readFunctionErrorCode({ context: { json: async () => ({ error: "payment_temporarily_unavailable" }) } }))
+      .toBe("payment_temporarily_unavailable");
   });
 });

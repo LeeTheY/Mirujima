@@ -4,8 +4,15 @@ import { useRef, useState } from "react";
 import { ReceiptText, ShieldCheck, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-export function RefundPanel({ initialTopupAvailable }: { initialTopupAvailable: number }) {
+export function RefundPanel({
+  initialTopupAvailable,
+  initialMaxRefundableTopup,
+}: {
+  initialTopupAvailable: number;
+  initialMaxRefundableTopup: number;
+}) {
   const [topupAvailable, setTopupAvailable] = useState(initialTopupAvailable);
+  const [maxRefundableTopup, setMaxRefundableTopup] = useState(initialMaxRefundableTopup);
   const [inputMode, setInputMode] = useState<"direct" | "full">("direct");
   const [points, setPoints] = useState<string>("");
   const [busy, setBusy] = useState(false);
@@ -15,7 +22,7 @@ export function RefundPanel({ initialTopupAvailable }: { initialTopupAvailable: 
 
   async function requestRefund() {
     const refundAmount = Number(points);
-    if (!refundAmount || refundAmount <= 0 || refundAmount > topupAvailable) {
+    if (!Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refundAmount > maxRefundableTopup) {
       setError("올바른 환불 포인트를 입력해 주세요.");
       return;
     }
@@ -32,7 +39,9 @@ export function RefundPanel({ initialTopupAvailable }: { initialTopupAvailable: 
       return;
     }
     const updatedAvailable = Number.isSafeInteger(data?.balances?.topupAvailable) ? data.balances.topupAvailable : 0;
+    const updatedRefundLimit = Number.isSafeInteger(data?.maxRefundableTopup) ? data.maxRefundableTopup : 0;
     setTopupAvailable(updatedAvailable);
+    setMaxRefundableTopup(updatedRefundLimit);
     setMessage(`${Number(data.points).toLocaleString()} P 원 결제 환불을 완료했습니다.`);
     setPoints("");
     setInputMode("direct");
@@ -63,7 +72,7 @@ export function RefundPanel({ initialTopupAvailable }: { initialTopupAvailable: 
           <button
             type="button"
             className={`button secondary small ${inputMode === "direct" ? "active" : ""}`}
-            disabled={busy || topupAvailable === 0}
+            disabled={busy || maxRefundableTopup === 0}
             onClick={() => {
               setInputMode("direct");
               setPoints("");
@@ -74,13 +83,13 @@ export function RefundPanel({ initialTopupAvailable }: { initialTopupAvailable: 
           <button
             type="button"
             className={`button secondary small ${inputMode === "full" ? "active" : ""}`}
-            disabled={busy || topupAvailable === 0}
+            disabled={busy || maxRefundableTopup === 0}
             onClick={() => {
               setInputMode("full");
-              setPoints(topupAvailable > 0 ? String(topupAvailable) : "");
+              setPoints(maxRefundableTopup > 0 ? String(maxRefundableTopup) : "");
             }}
           >
-            전액 선택
+            최대 선택
           </button>
         </div>
 
@@ -90,9 +99,9 @@ export function RefundPanel({ initialTopupAvailable }: { initialTopupAvailable: 
             <input
               type="number"
               className="input cashout-amount-input"
-              placeholder="환불할 포인트 수량 입력 (예: 3000)"
+              placeholder={`환불할 포인트 입력 (최대 ${maxRefundableTopup.toLocaleString()}P)`}
               value={points}
-              disabled={busy || topupAvailable === 0}
+              disabled={busy || maxRefundableTopup === 0}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === "") {
@@ -112,10 +121,10 @@ export function RefundPanel({ initialTopupAvailable }: { initialTopupAvailable: 
             type="button"
             disabled={
               busy ||
-              topupAvailable === 0 ||
+              maxRefundableTopup === 0 ||
               !points ||
               Number(points) <= 0 ||
-              Number(points) > topupAvailable
+              Number(points) > maxRefundableTopup
             }
             onClick={() => void requestRefund()}
           >
@@ -129,7 +138,7 @@ export function RefundPanel({ initialTopupAvailable }: { initialTopupAvailable: 
         <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
         <div>
           <strong>원 결제 기준 환불</strong>
-          <p>테스트 모드에서는 실제 결제 취소 없이 최근 미사용 충전 건을 DB 환불 원장에 반영합니다. 획득 포인트 환급과는 별도입니다.</p>
+          <p>한 번에 한 원 결제의 남은 금액까지 환불할 수 있습니다. 테스트 모드에서는 실제 결제 취소 없이 DB 환불 원장에만 반영하며, 획득 포인트 환급과는 별도입니다.</p>
         </div>
       </div>
 
