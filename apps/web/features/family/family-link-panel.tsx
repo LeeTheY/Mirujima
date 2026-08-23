@@ -5,6 +5,7 @@ import { KeyRound, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { familyLinkErrorCopy, safeFunctionErrorCode, shouldRetryFamilyLinkRequest } from "./family-link";
+import { requireOnlineAction } from "@/lib/online";
 
 function readString(value: unknown, key: string): string | null {
   if (!value || typeof value !== "object") return null;
@@ -35,6 +36,7 @@ export function FamilyCodeIssuer({ activeStudentCount = 0 }: { activeStudentCoun
   async function issue() {
     setBusy(true);
     try {
+      requireOnlineAction("가족 연결 코드 발급");
       const client = createClient();
       let result = await client.functions.invoke("family-link-issue", { body: { action: "issue" } });
       let errorCode = result.error ? await safeFunctionErrorCode(result.error) : null;
@@ -62,12 +64,18 @@ export function FamilyCodeIssuer({ activeStudentCount = 0 }: { activeStudentCoun
 
   async function cancel() {
     setBusy(true);
-    const { error } = await createClient().functions.invoke("family-link-issue", { body: { action: "cancel" } });
-    setBusy(false);
-    if (error) return setMessage(familyLinkErrorCopy(await safeFunctionErrorCode(error)));
-    setCode(null);
-    setExpiresAt(null);
-    setMessage("발급한 연결 코드를 취소했습니다.");
+    try {
+      requireOnlineAction("가족 연결 코드 취소");
+      const { error } = await createClient().functions.invoke("family-link-issue", { body: { action: "cancel" } });
+      if (error) return setMessage(familyLinkErrorCopy(await safeFunctionErrorCode(error)));
+      setCode(null);
+      setExpiresAt(null);
+      setMessage("발급한 연결 코드를 취소했습니다.");
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : familyLinkErrorCopy("function_fetch_failed"));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return <>

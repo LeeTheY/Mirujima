@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { requireOnlineAction } from "@/lib/online";
 import { cashoutErrorCopy, cashoutFullAmount, parseCashoutPoints } from "./cashout";
 import { Wallet, ChevronRight, CheckCircle2, Clock, ShieldCheck, AlertCircle } from "lucide-react";
 
@@ -79,6 +80,7 @@ export function CashoutPanel({ initialBalances }: { initialBalances: WalletBalan
     setBusy(true);
     setError(null);
     try {
+      requireOnlineAction("포인트 현금화 요청");
       const points = parseCashoutPoints(amount, wallet.earnedAvailable);
       const response = await invoke("cashout-request", {
         points,

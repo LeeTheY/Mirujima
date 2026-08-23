@@ -5,6 +5,7 @@ const publicRoutes = [
   { path: "/login", heading: "목표를 집중으로" },
   { path: "/how", heading: "계획을 실제 집중 환경으로 연결합니다." },
   { path: "/privacy", heading: "집중을 돕되, 감시하지 않습니다." },
+  { path: "/offline", heading: "인터넷 연결을 확인해 주세요." },
 ] as const;
 
 for (const route of publicRoutes) {

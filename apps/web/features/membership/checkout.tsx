@@ -5,6 +5,7 @@ import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { createClient } from "@/lib/supabase/client";
 import { getTossPublicConfig, readFunctionErrorCode } from "./payment";
 import { CheckCircle2, CreditCard } from "lucide-react";
+import { requireOnlineAction } from "@/lib/online";
 
 interface MembershipOrder {
   orderId: string;
@@ -53,6 +54,7 @@ export function MembershipCheckout({
     setBusy(true);
     setError(null);
     try {
+      requireOnlineAction("멤버십 결제");
       const config = getTossPublicConfig();
       const { data, error: orderError } = await createClient().functions.invoke("membership-create-order", {
         body: { idempotencyKey: idempotencyKey.current, orderKind }

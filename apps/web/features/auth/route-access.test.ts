@@ -25,6 +25,7 @@ describe("role route access", () => {
     expect(routeAccess("/privacy")).toBe("public");
     expect(routeAccess("/how")).toBe("public");
     expect(routeAccess("/login")).toBe("public");
+    expect(routeAccess("/offline")).toBe("public");
     expect(routeAccess("/onboarding")).not.toBe("public");
   });
 

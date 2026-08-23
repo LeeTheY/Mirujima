@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { familyCodeDigits, familyLinkErrorCopy, initialRedeemerExpanded, safeFunctionErrorCode } from "./family-link";
+import { requireOnlineAction } from "@/lib/online";
 
 export function FamilyCodeRedeemer() {
   const router = useRouter();
@@ -19,16 +20,22 @@ export function FamilyCodeRedeemer() {
     const input = String(formData.get("code") ?? "").trim();
     if (!/^\d{6}$/.test(input)) return setMessage("6자리 숫자 코드를 입력해 주세요.");
     setBusy(true);
-    const { data, error } = await createClient().functions.invoke("family-link-redeem", { body: { code: input } });
-    setBusy(false);
-    if (error) {
-      const errorCode = await safeFunctionErrorCode(error);
-      setMessage(familyLinkErrorCopy(errorCode));
-      if (errorCode.split(":", 1)[0] === "student_membership_conflict") setConflictModalOpen(true);
-      return;
+    try {
+      requireOnlineAction("가족 연결");
+      const { data, error } = await createClient().functions.invoke("family-link-redeem", { body: { code: input } });
+      if (error) {
+        const errorCode = await safeFunctionErrorCode(error);
+        setMessage(familyLinkErrorCopy(errorCode));
+        if (errorCode.split(":", 1)[0] === "student_membership_conflict") setConflictModalOpen(true);
+        return;
+      }
+      setMessage(data?.status === "active" ? "보호자 계정과 안전하게 연결되었습니다." : "연결 상태를 확인했습니다.");
+      router.refresh();
+    } catch (cause) {
+      setMessage(cause instanceof Error ? cause.message : familyLinkErrorCopy("function_fetch_failed"));
+    } finally {
+      setBusy(false);
     }
-    setMessage(data?.status === "active" ? "보호자 계정과 안전하게 연결되었습니다." : "연결 상태를 확인했습니다.");
-    router.refresh();
   }
 
   if (!expanded) return <button className="button secondary full small" type="button" onClick={() => { setExpanded(true); requestAnimationFrame(() => inputRef.current?.focus()); }}><span>보호자 연결 코드 입력하기</span><ChevronDown className="w-4 h-4" /></button>;

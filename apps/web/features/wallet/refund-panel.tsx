@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { ReceiptText, ShieldCheck, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { requireOnlineAction } from "@/lib/online";
 
 export function RefundPanel({
   initialTopupAvailable,
@@ -21,6 +22,12 @@ export function RefundPanel({
   const requestKey = useRef(`topup-refund:${crypto.randomUUID()}`);
 
   async function requestRefund() {
+    try {
+      requireOnlineAction("충전 포인트 환불");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "인터넷 연결을 확인해 주세요.");
+      return;
+    }
     const refundAmount = Number(points);
     if (!Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refundAmount > maxRefundableTopup) {
       setError("올바른 환불 포인트를 입력해 주세요.");

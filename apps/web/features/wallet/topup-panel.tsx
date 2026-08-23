@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getTossPublicConfig } from "@/features/membership/payment";
 import { parseTopupOrder, selectTopupPreset, TOPUP_PRESETS, type TopupPreset } from "./topup";
 import { CreditCard, ShieldCheck } from "lucide-react";
+import { requireOnlineAction } from "@/lib/online";
 
 export function TopupPanel({ userId, email }: { userId: string; email: string | null }) {
   const [selected, setSelected] = useState<TopupPreset>(30_000);
@@ -17,6 +18,7 @@ export function TopupPanel({ userId, email }: { userId: string; email: string | 
     setBusy(true);
     setError(null);
     try {
+      requireOnlineAction("포인트 충전");
       const config = getTossPublicConfig();
       const { data, error: orderError } = await createClient().functions.invoke("wallet-create-topup-order", {
         body: { points: selected, idempotencyKey: requestKey.current },

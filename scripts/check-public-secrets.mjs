@@ -6,7 +6,9 @@ const roots = [resolve("dist"), resolve("apps/web/.next/static")];
 const forbidden = [
   { name: "Toss secret key", pattern: /\b(?:test|live)_(?:sk|gsk)_[A-Za-z0-9_-]{6,}/g },
   { name: "Toss live client key", pattern: /\blive_(?:ck|gck)_[A-Za-z0-9_-]{6,}/g },
-  { name: "server-only environment name", pattern: /\b(?:TOSS_SECRET_KEY|AI_PROVIDER_API_KEY|MIRUJIMA_SERVER_SIGNING_SECRET|SUPABASE_SERVICE_ROLE_KEY)\b/g },
+  { name: "Groq secret key", pattern: /\bgsk_[A-Za-z0-9_-]{12,}/g },
+  { name: "Supabase secret key", pattern: /\bsb_secret_[A-Za-z0-9_-]{12,}/g },
+  { name: "server-only environment name", pattern: /\b(?:TOSS_SECRET_KEY|AI_PROVIDER_API_KEY|GROQ_API_KEY|MIRUJIMA_SERVER_SIGNING_SECRET|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY)\b/g },
   { name: "private key block", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
 ];
 

@@ -11,6 +11,7 @@ import {
 } from "@mirujima/contracts";
 import { createClient } from "@/lib/supabase/client";
 import { aiCoachingErrorCopy, aiFunctionErrorCode } from "@/features/membership/ai-coaching-ui";
+import { requireOnlineAction } from "@/lib/online";
 
 type InsightResult = StudyRecommendationResult | WeeklyReportResult;
 
@@ -24,6 +25,7 @@ export function StudentAiInsights() {
     setBusyAction(action);
     setError(null);
     try {
+      requireOnlineAction("AI 학습 코칭");
       const response = await createClient().functions.invoke("ai-writing", { body: { action } });
       if (response.error) {
         const code = await aiFunctionErrorCode(response.error);

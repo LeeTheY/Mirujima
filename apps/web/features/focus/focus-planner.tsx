@@ -24,6 +24,7 @@ import {
 } from "./canonical-focus-service";
 import { canonicalSessionIdFromRealtimePayload } from "./canonical-focus-realtime";
 import { Plus, Trash2, ArrowUp, ArrowDown, Sparkles, Shield, Flame, CheckCircle2, HelpCircle, X } from "lucide-react";
+import { requireOnlineAction } from "@/lib/online";
 
 interface GoalItem {
   id: string;
@@ -348,6 +349,7 @@ export function FocusPlanner() {
     }
     setStatus("saving");
     try {
+      requireOnlineAction("집중 계획 저장과 시작");
       const draft = parseFocusDraft(Object.fromEntries(formData));
       const validatedGoals = parseFocusGoals(goals);
       const supabase = createClient();
@@ -427,6 +429,7 @@ export function FocusPlanner() {
     const fallbackStatus = remainingSeconds > 0 ? "active" : "awaiting-result";
     setStatus("saving");
     try {
+      requireOnlineAction("집중 결과 정산");
       const settled = await finishCanonicalFocusSession(
         createClient() as unknown as FocusRpcClient,
         activeSession.id,
@@ -454,15 +457,16 @@ export function FocusPlanner() {
     if (!activeSession || status !== "active") return;
     setStatus("saving");
     try {
+      requireOnlineAction("집중 일시정지");
       const session = await pauseCanonicalFocusSession(
         createClient() as unknown as FocusRpcClient,
         activeSession.id,
         getDeviceId(),
       );
       applyCanonicalSession(session);
-    } catch {
+    } catch (error) {
       setStatus("active");
-      setMessage("집중 세션을 일시정지하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+      setMessage(error instanceof Error ? error.message : "집중 세션을 일시정지하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
     }
   }
 
@@ -470,15 +474,16 @@ export function FocusPlanner() {
     if (!activeSession || status !== "paused") return;
     setStatus("saving");
     try {
+      requireOnlineAction("집중 재개");
       const session = await resumeCanonicalFocusSession(
         createClient() as unknown as FocusRpcClient,
         activeSession.id,
         getDeviceId(),
       );
       applyCanonicalSession(session);
-    } catch {
+    } catch (error) {
       setStatus("paused");
-      setMessage("집중 세션을 재개하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+      setMessage(error instanceof Error ? error.message : "집중 세션을 재개하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
     }
   }
 
@@ -497,6 +502,7 @@ export function FocusPlanner() {
     setAiBusy(true);
     setAiError(null);
     try {
+      requireOnlineAction("AI 집중 계획 추천");
       const form = formRef.current ? new FormData(formRef.current) : new FormData();
       const requestBody = focusCoachRequestSchema.parse({
         action: "focus-coach",

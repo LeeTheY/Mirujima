@@ -10,6 +10,7 @@ import {
   declineGuardianRewardRequest,
   listGuardianRewardRequests,
 } from "./guardian-reward-data";
+import { requireOnlineAction } from "@/lib/online";
 
 const statusCopy = {
   pending: "승인 대기",
@@ -48,6 +49,7 @@ export function GuardianRewardRequests({ students, loadFailed }: { students: Lin
     setBusyId(request.id);
     setMessage(null);
     try {
+      requireOnlineAction(action === "approve" ? "보호자 보상 승인" : "보호자 보상 거절");
       if (action === "approve") await approveGuardianRewardRequest(request.id);
       else await declineGuardianRewardRequest(request.id);
       setMessage(action === "approve"

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { guardianSummaryResultSchema, type GuardianSummaryResult } from "@mirujima/contracts";
+import { requireOnlineAction } from "@/lib/online";
 
 async function safeFunctionCode(error: unknown): Promise<string> {
   if (!error || typeof error !== "object") return "unknown";
@@ -27,6 +28,7 @@ export function GuardianAiSummary() {
   async function summarize() {
     setBusy(true); setMessage(null);
     try {
+      requireOnlineAction("가족 AI 요약");
       const client = createClient();
       const response = await client.functions.invoke("ai-writing", { body: { action: "guardian-summary" } });
       if (response.error) {
