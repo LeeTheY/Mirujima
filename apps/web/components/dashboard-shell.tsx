@@ -19,6 +19,7 @@ export function DashboardShell({
   children: React.ReactNode;
 }>) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   return (
     <div className="app-frame">
@@ -46,6 +47,7 @@ export function DashboardShell({
             onClick={() => setIsNotifOpen(true)}
           >
             <BellIcon />
+            {unreadCount > 0 && <span className="notification-bell-badge" aria-hidden="true">{Math.min(unreadCount, 99)}</span>}
           </button>
           <form action={signOut}>
             <button className="logout-button" type="submit">
@@ -55,7 +57,7 @@ export function DashboardShell({
         </div>
       </header>
 
-      <NotificationCenter isOpen={isNotifOpen} onClose={() => setIsNotifOpen(false)} />
+      <NotificationCenter isOpen={isNotifOpen} onClose={() => setIsNotifOpen(false)} onUnreadCountChange={setUnreadCount} />
 
       <main className="app-main">{children}</main>
     </div>

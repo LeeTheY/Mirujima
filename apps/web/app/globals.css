@@ -2089,6 +2089,36 @@ select {
   display: flex;
   gap: 14px;
   align-items: flex-start;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.notification-card.unread {
+  border-color: #BFD3FF;
+  background: #F7FAFF;
+}
+
+.notification-bell-button {
+  position: relative;
+}
+
+.notification-bell-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 2px solid white;
+  border-radius: 999px;
+  background: var(--danger);
+  color: white;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 13px;
 }
 
 .icon-circle {
@@ -2100,19 +2130,15 @@ select {
   flex-shrink: 0;
 }
 
-.icon-circle.link_connected {
+.icon-circle.family {
   background: var(--success-soft);
 }
 
-.icon-circle.link_disconnected {
-  background: var(--danger-soft);
-}
-
-.icon-circle.focus_session {
+.icon-circle.focus {
   background: var(--primary-soft);
 }
 
-.icon-circle.reward_request {
+.icon-circle.reward {
   background: #FFF7ED;
 }
 

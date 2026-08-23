@@ -274,3 +274,36 @@ export const guardianFocusHistorySchema = z.object({
   })).max(31),
 });
 export type GuardianFocusHistory = z.infer<typeof guardianFocusHistorySchema>;
+
+export const serverNotificationKindSchema = z.enum([
+  "family_link_code_issued", "family_linked", "family_disconnected",
+  "focus_plan_created", "focus_plan_updated", "focus_started", "focus_completed", "focus_failed",
+  "guardian_reward_requested", "guardian_reward_approved", "guardian_reward_declined", "guardian_reward_released",
+  "wallet_topup_completed", "wallet_refund_completed", "cashout_requested", "cashout_completed",
+  "membership_activated", "membership_expiring", "ai_summary_ready",
+]);
+export type ServerNotificationKind = z.infer<typeof serverNotificationKindSchema>;
+
+export const serverNotificationSchema = z.object({
+  id: z.string().uuid(),
+  kind: serverNotificationKindSchema,
+  title: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(500),
+  data: z.record(z.string(), z.unknown()),
+  readAt: isoDateTimeSchema.nullable(),
+  createdAt: isoDateTimeSchema,
+});
+export type ServerNotification = z.infer<typeof serverNotificationSchema>;
+
+export const notificationCursorSchema = z.object({
+  createdAt: isoDateTimeSchema,
+  id: z.string().uuid(),
+});
+export type NotificationCursor = z.infer<typeof notificationCursorSchema>;
+
+export const notificationPageSchema = z.object({
+  items: z.array(serverNotificationSchema).max(50),
+  unreadCount: z.number().int().min(0),
+  nextCursor: notificationCursorSchema.nullable(),
+});
+export type NotificationPage = z.infer<typeof notificationPageSchema>;

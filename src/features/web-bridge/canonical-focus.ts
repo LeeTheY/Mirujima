@@ -8,6 +8,7 @@ import {
 import { clearBreakEndAlarm, clearFocusEndAlarm, ensureFocusCheckAlarm, setFocusEndAlarm } from "../../background/alarms";
 import { applyBlockingRules, clearBlockingRules } from "../../background/blocking";
 import { generateReport } from "../../background/reports";
+import { showNotification } from "../../background/notifications";
 import { repository } from "../../shared/storage/repository";
 import type { FocusSession, PendingCanonicalSettlement, Schedule } from "../../shared/types/models";
 import { runWithoutCloudQueue } from "../cloud-sync/storage";
@@ -235,6 +236,7 @@ export async function prepareCanonicalRuntimeForUser(userId: string): Promise<vo
 
 async function finalizeCanonicalLocal(local: { schedule: Schedule; session: FocusSession }): Promise<void> {
   const history = await repository.getSessionHistory();
+  const isNewResult = !history.some((item) => item.id === local.session.id);
   const current = await repository.getActiveSession();
   const finished: FocusSession = {
     ...(current?.id === local.session.id ? current : local.session),
@@ -257,6 +259,17 @@ async function finalizeCanonicalLocal(local: { schedule: Schedule; session: Focu
   await clearCanonicalRuntime(finished.id);
   await chrome.action.setBadgeText({ text: "" });
   await generateReport(finished.dateKey);
+  if (isNewResult) {
+    const succeeded = local.session.canonicalStatus === "success";
+    await showNotification(
+      "report-ready",
+      finished.id,
+      succeeded ? "집중 결과가 기록되었습니다" : "집중 세션이 종료되었습니다",
+      succeeded
+        ? "완료한 목표와 포인트 정산이 서버 기록에 반영되었습니다."
+        : "예약 포인트 반환과 집중 기록을 확인해 주세요.",
+    );
+  }
 }
 
 async function applyCanonicalState(plan: FocusPlan, canonical: CanonicalFocusSession): Promise<void> {
