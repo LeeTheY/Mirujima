@@ -55,6 +55,8 @@ interface StudentFocusHistory {
     totalFocusMinutes: number;
     successfulSessionCount: number;
     failedSessionCount: number;
+    completedGoalCount: number;
+    totalGoalCount: number;
     focusStreakDays: number;
     earnedPoints: number;
     returnedPoints: number;

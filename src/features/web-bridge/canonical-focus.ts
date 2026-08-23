@@ -21,6 +21,43 @@ type CanonicalRpcName =
   | "resume_focus_session"
   | "finish_focus_session";
 
+export interface FocusMetricRpcClient {
+  rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown | null }>;
+}
+
+export function canonicalMetricPayload(session: FocusSession): {
+  blockedAttemptCount: number;
+  idleSeconds: number;
+  distractionSeconds: number;
+  checkInCount: number;
+} {
+  const safe = (value: number, max: number) => Math.min(max, Math.max(0, Math.floor(Number.isFinite(value) ? value : 0)));
+  return {
+    blockedAttemptCount: safe(session.blockedAttemptCount, 1_000_000),
+    idleSeconds: safe(session.idleSeconds, 31_536_000),
+    distractionSeconds: safe(session.distractionSeconds, 31_536_000),
+    checkInCount: safe(session.checkInCount, 1_000_000),
+  };
+}
+
+export async function syncCanonicalMetricsBestEffort(
+  session: FocusSession,
+  deviceId: string,
+  client: FocusMetricRpcClient = membershipSupabaseClient(),
+): Promise<boolean> {
+  if (!session.canonical) return true;
+  try {
+    const { error } = await client.rpc("sync_focus_session_metrics", {
+      p_session_id: session.id,
+      p_device_id: deviceId,
+      p_metrics: canonicalMetricPayload(session),
+    });
+    return error === null;
+  } catch {
+    return false;
+  }
+}
+
 function localSessionStatus(status: CanonicalFocusSession["status"]): FocusSession["status"] {
   if (status === "paused") return "paused";
   if (status === "awaiting-result") return "awaiting-result";
@@ -197,6 +234,10 @@ async function applyCanonicalState(plan: FocusPlan, canonical: CanonicalFocusSes
 
 export async function reconcileCanonicalFocus(scheduleId?: string, sessionId?: string): Promise<CanonicalFocusSession | null> {
   await repository.initialize();
+  const localBeforeReconcile = await repository.getActiveSession();
+  if (localBeforeReconcile?.canonical && (!sessionId || localBeforeReconcile.id === sessionId)) {
+    await syncCanonicalMetricsBestEffort(localBeforeReconcile, await getOrCreateDeviceId());
+  }
   const userId = await requireUserId();
   const canonical = sessionId
     ? await callSessionRpc("get_focus_session", { p_session_id: sessionId })
@@ -228,6 +269,8 @@ export async function resyncCanonicalFocus(): Promise<void> {
 
 async function transitionCanonical(name: "pause_focus_session" | "resume_focus_session", sessionId: string): Promise<void> {
   const deviceId = await getOrCreateDeviceId();
+  const local = await repository.getActiveSession();
+  if (local?.canonical && local.id === sessionId) await syncCanonicalMetricsBestEffort(local, deviceId);
   await callSessionRpc(name, { p_session_id: sessionId, p_device_id: deviceId });
   await reconcileCanonicalFocus(undefined, sessionId);
 }
@@ -247,12 +290,15 @@ async function queueSettlement(record: PendingCanonicalSettlement): Promise<void
 
 export async function finishCanonicalFocus(sessionId: string, scheduleId: string, completedGoalIds: string[]): Promise<void> {
   const now = new Date().toISOString();
+  const deviceId = await getOrCreateDeviceId();
+  const local = await repository.getActiveSession();
+  if (local?.canonical && local.id === sessionId) await syncCanonicalMetricsBestEffort(local, deviceId);
   const record: PendingCanonicalSettlement = {
     idempotencyKey: `focus-finish:${sessionId}`,
     sessionId,
     scheduleId,
     completedGoalIds: [...new Set(completedGoalIds)],
-    deviceId: await getOrCreateDeviceId(),
+    deviceId,
     createdAt: now,
     lastAttemptAt: now,
     attempts: 0,

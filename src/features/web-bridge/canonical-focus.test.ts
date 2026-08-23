@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canonicalFocusSessionSchema, type FocusPlan } from "@mirujima/contracts";
-import { canonicalToLocalFocus } from "./canonical-focus";
+import { canonicalMetricPayload, canonicalToLocalFocus, syncCanonicalMetricsBestEffort } from "./canonical-focus";
 
 const plan: FocusPlan = {
   id: "plan-1",
@@ -73,5 +73,18 @@ describe("canonical focus adapter", () => {
 
   it("rejects mismatched ownership", () => {
     expect(() => canonicalToLocalFocus(plan, { ...session, ownerUserId: "3b41e955-76e4-48ad-85f6-780f03c30547" })).toThrow("소유자");
+  });
+
+  it("builds privacy-safe aggregate metric payloads", () => {
+    const local = canonicalToLocalFocus(plan, session).session;
+    const payload = canonicalMetricPayload({ ...local, blockedAttemptCount: 3.9, idleSeconds: 20, distractionSeconds: -1, checkInCount: Number.NaN });
+    expect(payload).toEqual({ blockedAttemptCount: 3, idleSeconds: 20, distractionSeconds: 0, checkInCount: 0 });
+    expect(payload).not.toHaveProperty("hostname");
+  });
+
+  it("does not block lifecycle work when metric sync fails", async () => {
+    const local = canonicalToLocalFocus(plan, session).session;
+    const client = { rpc: async () => ({ data: null, error: { message: "offline" } }) };
+    await expect(syncCanonicalMetricsBestEffort(local, "device-1", client)).resolves.toBe(false);
   });
 });

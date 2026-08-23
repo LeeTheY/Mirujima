@@ -198,3 +198,79 @@ export function remainingFocusMs(endsAt: string, now = Date.now()): number {
   const end = Date.parse(endsAt);
   return Number.isFinite(end) ? Math.max(0, end - now) : 0;
 }
+
+export const historyPeriodSchema = z.enum(["daily", "weekly", "monthly"]);
+export type HistoryPeriod = z.infer<typeof historyPeriodSchema>;
+
+const dateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const historyRangeSchema = z.object({ startDate: dateKeySchema, endDate: dateKeySchema });
+const historyCompletionPercentSchema = z.union([z.literal(0), z.literal(60), z.literal(80), z.literal(100)]);
+
+export const studentFocusHistorySchema = z.object({
+  period: historyPeriodSchema,
+  range: historyRangeSchema,
+  summary: z.object({
+    completionRate: z.number().int().min(0).max(100),
+    totalFocusMinutes: z.number().int().min(0),
+    successfulSessionCount: z.number().int().min(0),
+    failedSessionCount: z.number().int().min(0),
+    completedGoalCount: z.number().int().min(0),
+    totalGoalCount: z.number().int().min(0),
+    focusStreakDays: z.number().int().min(0).max(365),
+    earnedPoints: z.number().int().min(0),
+    returnedPoints: z.number().int().min(0),
+    blockedAttemptCount: z.number().int().min(0),
+  }),
+  trend: z.array(z.object({
+    dateKey: dateKeySchema,
+    focusMinutes: z.number().int().min(0),
+    successfulSessionCount: z.number().int().min(0),
+    failedSessionCount: z.number().int().min(0),
+    completionRate: z.number().int().min(0).max(100),
+  })).max(31),
+  sessionCount: z.number().int().min(0),
+  sessionsTruncated: z.boolean(),
+  sessions: z.array(z.object({
+    sessionId: z.string().trim().min(1).max(300),
+    scheduleId: z.string().trim().min(1).max(300),
+    dateKey: dateKeySchema,
+    startedAt: isoDateTimeSchema,
+    settledAt: isoDateTimeSchema,
+    status: z.enum(["success", "failed", "cancelled"]),
+    focusMinutes: z.number().int().min(0),
+    targetFocusMinutes: z.number().int().min(1).max(720),
+    completionPercent: historyCompletionPercentSchema,
+    completedGoalCount: z.number().int().min(0).max(100),
+    totalGoalCount: z.number().int().min(0).max(100),
+    earnedPoints: z.number().int().min(0),
+    returnedPoints: z.number().int().min(0),
+    blockedAttemptCount: z.number().int().min(0),
+    goals: z.array(z.object({
+      goalId: z.string().trim().min(1).max(128),
+      name: z.string().trim().min(1).max(120),
+      minutes: z.number().int().min(1).max(720),
+      priority: z.enum(["low", "medium", "high"]),
+      completed: z.boolean(),
+    })).max(100),
+  })).max(200),
+});
+export type StudentFocusHistory = z.infer<typeof studentFocusHistorySchema>;
+
+export const guardianFocusHistorySchema = z.object({
+  student: z.object({ userId: z.string().uuid(), displayName: z.string().trim().min(1).max(120) }),
+  period: historyPeriodSchema,
+  range: historyRangeSchema,
+  sharing: z.object({ completion: z.boolean(), totalFocusMinutes: z.boolean(), rewardStatus: z.boolean() }),
+  summary: z.object({
+    completionRate: z.number().int().min(0).max(100).nullable(),
+    totalFocusMinutes: z.number().int().min(0).nullable(),
+    completedGoalCount: z.number().int().min(0).nullable(),
+    rewardCount: z.number().int().min(0).nullable(),
+  }),
+  trend: z.array(z.object({
+    dateKey: dateKeySchema,
+    completionRate: z.number().int().min(0).max(100).nullable(),
+    focusMinutes: z.number().int().min(0).nullable(),
+  })).max(31),
+});
+export type GuardianFocusHistory = z.infer<typeof guardianFocusHistorySchema>;
