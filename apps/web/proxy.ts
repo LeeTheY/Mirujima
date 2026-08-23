@@ -1,8 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { routeAccess } from "@/features/auth/route-access";
 import { hasSupabasePublicConfig, getSupabasePublicConfig } from "@/lib/supabase/config";
-
-const publicPaths = new Set(["/", "/login", "/auth/callback"]);
 
 export async function proxy(request: NextRequest) {
   if (!hasSupabasePublicConfig()) return NextResponse.next();
@@ -19,7 +18,7 @@ export async function proxy(request: NextRequest) {
     },
   });
   const { data } = await supabase.auth.getClaims();
-  const isPublic = publicPaths.has(request.nextUrl.pathname);
+  const isPublic = routeAccess(request.nextUrl.pathname) === "public";
   if (!data?.claims?.sub && !isPublic) return NextResponse.redirect(new URL("/login", request.url));
   return response;
 }

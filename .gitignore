@@ -7,3 +7,8 @@ dist/
 .env
 .env.*
 !.env.example
+apps/web/.auth/
+apps/web/playwright-report/
+apps/web/test-results/
+playwright-report/
+test-results/
