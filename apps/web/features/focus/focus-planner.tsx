@@ -1290,13 +1290,14 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
             ))}
 
           </div>
+
+
+          </div>
+
             <button type="button" className="add-goal-button" onClick={addGoal}>
               <Plus className="w-4 h-4" />
               <span>목표 추가</span>
             </button>
-
-          </div>
-
           </fieldset>
           {guardianRewardRequested && !hasCurrentSession ? <section className="sub-card" aria-label="보호자 보상 승인">
             <h3>집중 시작 전 보호자 승인</h3>
