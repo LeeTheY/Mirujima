@@ -1098,6 +1098,88 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
 
           {guardianRewardRequested ? <label>보호자 보상 요청 금액 (P)<input type="number" min="1" max="1000000000" step="1" value={guardianPoints} onChange={(event) => setGuardianPoints(event.target.value === "" ? "" : Number(event.target.value))} /></label> : null}
 
+          <div className="focus-plan-blocking" role="group" aria-label="사이트 차단 설정">
+          <fieldset>
+            <legend className="mb-1">사이트 차단 방식</legend>
+            <div className="segmented">
+              <label>
+                <input
+                  type="radio"
+                  name="blockingMode"
+                  value="blocklist"
+                  checked={blockingMode === "blocklist"}
+                  onChange={() => handleBlockingModeChange("blocklist")}
+                />
+                <span>방해 사이트 차단</span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="blockingMode"
+                  value="allowlist"
+                  checked={blockingMode === "allowlist"}
+                  onChange={() => handleBlockingModeChange("allowlist")}
+                />
+                <span>허용 사이트만</span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="blockingMode"
+                  value="off"
+                  checked={blockingMode === "off"}
+                  onChange={() => handleBlockingModeChange("off")}
+                />
+                <span>사용 안 함</span>
+              </label>
+            </div>
+          </fieldset>
+
+          {blockingMode === "off" ? (
+            <input type="hidden" name="domains" value="" />
+          ) : (
+            <div className="site-list-box">
+              <div className="site-list-header">
+                <label htmlFor="domains-textarea" className="site-list-label">
+                  {blockingMode === "blocklist"
+                    ? "차단할 사이트"
+                    : "허용할 사이트"}
+                </label>
+                <div className="preset-buttons">
+                  <span className="preset-label">기본 추천:</span>
+                  {(blockingMode === "blocklist" ? BLOCKLIST_PRESETS : ALLOWLIST_PRESETS).map((preset) => {
+                    const selected = isDomainSelected(preset.domain);
+                    return (
+                      <button
+                        key={preset.domain}
+                        type="button"
+                        className={`preset-btn ${selected ? "active" : ""}`}
+                        onClick={() => togglePresetDomain(preset.domain)}
+                      >
+                        {selected ? "✓ " : "+ "}
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <textarea
+                id="domains-textarea"
+                name="domains"
+                rows={3}
+                value={domainsText}
+                onChange={(e) => setDomainsText(e.target.value)}
+                placeholder={
+                  blockingMode === "blocklist"
+                    ? "youtube.com\ninstagram.com"
+                    : "notion.so\nchatgpt.com"
+                }
+              />
+            </div>
+          )}
+
+          </div>
+
           </div>
           <div className="focus-plan-goals">
           {(() => {
@@ -1214,87 +1296,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
           </div>
 
           </div>
-          <div className="focus-plan-blocking">
-          <fieldset>
-            <legend className="mb-1">사이트 차단 방식</legend>
-            <div className="segmented">
-              <label>
-                <input
-                  type="radio"
-                  name="blockingMode"
-                  value="blocklist"
-                  checked={blockingMode === "blocklist"}
-                  onChange={() => handleBlockingModeChange("blocklist")}
-                />
-                <span>방해 사이트 차단</span>
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="blockingMode"
-                  value="allowlist"
-                  checked={blockingMode === "allowlist"}
-                  onChange={() => handleBlockingModeChange("allowlist")}
-                />
-                <span>허용 사이트만</span>
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="blockingMode"
-                  value="off"
-                  checked={blockingMode === "off"}
-                  onChange={() => handleBlockingModeChange("off")}
-                />
-                <span>사용 안 함</span>
-              </label>
-            </div>
-          </fieldset>
 
-          {blockingMode === "off" ? (
-            <input type="hidden" name="domains" value="" />
-          ) : (
-            <div className="site-list-box">
-              <div className="site-list-header">
-                <span className="site-list-label">
-                  {blockingMode === "blocklist"
-                    ? "차단 대상 사이트 목록 (줄바꿈 구분)"
-                    : "허용 대상 사이트 목록 (줄바꿈 구분)"}
-                </span>
-                <div className="preset-buttons">
-                  <span className="preset-label">기본 추천:</span>
-                  {(blockingMode === "blocklist" ? BLOCKLIST_PRESETS : ALLOWLIST_PRESETS).map((preset) => {
-                    const selected = isDomainSelected(preset.domain);
-                    return (
-                      <button
-                        key={preset.domain}
-                        type="button"
-                        className={`preset-btn ${selected ? "active" : ""}`}
-                        onClick={() => togglePresetDomain(preset.domain)}
-                      >
-                        {selected ? "✓ " : "+ "}
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <textarea
-                id="domains-textarea"
-                name="domains"
-                rows={3}
-                value={domainsText}
-                onChange={(e) => setDomainsText(e.target.value)}
-                placeholder={
-                  blockingMode === "blocklist"
-                    ? "youtube.com\ninstagram.com"
-                    : "notion.so\nchatgpt.com"
-                }
-              />
-            </div>
-          )}
-
-          </div>
           </fieldset>
           {guardianRewardRequested && !hasCurrentSession ? <section className="sub-card" aria-label="보호자 보상 승인">
             <h3>집중 시작 전 보호자 승인</h3>
