@@ -3163,3 +3163,42 @@ h1, h2, h3, p, button, label { word-break: keep-all; overflow-wrap: anywhere; }
   .premium-info-modal .payment-modal-header, .premium-info-modal .payment-modal-body { padding: 16px; }
   .premium-info-modal .payment-modal-header h1 { font-size: 16px; }
 }
+
+/* Focus overview stays compact; the plan editor uses the full second row. */
+.focus-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.focus-layout > .timer-preview { grid-column: 1; grid-row: 1; min-height: 0; height: 440px; padding: 24px; border-radius: 20px; justify-content: flex-start; overflow-y: auto; }
+.focus-layout > .focus-saved-plans { grid-column: 2; grid-row: 1; height: 440px; padding: 24px; gap: 16px; overflow: hidden; }
+.focus-layout > .focus-form { grid-column: 1 / -1; gap: 16px; }
+.focus-layout .saved-plans-header { flex-wrap: wrap; gap: 12px; }
+.focus-layout .focus-saved-plan-list { min-height: 0; overflow-y: auto; margin: 0; flex: 1; align-content: start; }
+.focus-layout .saved-plans-empty { flex: 1; }
+.focus-layout .timer-preview > strong { font-size: 56px; margin: 16px 0 8px; }
+.focus-layout .timer-preview > p { font-size: 12px; white-space: normal; line-height: 1.5; flex-shrink: 0; }
+.focus-layout .timer-track { margin: 16px 0; flex-shrink: 0; }
+.focus-layout .preview-goals-section { margin-top: 16px; padding-top: 12px; min-height: 0; flex: 1; }
+.focus-layout .preview-goals-list { min-height: 0; max-height: 140px; flex: 1; }
+.focus-layout .focus-settlement-actions { flex-shrink: 0; }
+.focus-form .focus-plan-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; min-width: 0; }
+.focus-form-heading, .focus-plan-blocking { grid-column: 1 / -1; }
+.focus-plan-basics, .focus-plan-goals { display: grid; align-content: start; gap: 14px; min-width: 0; }
+.focus-plan-blocking { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 20px; }
+.focus-plan-goals .goal-list-section { max-height: 620px; overflow-y: auto; padding-right: 4px; }
+.focus-form textarea { min-height: 72px; }
+@media (max-width: 760px) {
+  .focus-layout { grid-template-columns: minmax(0, 1fr); }
+  .focus-layout > .timer-preview, .focus-layout > .focus-saved-plans { grid-column: 1; grid-row: auto; height: 400px; padding: 20px; }
+  .focus-form .focus-plan-fields, .focus-plan-blocking { grid-template-columns: minmax(0, 1fr); }
+  .focus-plan-goals .goal-list-section { max-height: 520px; overflow-y: auto; }
+}
+
+.focus-plan-basics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.focus-plan-basics > .field-row { display: contents; }
+.focus-plan-description, .focus-plan-basics > .reward-toggle-bar { grid-column: 1 / -1; }
+.focus-layout .focus-goal-checklist { max-height: 180px; overflow-y: auto; }
+@media (max-width: 640px) { .focus-plan-basics { grid-template-columns: minmax(0, 1fr); } }
+
+.focus-duration-fields { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.focus-runtime-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.focus-runtime-info > :only-child { grid-column: 1 / -1; }
+@media (max-width: 760px) { .focus-runtime-info { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .focus-duration-fields { grid-template-columns: minmax(0, 1fr); } }

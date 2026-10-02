@@ -96,6 +96,35 @@ test("거래 내역은 작은 행으로 표시되고 긴 주문 정보는 펼쳐
   await page.unrouteAll({ behavior: "wait" });
 });
 
+test("집중 화면은 요약 두 열과 전체 너비 작성 폼이며 목표 추가로 요약이 늘어나지 않는다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 필요합니다.");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/focus");
+  await expect(page.getByRole("button", { name: "계획 저장", exact: true })).toBeEnabled();
+  const timer = page.locator(".timer-preview");
+  const saved = page.locator(".focus-saved-plans");
+  const form = page.locator(".focus-form");
+  const height = (await timer.boundingBox())!.height;
+  for (let index = 0; index < 7; index++) await page.getByRole("button", { name: "목표 추가", exact: true }).click();
+  await expect(page.locator(".mini-goal-card")).toHaveCount(8);
+  expect((await timer.boundingBox())!.height).toBe(height);
+  expect(await page.getByRole("region", { name: "세부 목표 미리보기" }).evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  await page.locator(".goal-item-card").last().getByPlaceholder("목표 일정명 입력").fill("마지막 목표 확인");
+  await expect(page.locator(".mini-goal-card").last()).toContainText("마지막 목표 확인");
+  for (const width of [1440, 1024, 768, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const timerBox = (await timer.boundingBox())!;
+    const savedBox = (await saved.boundingBox())!;
+    const formBox = (await form.boundingBox())!;
+    if (width > 760) {
+      expect(Math.abs(timerBox.y - savedBox.y)).toBeLessThan(1);
+      expect(timerBox.height).toBe(savedBox.height);
+      expect(formBox.y).toBeGreaterThanOrEqual(timerBox.y + timerBox.height);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+  }
+});
+
 test("저장한 계획의 보조 버튼은 카드 전체 폭으로 늘어나지 않는다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 필요합니다.");
   await page.goto("/focus");

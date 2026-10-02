@@ -809,6 +809,157 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
         </button>
       </div>
 
+      <section className="focus-layout">
+        <aside className="timer-preview">
+          <div className="timer-top">
+            <span>FOCUS SESSION</span>
+            <span className={`status-dot ${hasCurrentSession ? "" : "idle"}`}>
+              <Flame className="w-3.5 h-3.5 inline" />
+              {status === "starting" ? "차단 적용 확인" : status === "active" ? "집중 중" : status === "paused" ? onTimedBreak ? "휴식 중" : "일시정지" : status === "awaiting-result" ? "결과 확인" : "준비 전"}
+            </span>
+          </div>
+
+          <strong>
+            {hasCurrentSession
+              ? `${String(Math.floor(displaySeconds / 60)).padStart(2, "0")}:${String(displaySeconds % 60).padStart(2, "0")}`
+              : `${String(Number(targetFocusMinutes) || 0).padStart(2, "0")}:00`}
+          </strong>
+          <p>
+            {status === "starting"
+              ? "차단 적용을 확인할 때까지 집중 시간은 차감되지 않습니다."
+              : status === "active"
+              ? "웹과 확장 프로그램이 같은 서버 세션을 사용합니다."
+              : status === "paused"
+              ? onTimedBreak ? "남은 휴식 시간이 끝나면 차단과 집중 타이머가 자동으로 복구됩니다." : "남은 시간이 서버에 보존되었습니다. 재개하면 이어서 진행합니다."
+              : status === "awaiting-result"
+              ? "완료한 세부 목표를 선택해 포인트 정산을 마쳐 주세요."
+              : title.trim()
+              ? `“${truncateText(title, 10)}” (${Number(targetFocusMinutes) || 0}분) 세션을 시작할 준비가 되었습니다.`
+              : `계획을 저장하면 ${Number(targetFocusMinutes) || 0}분 타이머가 준비됩니다.`}
+          </p>
+
+          <div className="timer-track">
+            <i style={{ width: hasCurrentSession ? `${Math.max(0, Math.min(100, 100 - (remainingSeconds / Math.max(1, Number(targetFocusMinutes) * 60)) * 100))}%` : "0%" }} />
+          </div>
+
+          <div className="timer-meta">
+            <span>
+              차단 모드
+              <strong>
+                {blockingMode === "blocklist"
+                  ? "방해 사이트 차단"
+                  : blockingMode === "allowlist"
+                  ? "허용 사이트만"
+                  : "사용 안 함"}
+              </strong>
+            </span>
+            <span>
+              확장 상태
+              <strong>
+                {blockingMode === "off"
+                  ? "필요 없음"
+                  : extensionConnected === true
+                  ? "연결됨"
+                  : extensionConnected === false
+                  ? "확인 필요"
+                  : "확인 중..."}
+              </strong>
+            </span>
+          </div>
+
+          <div className="preview-goals-section">
+            <div className="preview-goals-header">
+              <span>세부 목표 세션 ({goals.length})</span>
+              <span>총 {goals.reduce((sum, g) => sum + (Number(g.minutes) || 0), 0)}분</span>
+            </div>
+
+            <div className="preview-goals-list" tabIndex={0} role="region" aria-label="세부 목표 미리보기">
+              {goals.map((goal, index) => {
+                const titleName = goal.name.trim() ? truncateText(goal.name, 10) : `목표 ${index + 1}`;
+                const detailText = goal.detail.trim() ? truncateText(goal.detail, 12) : "세부 내용 없음";
+                const minutesText = Number(goal.minutes) ? `${goal.minutes}분` : "시간 미설정";
+                const priorityLabel = goal.priority === "high" ? "높음" : goal.priority === "medium" ? "중간" : "낮음";
+
+                return (
+                  <div key={goal.id} className="mini-goal-card">
+                    <div className="mini-goal-main">
+                      <span className="mini-goal-title">
+                        {index + 1}. {titleName}
+                      </span>
+                      <span className="mini-goal-badge">{minutesText}</span>
+                    </div>
+                    <div className="mini-goal-sub">
+                      <span className="mini-goal-detail">
+                        {detailText}
+                      </span>
+                      <span className={`mini-priority-tag ${goal.priority}`}>
+                        우선순위: {priorityLabel}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {activeSession && hasCurrentSession && (
+            <div className="focus-settlement-actions">
+              {status === "starting" ? (
+                <><p>시작 준비가 끝나지 않았습니다. 같은 세션으로 다시 확인하거나 준비를 취소할 수 있습니다.</p>
+                  <button className="button secondary small" type="button" onClick={() => void retryStartingFocus()}>차단 적용 다시 확인</button>
+                  <button className="button family-code-cancel small" type="button" onClick={() => void retryStartingFocus(true)}>시작 준비 취소</button></>
+              ) : status !== "awaiting-result" && remainingSeconds > 0 ? (
+                <>
+                  <p>{status === "paused" ? "남은 시간과 차단 상태가 서버에 보존되어 있습니다." : "목표 시간이 끝나면 완료한 목표를 선택해 포인트를 정산할 수 있습니다."}</p>
+                  {status === "active" ? (
+                    <><button className="button secondary small" type="button" onClick={() => void pauseFocus()}>일시정지</button>
+                    <button className="button secondary small" type="button" disabled={(activeSession?.accumulatedBreakSeconds ?? 0) >= Number(breakMinutes) * 60} onClick={() => void startBreak()}>휴식 시작</button></>
+                  ) : (
+                    <button className="button secondary small" type="button" onClick={() => void resumeFocus()}>{onTimedBreak ? "휴식 끝내고 집중 재개" : "집중 재개"}</button>
+                  )}
+                  <button className="button family-code-cancel small" type="button" onClick={abandonFocus}>집중 포기</button>
+                </>
+              ) : (
+                <>
+                  <div className="focus-completion-policy">
+                    <strong>완료한 목표를 선택해 주세요</strong>
+                    <p>{activeSession?.depositPolicy?.mode === "all-or-none" ? "목표 시간과 모든 목표 완료 시 예약 포인트 전액을 획득합니다. 일부 목표가 남으면 예약 포인트 전액을 반환합니다." : "기존 세션 정책: 전부 완료 100% · 절반 이상 80% · 1개 이상 절반 미만 60% · 완료 없음 0% 전환"}</p>
+                  </div>
+                  <div className="focus-goal-checklist">
+                    {settlementGoals.map((goal) => {
+                      const checked = completedGoalIdSet.has(goal.id);
+                      return (
+                        <label className={checked ? "selected" : ""} key={goal.id}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleCompletedGoal(goal.id)}
+                          />
+                          <span>
+                            <strong>{goal.name}</strong>
+                            <small>{goal.minutes}분 · {goal.detail || "세부 설명 없음"}</small>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className={`focus-completion-summary ${predictedCompletionPercent === 0 ? "failed" : ""}`} aria-live="polite">
+                    <strong>{settlementGoals.length}개 중 {completedGoalIds.length}개 완료 → {predictedCompletionPercent}%</strong>
+                    <span>예상 획득 {predictedEarnedPoints.toLocaleString()}P · 반환 {predictedReturnedPoints.toLocaleString()}P</span>
+                  </div>
+                  <button
+                    className={`button small full ${predictedCompletionPercent === 0 ? "family-code-cancel" : ""}`}
+                    type="button"
+                    disabled={settlementGoals.length === 0}
+                    onClick={() => void finish(completedGoalIds)}
+                  >
+                    {predictedCompletionPercent === 0 ? "완료 목표 없이 실패 처리" : "선택한 목표로 완료 처리"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </aside>
       <section className="card focus-saved-plans" aria-label="저장한 계획">
         <header className="saved-plans-header">
           <div><h2>저장한 계획</h2><p>계획을 선택하면 아래에서 이어서 작성할 수 있어요.</p></div>
@@ -828,7 +979,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
           </div>
         </header>
         {plansError ? <p role="alert">{plansError}</p> : savedPlans === null ? <p role="status">저장한 계획을 불러오는 중입니다.</p> : savedPlans.length === 0 ? <div className="saved-plans-empty"><CalendarDays size={20} aria-hidden="true" /><p>첫 집중 계획을 작성해 보세요.<span>저장한 계획은 여기에 모아볼 수 있어요.</span></p></div> : (
-          <ul className="focus-saved-plan-list">{savedPlans.map((plan) => <li key={plan.id} className={savedPlan?.id === plan.id ? "selected" : undefined}>
+          <ul className="focus-saved-plan-list" tabIndex={0} aria-label="저장한 계획 목록">{savedPlans.map((plan) => <li key={plan.id} className={savedPlan?.id === plan.id ? "selected" : undefined}>
             <button className="saved-plan-open" type="button" aria-pressed={savedPlan?.id === plan.id} disabled={hasCurrentSession || status === "saving" || !["draft", "planned", "ready"].includes(plan.status)} onClick={() => openPlan(plan)}>
               <span className="saved-plan-copy"><strong>{plan.title}</strong><span>{plan.dateKey.replaceAll("-", ".")}<span aria-hidden="true"> · </span>{plan.targetFocusMinutes}분</span></span>
               <span className={`saved-plan-status ${plan.status}`}>{plan.status === "planned" || plan.status === "draft" || plan.status === "ready" ? "준비" : plan.status === "completed" ? "완료" : plan.status === "active" ? "진행 중" : "종료"}</span>
@@ -839,14 +990,14 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
         )}
         {savedPlan ? <p className="saved-plan-editing" role="status">선택한 계획을 편집하고 있습니다.</p> : null}
       </section>
-      <section className="focus-layout">
         <form ref={formRef} className="card focus-form" action={(data) => submit(data)}>
           <fieldset className="focus-plan-fields" disabled={hasCurrentSession || status === "saving" || status === "recovering" || rewardLocked || rewardBusy}>
-          <div className="border-b border-gray-800 pb-3 mb-2">
+          <div className="focus-form-heading border-b border-gray-800 pb-3">
             <span className="card-label">일일 계획 수립</span>
             <h2>오늘의 집중 계획 작성</h2>
           </div>
 
+          <div className="focus-plan-basics">
           <div className="field-row">
             <label>
               계획명
@@ -871,7 +1022,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
             </label>
           </div>
 
-          <label>계획 설명<textarea name="description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000} /></label>
+          <label className="focus-plan-description">계획 설명<textarea name="description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000} /></label>
           <div className="field-row">
             <label>활동 방식<select name="activityMode" value={activityMode} onChange={(event) => setActivityMode(event.target.value as FocusPlan["activityMode"])}>
               <option value="interactive">문제 풀이·작업</option><option value="reading">읽기</option><option value="watching">강의 시청</option><option value="offline">오프라인 학습</option>
@@ -880,7 +1031,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
               <option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option>
             </select></label>
           </div>
-          <div className="field-row">
+          <div className="focus-duration-fields">
             <label>
               기본 휴식 시간 (분)
               <input
@@ -896,9 +1047,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
                 placeholder="예: 10"
               />
             </label>
-          </div>
 
-          <div className="field-row">
             <label>
               오늘 사용 가능 집중 시간 (분)
               <input
@@ -947,6 +1096,8 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
 
           {guardianRewardRequested ? <label>보호자 보상 요청 금액 (P)<input type="number" min="1" max="1000000000" step="1" value={guardianPoints} onChange={(event) => setGuardianPoints(event.target.value === "" ? "" : Number(event.target.value))} /></label> : null}
 
+          </div>
+          <div className="focus-plan-goals">
           {(() => {
             const realism = evaluateRealism(title, targetFocusMinutes, goals);
             return (
@@ -966,7 +1117,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
             );
           })()}
 
-          <div className="goal-list-section">
+          <div className="goal-list-section" tabIndex={0} role="region" aria-label="세부 목표 작성">
             <div className="flex items-center justify-between">
               <strong className="text-sm text-navy">목표 목록 ({goals.length}개)</strong>
             </div>
@@ -1060,6 +1211,8 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
             </button>
           </div>
 
+          </div>
+          <div className="focus-plan-blocking">
           <fieldset>
             <legend className="mb-1">사이트 차단 방식</legend>
             <div className="segmented">
@@ -1139,6 +1292,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
             </div>
           )}
 
+          </div>
           </fieldset>
           {guardianRewardRequested && !hasCurrentSession ? <section className="sub-card" aria-label="보호자 보상 승인">
             <h3>집중 시작 전 보호자 승인</h3>
@@ -1151,6 +1305,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
               {rewardLocked ? <button className="button secondary small" type="button" disabled={rewardBusy || status === "saving"} onClick={() => void manageReward("withdraw")}>보상 요청 취소</button> : null}
             </div>
           </section> : null}
+          <div className="focus-runtime-info">
           {blockingMode !== "off" && <ExtensionConnectionPanel onConnectionChange={setExtensionConnected} />}
 
           <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
@@ -1170,6 +1325,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
             <p>{message}</p>
           </div>
 
+          </div>
           {aiRecommendation ? (
             <div className="notice ai-focus-recommendation" role="status">
               <strong>{aiRecommendation.recommendedTitle}</strong>
@@ -1203,156 +1359,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
           </div>
         </form>
 
-        <aside className="timer-preview">
-          <div className="timer-top">
-            <span>FOCUS SESSION</span>
-            <span className={`status-dot ${hasCurrentSession ? "" : "idle"}`}>
-              <Flame className="w-3.5 h-3.5 inline" />
-              {status === "starting" ? "차단 적용 확인" : status === "active" ? "집중 중" : status === "paused" ? onTimedBreak ? "휴식 중" : "일시정지" : status === "awaiting-result" ? "결과 확인" : "준비 전"}
-            </span>
-          </div>
 
-          <strong>
-            {hasCurrentSession
-              ? `${String(Math.floor(displaySeconds / 60)).padStart(2, "0")}:${String(displaySeconds % 60).padStart(2, "0")}`
-              : `${String(Number(targetFocusMinutes) || 0).padStart(2, "0")}:00`}
-          </strong>
-          <p>
-            {status === "starting"
-              ? "차단 적용을 확인할 때까지 집중 시간은 차감되지 않습니다."
-              : status === "active"
-              ? "웹과 확장 프로그램이 같은 서버 세션을 사용합니다."
-              : status === "paused"
-              ? onTimedBreak ? "남은 휴식 시간이 끝나면 차단과 집중 타이머가 자동으로 복구됩니다." : "남은 시간이 서버에 보존되었습니다. 재개하면 이어서 진행합니다."
-              : status === "awaiting-result"
-              ? "완료한 세부 목표를 선택해 포인트 정산을 마쳐 주세요."
-              : title.trim()
-              ? `“${truncateText(title, 10)}” (${Number(targetFocusMinutes) || 0}분) 세션을 시작할 준비가 되었습니다.`
-              : `계획을 저장하면 ${Number(targetFocusMinutes) || 0}분 타이머가 준비됩니다.`}
-          </p>
-
-          <div className="timer-track">
-            <i style={{ width: hasCurrentSession ? `${Math.max(0, Math.min(100, 100 - (remainingSeconds / Math.max(1, Number(targetFocusMinutes) * 60)) * 100))}%` : "0%" }} />
-          </div>
-
-          <div className="timer-meta">
-            <span>
-              차단 모드
-              <strong>
-                {blockingMode === "blocklist"
-                  ? "방해 사이트 차단"
-                  : blockingMode === "allowlist"
-                  ? "허용 사이트만"
-                  : "사용 안 함"}
-              </strong>
-            </span>
-            <span>
-              확장 상태
-              <strong>
-                {blockingMode === "off"
-                  ? "필요 없음"
-                  : extensionConnected === true
-                  ? "연결됨"
-                  : extensionConnected === false
-                  ? "확인 필요"
-                  : "확인 중..."}
-              </strong>
-            </span>
-          </div>
-
-          <div className="preview-goals-section">
-            <div className="preview-goals-header">
-              <span>세부 목표 세션 ({goals.length})</span>
-              <span>총 {goals.reduce((sum, g) => sum + (Number(g.minutes) || 0), 0)}분</span>
-            </div>
-
-            <div className="preview-goals-list">
-              {goals.map((goal, index) => {
-                const titleName = goal.name.trim() ? truncateText(goal.name, 10) : `목표 ${index + 1}`;
-                const detailText = goal.detail.trim() ? truncateText(goal.detail, 12) : "세부 내용 없음";
-                const minutesText = Number(goal.minutes) ? `${goal.minutes}분` : "시간 미설정";
-                const priorityLabel = goal.priority === "high" ? "높음" : goal.priority === "medium" ? "중간" : "낮음";
-
-                return (
-                  <div key={goal.id} className="mini-goal-card">
-                    <div className="mini-goal-main">
-                      <span className="mini-goal-title">
-                        {index + 1}. {titleName}
-                      </span>
-                      <span className="mini-goal-badge">{minutesText}</span>
-                    </div>
-                    <div className="mini-goal-sub">
-                      <span className="mini-goal-detail">
-                        {detailText}
-                      </span>
-                      <span className={`mini-priority-tag ${goal.priority}`}>
-                        우선순위: {priorityLabel}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {activeSession && hasCurrentSession && (
-            <div className="focus-settlement-actions">
-              {status === "starting" ? (
-                <><p>시작 준비가 끝나지 않았습니다. 같은 세션으로 다시 확인하거나 준비를 취소할 수 있습니다.</p>
-                  <button className="button secondary small" type="button" onClick={() => void retryStartingFocus()}>차단 적용 다시 확인</button>
-                  <button className="button family-code-cancel small" type="button" onClick={() => void retryStartingFocus(true)}>시작 준비 취소</button></>
-              ) : status !== "awaiting-result" && remainingSeconds > 0 ? (
-                <>
-                  <p>{status === "paused" ? "남은 시간과 차단 상태가 서버에 보존되어 있습니다." : "목표 시간이 끝나면 완료한 목표를 선택해 포인트를 정산할 수 있습니다."}</p>
-                  {status === "active" ? (
-                    <><button className="button secondary small" type="button" onClick={() => void pauseFocus()}>일시정지</button>
-                    <button className="button secondary small" type="button" disabled={(activeSession?.accumulatedBreakSeconds ?? 0) >= Number(breakMinutes) * 60} onClick={() => void startBreak()}>휴식 시작</button></>
-                  ) : (
-                    <button className="button secondary small" type="button" onClick={() => void resumeFocus()}>{onTimedBreak ? "휴식 끝내고 집중 재개" : "집중 재개"}</button>
-                  )}
-                  <button className="button family-code-cancel small" type="button" onClick={abandonFocus}>집중 포기</button>
-                </>
-              ) : (
-                <>
-                  <div className="focus-completion-policy">
-                    <strong>완료한 목표를 선택해 주세요</strong>
-                    <p>{activeSession?.depositPolicy?.mode === "all-or-none" ? "목표 시간과 모든 목표 완료 시 예약 포인트 전액을 획득합니다. 일부 목표가 남으면 예약 포인트 전액을 반환합니다." : "기존 세션 정책: 전부 완료 100% · 절반 이상 80% · 1개 이상 절반 미만 60% · 완료 없음 0% 전환"}</p>
-                  </div>
-                  <div className="focus-goal-checklist">
-                    {settlementGoals.map((goal) => {
-                      const checked = completedGoalIdSet.has(goal.id);
-                      return (
-                        <label className={checked ? "selected" : ""} key={goal.id}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleCompletedGoal(goal.id)}
-                          />
-                          <span>
-                            <strong>{goal.name}</strong>
-                            <small>{goal.minutes}분 · {goal.detail || "세부 설명 없음"}</small>
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <div className={`focus-completion-summary ${predictedCompletionPercent === 0 ? "failed" : ""}`} aria-live="polite">
-                    <strong>{settlementGoals.length}개 중 {completedGoalIds.length}개 완료 → {predictedCompletionPercent}%</strong>
-                    <span>예상 획득 {predictedEarnedPoints.toLocaleString()}P · 반환 {predictedReturnedPoints.toLocaleString()}P</span>
-                  </div>
-                  <button
-                    className={`button small full ${predictedCompletionPercent === 0 ? "family-code-cancel" : ""}`}
-                    type="button"
-                    disabled={settlementGoals.length === 0}
-                    onClick={() => void finish(completedGoalIds)}
-                  >
-                    {predictedCompletionPercent === 0 ? "완료 목표 없이 실패 처리" : "선택한 목표로 완료 처리"}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </aside>
       </section>
 
       {membershipModalOpen ? (
