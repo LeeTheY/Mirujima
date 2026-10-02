@@ -565,3 +565,6 @@ textarea { resize: none !important; }
 
 .focus-timer-panel .preview-goals { max-height: 88px; }
 .focus-sites-panel summary { cursor: pointer; color: var(--muted); font-size: 11px; }
+
+.web-connection-badge { flex-shrink: 0; max-width: 110px; padding: 5px 8px; border-radius: 8px; color: var(--muted); background: var(--surface-soft); font-size: 10px; font-weight: 700; white-space: nowrap; }
+.web-connection-badge.connected { color: #187642; background: #d9f1e2; }

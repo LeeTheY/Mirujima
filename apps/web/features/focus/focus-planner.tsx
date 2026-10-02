@@ -131,13 +131,15 @@ function getDeviceId(): string {
   return created;
 }
 
+const INITIAL_GUIDANCE = "사이트 차단 계획은 확장 프로그램 설치와 로그인 상태를 확인한 뒤 시작할 수 있습니다.";
+
 export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string }) {
   const submitInFlight = useRef(false);
   const pendingPlan = useRef<FocusPlan | null>(null);
   const selectedPlan = useRef<FocusPlan | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [status, setStatus] = useState<"recovering" | "idle" | "saving" | "starting" | "active" | "paused" | "awaiting-result" | "completed" | "error">("recovering");
-  const [message, setMessage] = useState("사이트 차단 계획은 확장 프로그램 설치와 로그인 상태를 확인한 뒤 시작할 수 있습니다.");
+  const [message, setMessage] = useState(INITIAL_GUIDANCE);
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(50 * 60);
   const [activeSession, setActiveSession] = useState<ActiveFocusSession | null>(null);
@@ -1308,7 +1310,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
           <div className="focus-runtime-info">
           {blockingMode !== "off" && <ExtensionConnectionPanel onConnectionChange={setExtensionConnected} />}
 
-          <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
+          {(status !== "idle" || message !== INITIAL_GUIDANCE) && <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
             <strong>
               {status === "recovering"
                 ? "진행 중인 세션 확인"
@@ -1320,10 +1322,10 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
                 ? "집중 결과 확인"
                 : status === "saving"
                 ? "집중 준비 중"
-                : "확장 프로그램 연결"}
+                : "집중 계획 안내"}
             </strong>
             <p>{message}</p>
-          </div>
+          </div>}
 
           </div>
           {aiRecommendation ? (

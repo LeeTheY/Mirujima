@@ -1,3 +1,4 @@
+import { WebConnectionStatus } from "../../features/web-bridge/WebConnectionStatus";
 import { ConnectionCard } from "../../features/web-bridge/ConnectionCard";
 import { HistoryPage } from "../../features/extension-history/HistoryPage";
 import { useState } from "react";
@@ -50,7 +51,7 @@ export function MainShell({ variant = "sidepanel" }: { variant?: "sidepanel" | "
   const { actionError, dismissActionError } = useApp();
 
   return <div className={`app-shell ${variant === "app" ? "app-page" : "sidepanel-page"}`}>
-    <BrandHeader subtitle="집중을 이어가는 브라우저 도우미" />
+    <BrandHeader subtitle="집중을 이어가는 브라우저 도우미" status={<WebConnectionStatus />} />
     <main className="content">
       {actionError && <div className="action-error-banner" role="alert"><span>{actionError}</span><button type="button" onClick={dismissActionError} aria-label="오류 메시지 닫기">닫기</button></div>}
       {page === "focus" && <FocusPage />}

@@ -3229,3 +3229,12 @@ h1, h2, h3, p, button, label { word-break: keep-all; overflow-wrap: anywhere; }
 }
 
 .history-report-grid > .card { justify-content: flex-start; }
+
+.extension-connection { padding: 16px 20px; gap: 8px 16px; }
+.extension-connection .connection-heading { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; font-weight: 700; }
+.extension-connection .connection-indicator { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border-radius: 8px; color: #9a6500; background: #fff3d4; font-size: 12px; }
+.extension-connection .connection-indicator::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.extension-connection.connected { background: #edf9f1; border-color: #c3e7cf; }
+.extension-connection.connected .connection-indicator { color: #187642; background: #d9f1e2; }
+.extension-connection p { margin: 7px 0 0; font-size: 12px; line-height: 1.6; }
+.extension-connection details { font-size: 12px; }

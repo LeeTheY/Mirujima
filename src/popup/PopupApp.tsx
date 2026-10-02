@@ -1,3 +1,4 @@
+import { WebConnectionStatus } from "../features/web-bridge/WebConnectionStatus";
 import { ConnectionCard } from "../features/web-bridge/ConnectionCard";
 import { useEffect, useState } from "react";
 import { sendMessage } from "../shared/chrome/messaging";
@@ -51,7 +52,7 @@ export function PopupApp() {
 
   return (
     <div className="app-shell popup">
-      <BrandHeader subtitle="집중을 이어가는 브라우저 도우미" />
+      <BrandHeader subtitle="집중을 이어가는 브라우저 도우미" status={<WebConnectionStatus />} />
       <main className="content">
         {actionError && (
           <div className="action-error-banner" role="alert">

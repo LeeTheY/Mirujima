@@ -265,7 +265,7 @@ const bridgeEnvelopeSchema = z.object({
 });
 
 export const webToExtensionMessageSchema = z.discriminatedUnion("type", [
-  bridgeEnvelopeSchema.extend({ type: z.literal("mirujima:ping") }),
+  bridgeEnvelopeSchema.extend({ type: z.literal("mirujima:ping"), expectedUserId: z.string().uuid().optional() }),
   bridgeEnvelopeSchema.extend({
     type: z.literal("mirujima:focus-sync-request"),
     scheduleId: z.string().trim().min(1).max(300),

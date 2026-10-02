@@ -24,7 +24,7 @@ export function MirujimaLogoIcon({ size = 40 }: { size?: number }) {
   );
 }
 
-export function BrandHeader({ subtitle = "오늘의 계획을 행동으로" }: { subtitle?: string }) {
+export function BrandHeader({ subtitle = "오늘의 계획을 행동으로", status }: { subtitle?: string; status?: ReactNode }) {
   return (
     <header className="app-header">
       <MirujimaLogoIcon size={32} />
@@ -34,6 +34,7 @@ export function BrandHeader({ subtitle = "오늘의 계획을 행동으로" }: {
         </strong>
         <span>{subtitle}</span>
       </div>
+      {status}
     </header>
   );
 }
