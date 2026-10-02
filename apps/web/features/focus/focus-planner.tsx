@@ -1289,11 +1289,11 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
               </div>
             ))}
 
+          </div>
             <button type="button" className="add-goal-button" onClick={addGoal}>
               <Plus className="w-4 h-4" />
               <span>목표 추가</span>
             </button>
-          </div>
 
           </div>
 
