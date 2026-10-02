@@ -1,10 +1,11 @@
+import { operationResponder } from "../_shared/operation-response.ts";
 import {
   assertActiveMembership,
   assertEntitlement,
   assertProfileRole,
   authenticatedClient,
   corsHeaders,
-  json,
+  json as baseJson,
   registerDevice,
 } from "../_shared/membership.ts";
 import {
@@ -17,11 +18,14 @@ import {
   parseFocusCoachInput,
 } from "../_shared/ai-coaching.ts";
 
+import { consentRevision } from "../_shared/ai-consent.ts";
+
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const OCR_MODEL = Deno.env.get("GROQ_OCR_MODEL") ?? "qwen/qwen3.6-27b";
 const WRITING_MODEL = Deno.env.get("GROQ_WRITING_MODEL") ?? "openai/gpt-oss-120b";
 const MAX_IMAGE_DATA_URL_LENGTH = 3_700_000;
 const MAX_TEXT_LENGTH = 20_000;
+const AI_TIMEOUT_MS = Math.max(1000, Math.min(25_000, Number(Deno.env.get("AI_TIMEOUT_MS")) || 25_000));
 const BLOCK_TYPES = ["heading", "paragraph", "list-item", "table", "formula", "other"] as const;
 
 type WritingStyle = "proofread" | "natural" | "concise";
@@ -107,9 +111,12 @@ function delay(milliseconds: number): Promise<void> { return new Promise((resolv
 async function groqRequest(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
   const apiKey = Deno.env.get("GROQ_API_KEY");
   if (!apiKey) throw new Error("AI 서버 secret이 설정되지 않았습니다.");
+  const deadline = Date.now() + AI_TIMEOUT_MS;
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error("AI 처리 시간이 초과되었습니다.");
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25_000);
+    const timeout = setTimeout(() => controller.abort(), remaining);
     try {
       const response = await fetch(GROQ_API_URL, {
         method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -118,7 +125,7 @@ async function groqRequest(payload: Record<string, unknown>): Promise<Record<str
       if (response.ok) return await response.json();
       if ((response.status === 429 || response.status >= 500) && attempt === 0) {
         const retrySeconds = Math.min(3, Math.max(1, Number(response.headers.get("retry-after")) || 1));
-        await response.body?.cancel(); await delay(retrySeconds * 1000); continue;
+        await response.body?.cancel(); await delay(Math.min(retrySeconds * 1000, Math.max(0, deadline - Date.now()))); continue;
       }
       if (response.status === 429) throw new Error("AI 요청이 많습니다. 잠시 후 다시 시도해 주세요.");
       await response.body?.cancel();
@@ -126,7 +133,6 @@ async function groqRequest(payload: Record<string, unknown>): Promise<Record<str
       throw new Error(response.status >= 500 ? "AI 서버가 잠시 응답하지 않습니다." : "AI 요청 구성이 올바르지 않습니다.");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        if (attempt === 0) continue;
         throw new Error("AI 처리 시간이 초과되었습니다. 다시 시도해 주세요.", { cause: error });
       }
       throw error;
@@ -202,6 +208,7 @@ function isAnalysisResult(value: unknown, task: AnalysisTask, blockIds: Set<stri
 }
 
 Deno.serve(async (request) => {
+  const json = operationResponder("ai-writing", baseJson);
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   try {
@@ -264,7 +271,14 @@ Deno.serve(async (request) => {
       });
       const result = parseJsonResponse(response);
       if (!isGuardianSummaryResult(result)) return json({ error: "invalid_ai_result" }, 502);
-      return json({ task: "guardian-summary", ...result });
+      // A provider response may arrive after consent/link or membership changed.
+      await assertActiveMembership(client, user.id);
+      await assertEntitlement(client, user.id, "ai-guardian-summary");
+      const latest = await client.rpc("get_guardian_ai_summary_input");
+      if (latest.error || JSON.stringify(latest.data) !== JSON.stringify(aggregate.data)) {
+        return json({ error: "guardian_consent_changed" }, 409);
+      }
+      return json({ task: "guardian-summary", ...result, consentRevision: await consentRevision(latest.data) });
     }
 
     if (body.action === "study-recommendation" || body.action === "weekly-report") {
@@ -343,9 +357,13 @@ Deno.serve(async (request) => {
     if (!isAnalysisResult(result, task, blockIds)) return json({ error: "invalid_grounded_result", message: "요약 결과의 원문 근거를 확인하지 못했습니다." }, 502);
     return json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "AI 요청을 처리하지 못했습니다.";
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("초과되었습니다")) return json({ error: "ai_timeout" }, 504);
+    if (message.includes(" entitlement required")) return json({ error: "ai_entitlement_required" }, 403);
+    if (message.includes("role required")) return json({ error: "ai_role_required" }, 403);
+    if (message.includes("로그인")) return json({ error: "authentication_required" }, 401);
     const status = message.includes("entitlement") || message.includes("membership") || message.includes("role") ? 403 : message.includes("로그인") ? 401 : 502;
     if (status === 403) return json({ error: "membership_entitlement_required", message: "AI 기능을 사용하려면 활성 멤버십이 필요합니다." }, 403);
-    return json({ error: "ai_writing_failed", message }, status);
+    return json({ error: "ai_writing_failed", message: "AI 결과를 만들지 못했습니다. 다시 시도해 주세요." }, status);
   }
 });

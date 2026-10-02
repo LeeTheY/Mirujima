@@ -5,7 +5,7 @@ import {
   type CanonicalFocusSession,
   type FocusPlan,
 } from "@mirujima/contracts";
-import { clearBreakEndAlarm, clearFocusEndAlarm, ensureFocusCheckAlarm, setFocusEndAlarm } from "../../background/alarms";
+import { clearBreakEndAlarm, clearFocusEndAlarm, ensureFocusCheckAlarm, setBreakEndAlarm, setFocusEndAlarm } from "../../background/alarms";
 import { applyBlockingRules, clearBlockingRules } from "../../background/blocking";
 import { generateReport } from "../../background/reports";
 import { showNotification } from "../../background/notifications";
@@ -15,12 +15,16 @@ import { runWithoutCloudQueue } from "../cloud-sync/storage";
 import { getOrCreateDeviceId } from "../membership/storage";
 import { membershipSupabaseClient } from "../membership/service";
 
+let reconciliationTail: Promise<unknown> = Promise.resolve();
+
 type CanonicalRpcName =
   | "get_current_focus_session"
   | "get_focus_session"
+  | "start_focus_break"
   | "pause_focus_session"
   | "resume_focus_session"
-  | "finish_focus_session";
+  | "finish_focus_session"
+  | "confirm_focus_enforcement";
 
 export interface FocusMetricRpcClient {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown | null }>;
@@ -121,17 +125,19 @@ export function canonicalToLocalFocus(plan: FocusPlan, canonical: CanonicalFocus
     blockedAttemptCount: 0,
     checkInCount: 0,
     status: localSessionStatus(canonical.status),
-    breakEndsAt: null,
-    breakStartedAt: null,
-    accumulatedBreakSeconds: 0,
+    breakEndsAt: canonical.breakEndsAt ?? null,
+    breakStartedAt: canonical.breakStartedAt ?? null,
+    accumulatedBreakSeconds: canonical.accumulatedBreakSeconds ?? 0,
     canonical: true,
     goals,
     result: canonical.result,
     activeSegmentStartedAt: canonical.activeSegmentStartedAt,
     remainingFocusSeconds: canonical.remainingFocusSeconds,
     selfDepositPoints: canonical.selfDepositPoints,
+    depositPolicy: canonical.depositPolicy,
     canonicalStatus: canonical.status,
     canonicalUpdatedAt: canonical.updatedAt,
+    enforcementDeadlineAt: canonical.enforcementDeadlineAt,
   };
   return { schedule, session };
 }
@@ -215,13 +221,20 @@ async function clearCanonicalAccountRuntime(): Promise<void> {
   await chrome.action.setBadgeText({ text: "" });
 }
 
-export async function clearCanonicalRuntimeForSignOut(): Promise<void> {
-  await repository.initialize();
-  await clearCanonicalAccountRuntime();
-  await repository.setCanonicalRuntimeUserId(null);
+export function clearCanonicalRuntimeForSignOut(signOut?: () => Promise<unknown>): Promise<void> {
+  const work = reconciliationTail.then(async () => {
+    try { await signOut?.(); }
+    finally {
+      await repository.initialize();
+      await clearCanonicalAccountRuntime();
+      await repository.setCanonicalRuntimeUserId(null);
+    }
+  });
+  reconciliationTail = work.catch(() => undefined);
+  return work;
 }
 
-export async function prepareCanonicalRuntimeForUser(userId: string): Promise<void> {
+async function prepareCanonicalRuntimeForUserUnlocked(userId: string): Promise<void> {
   const trackedUserId = await repository.getCanonicalRuntimeUserId();
   const active = await repository.getActiveSession();
   const schedules = active?.canonical ? await repository.getSchedules() : [];
@@ -285,7 +298,6 @@ async function applyCanonicalState(plan: FocusPlan, canonical: CanonicalFocusSes
     idleSeconds: current.idleSeconds,
     blockedAttemptCount: current.blockedAttemptCount,
     checkInCount: current.checkInCount,
-    accumulatedBreakSeconds: current.accumulatedBreakSeconds,
   } : {};
   await runWithoutCloudQueue(async () => repository.setSchedules([
     ...(await repository.getSchedules()).filter((item) => item.id !== local.schedule.id),
@@ -294,6 +306,13 @@ async function applyCanonicalState(plan: FocusPlan, canonical: CanonicalFocusSes
   await repository.setActiveSession({ ...local.session, ...preserved });
   if (canonical.status === "active" || canonical.status === "starting") {
     await applyBlockingRules(local.schedule, local.session, await repository.getTemporaryAllows());
+    if (canonical.status === "starting") {
+      await ensureFocusCheckAlarm(false);
+      await clearFocusEndAlarm(local.session.id);
+      await chrome.action.setBadgeText({ text: "준비" });
+      return;
+    }
+    await clearBreakEndAlarm(local.session.id);
     await setFocusEndAlarm(local.session.id, canonical.endsAt);
     await ensureFocusCheckAlarm(true);
     await chrome.action.setBadgeBackgroundColor({ color: "#315A4A" });
@@ -301,19 +320,24 @@ async function applyCanonicalState(plan: FocusPlan, canonical: CanonicalFocusSes
     return;
   }
   await clearCanonicalRuntime(local.session.id);
+  if (canonical.status === "paused" && canonical.pauseKind === "break" && canonical.breakEndsAt) {
+    await setBreakEndAlarm(local.session.id, canonical.breakEndsAt);
+    await chrome.action.setBadgeText({ text: "쉼" });
+    return;
+  }
   await chrome.action.setBadgeBackgroundColor({ color: canonical.status === "paused" ? "#75839A" : "#E45A3B" });
   await chrome.action.setBadgeText({ text: canonical.status === "paused" ? "Ⅱ" : "확인" });
 }
 
-export async function reconcileCanonicalFocus(scheduleId?: string, sessionId?: string): Promise<CanonicalFocusSession | null> {
+async function reconcileCanonicalFocusUnlocked(scheduleId?: string, sessionId?: string): Promise<CanonicalFocusSession | null> {
   await repository.initialize();
   const userId = await requireUserId();
-  await prepareCanonicalRuntimeForUser(userId);
+  await prepareCanonicalRuntimeForUserUnlocked(userId);
   const localBeforeReconcile = await repository.getActiveSession();
   if (localBeforeReconcile?.canonical && (!sessionId || localBeforeReconcile.id === sessionId)) {
     await syncCanonicalMetricsBestEffort(localBeforeReconcile, await getOrCreateDeviceId());
   }
-  const canonical = sessionId
+  let canonical = sessionId
     ? await callSessionRpc("get_focus_session", { p_session_id: sessionId })
     : await callSessionRpc("get_current_focus_session");
   if (!canonical) {
@@ -329,7 +353,29 @@ export async function reconcileCanonicalFocus(scheduleId?: string, sessionId?: s
   if (scheduleId && canonical.scheduleId !== scheduleId) throw new Error("요청한 집중 계획과 서버 세션이 일치하지 않습니다.");
   const plan = await fetchPlan(canonical.scheduleId, userId);
   await applyCanonicalState(plan, canonical);
+  if (canonical.status === "starting") {
+    // Only acknowledge after DNR application has succeeded. Resync uses the
+    // same path when the direct web message was lost.
+    const confirmed = await callSessionRpc("confirm_focus_enforcement", { p_session_id: canonical.id, p_device_id: await getOrCreateDeviceId() });
+    if (!confirmed || confirmed.id !== canonical.id || confirmed.scheduleId !== canonical.scheduleId || confirmed.ownerUserId !== userId) throw new Error("차단 적용 후 서버 시작 상태를 확인하지 못했습니다.");
+    canonical = confirmed;
+    await applyCanonicalState(plan, canonical);
+  }
   return canonical;
+}
+
+// Direct messages and alarm resync share one queue so stale asynchronous work
+// cannot reapply DNR after a newer pause/finish has cleared it.
+export function prepareCanonicalRuntimeForUser(userId: string): Promise<void> {
+  const work = reconciliationTail.then(() => prepareCanonicalRuntimeForUserUnlocked(userId));
+  reconciliationTail = work.catch(() => undefined);
+  return work;
+}
+
+export function reconcileCanonicalFocus(scheduleId?: string, sessionId?: string): Promise<CanonicalFocusSession | null> {
+  const work = reconciliationTail.then(() => reconcileCanonicalFocusUnlocked(scheduleId, sessionId));
+  reconciliationTail = work.catch(() => undefined);
+  return work;
 }
 
 export async function activateCanonicalFocus(scheduleId: string, sessionId: string): Promise<void> {
@@ -341,14 +387,18 @@ export async function resyncCanonicalFocus(): Promise<void> {
   await reconcileCanonicalFocus(active?.canonical ? active.scheduleId : undefined, active?.canonical ? active.id : undefined);
 }
 
-async function transitionCanonical(name: "pause_focus_session" | "resume_focus_session", sessionId: string): Promise<void> {
+async function transitionCanonical(name: "pause_focus_session" | "resume_focus_session" | "start_focus_break", sessionId: string): Promise<void> {
   const deviceId = await getOrCreateDeviceId();
   const ownerUserId = await requireUserId();
   await prepareCanonicalRuntimeForUser(ownerUserId);
   const local = await repository.getActiveSession();
   if (local?.canonical && local.id === sessionId) await syncCanonicalMetricsBestEffort(local, deviceId);
-  await callSessionRpc(name, { p_session_id: sessionId, p_device_id: deviceId });
+  await callSessionRpc(name, { p_session_id: sessionId, p_device_id: deviceId, ...(name === "start_focus_break" ? { p_request_id: crypto.randomUUID() } : {}) });
   await reconcileCanonicalFocus(undefined, sessionId);
+}
+
+export function startCanonicalBreak(sessionId: string): Promise<void> {
+  return transitionCanonical("start_focus_break", sessionId);
 }
 
 export function pauseCanonicalFocus(sessionId: string): Promise<void> {
@@ -419,4 +469,41 @@ export async function retryPendingCanonicalSettlements(): Promise<void> {
         : item));
     }
   }
+}
+
+export function projectExpiredCanonicalBreak(session: FocusSession, nowMs: number): FocusSession | null {
+  if (!session.canonical || session.status !== "paused" || !session.breakEndsAt || !session.breakStartedAt) return null;
+  const deadline = Date.parse(session.breakEndsAt);
+  const start = Date.parse(session.breakStartedAt);
+  if (!Number.isFinite(deadline) || !Number.isFinite(start) || deadline < start || deadline - start > 7200 * 1000
+    || nowMs < deadline || !Number.isSafeInteger(session.remainingFocusSeconds)
+    || (session.remainingFocusSeconds ?? -1) < 0 || (session.remainingFocusSeconds ?? 0) > 720 * 60) return null;
+  const endsAt = new Date(deadline + (session.remainingFocusSeconds ?? 0) * 1000).toISOString();
+  const status = Date.parse(endsAt) <= nowMs ? "awaiting-result" : "active";
+  return { ...session, status, canonicalStatus: status, pausedAt: null,
+    startedAt: session.breakEndsAt, activeSegmentStartedAt: status === "active" ? session.breakEndsAt : null,
+    endsAt, breakStartedAt: null, breakEndsAt: null,
+    accumulatedBreakSeconds: (session.accumulatedBreakSeconds ?? 0) + Math.max(0, Math.floor((deadline - start) / 1000)),
+  };
+}
+
+export function restoreExpiredCanonicalBreak(): Promise<void> {
+  const work = reconciliationTail.then(async () => {
+    const current = await repository.getActiveSession();
+    if (!current) return;
+    const resumed = projectExpiredCanonicalBreak(current, Date.now());
+    if (!resumed) return;
+    const schedule = (await repository.getSchedules()).find((item) => item.id === current.scheduleId);
+    if (!schedule || schedule.ownerUserId !== await repository.getCanonicalRuntimeUserId()) return;
+    if (resumed.status === "active") {
+      await applyBlockingRules(schedule, resumed, await repository.getTemporaryAllows());
+      await setFocusEndAlarm(resumed.id, resumed.endsAt!);
+      await ensureFocusCheckAlarm(true);
+    } else await clearCanonicalRuntime(resumed.id);
+    await repository.setActiveSession(resumed);
+    await clearBreakEndAlarm(resumed.id);
+    await chrome.action.setBadgeText({ text: resumed.status === "active" ? "ON" : "확인" });
+  });
+  reconciliationTail = work.catch(() => undefined);
+  return work;
 }

@@ -1,0 +1,84 @@
+name: Verify
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:local
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:public:web
+      - run: npm run test:web:dialog
+      - run: npm run test:web:pwa
+      - run: npm run build:dev
+      - run: npm run test:extension:smoke
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-evidence
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 3
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx supabase start
+      - run: npx supabase db reset
+      - run: npm run test:db
+      - run: npx supabase stop --no-backup
+        if: always()
+  authenticated-release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: staging
+    strategy:
+      matrix:
+        role: [student, guardian]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Prepare isolated account state
+        env:
+          E2E_STATE: ${{ matrix.role == 'student' && secrets.MIRUJIMA_E2E_STUDENT_STATE_JSON || secrets.MIRUJIMA_E2E_GUARDIAN_STATE_JSON }}
+        run: |
+          test -n "$E2E_STATE"
+          mkdir -p apps/web/.auth
+          chmod 700 apps/web/.auth
+          printf '%s' "$E2E_STATE" > apps/web/.auth/user.json
+          chmod 600 apps/web/.auth/user.json
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:release:web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          MIRUJIMA_E2E_ROLE: ${{ matrix.role }}
+      - name: Delete account state and private traces
+        if: always()
+        run: rm -rf apps/web/.auth apps/web/test-results apps/web/playwright-report

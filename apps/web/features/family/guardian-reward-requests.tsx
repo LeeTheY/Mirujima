@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { GuardianRewardRequest } from "@mirujima/contracts";
 import { Check, X } from "lucide-react";
 import { LinkedStudentsList } from "./linked-students-list";
@@ -19,33 +20,45 @@ const statusCopy = {
   returned: "포인트 반환",
   declined: "거절",
   expired: "요청 만료",
+  cancelled: "요청 취소",
 } as const;
 
 export function GuardianRewardRequests({ students, loadFailed }: { students: LinkedStudent[]; loadFailed: boolean }) {
+  const router = useRouter();
+  const mutationInFlight = useRef(false);
+  const reloadRevision = useRef(0);
   const [requests, setRequests] = useState<GuardianRewardRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const reload = async () => {
+  const reload = async (clearMessage = true) => {
+    const revision = ++reloadRevision.current;
     setLoading(true);
     try {
-      setRequests(await listGuardianRewardRequests());
-      setMessage(null);
+      const next = await listGuardianRewardRequests();
+      if (revision !== reloadRevision.current) return;
+      setRequests(next);
+      if (clearMessage) setMessage(null);
     } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "보상 요청을 불러오지 못했습니다.");
+      if (revision === reloadRevision.current) setMessage(cause instanceof Error ? cause.message : "보상 요청을 불러오지 못했습니다.");
     } finally {
-      setLoading(false);
+      if (revision === reloadRevision.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     const timer = window.setTimeout(() => void reload(), 0);
-    return () => window.clearTimeout(timer);
-  }, []);
+    const onForeground = () => {
+      if (!mutationInFlight.current) { void reload(); router.refresh(); }
+    };
+    window.addEventListener("focus", onForeground); window.addEventListener("online", onForeground);
+    return () => { window.clearTimeout(timer); window.removeEventListener("focus", onForeground); window.removeEventListener("online", onForeground); };
+  }, [router]);
 
   const mutate = async (request: GuardianRewardRequest, action: "approve" | "decline") => {
-    if (busyId) return;
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true; ++reloadRevision.current; setLoading(false);
     setBusyId(request.id);
     setMessage(null);
     try {
@@ -55,11 +68,12 @@ export function GuardianRewardRequests({ students, loadFailed }: { students: Lin
       setMessage(action === "approve"
         ? `${request.studentDisplayName} 학생의 ${request.points.toLocaleString()}P 보상을 예약했습니다.`
         : `${request.studentDisplayName} 학생의 보상 요청을 거절했습니다.`);
-      await reload();
+      await reload(false);
+      router.refresh();
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : "보상 요청을 처리하지 못했습니다.");
     } finally {
-      setBusyId(null);
+      mutationInFlight.current = false; setBusyId(null);
     }
   };
 
@@ -73,6 +87,7 @@ export function GuardianRewardRequests({ students, loadFailed }: { students: Lin
         <span className="card-label">보상 요청 관리</span>
         <h2>학생 보상 요청</h2>
         <p>승인하면 보호자 충전 포인트가 예약되고, 학생이 집중을 성공했을 때만 획득 포인트로 지급됩니다.</p>
+        <button className="button secondary small" type="button" disabled={loading || Boolean(busyId)} onClick={() => { void reload(); router.refresh(); }}>보상 요청 새로고침</button>
         {message && <div className="notice" role="status"><p>{message}</p></div>}
         {loading && requests.length === 0 ? (
           <div className="sub-card text-center text-muted text-sm">보상 요청을 불러오는 중입니다.</div>

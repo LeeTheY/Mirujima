@@ -10,6 +10,13 @@ import { EMPTY_CLOUD_SYNC_STATE, type CloudEntityType, type CloudRecord, type Cl
 
 let queueSuppressionDepth = 0;
 
+// These fields identify server-owned focus records, including their local
+// enforcement projections. Only lifecycle RPCs may change these entities.
+const CANONICAL_FOCUS_FIELDS = ["ownerUserId", "canonical", "canonicalStatus", "canonicalUpdatedAt", "endsAt", "activeSegmentStartedAt", "remainingFocusSeconds", "extensionEnforcementState", "selfDepositPoints", "guardianRewardRequestPoints", "selfDepositTransactionId", "guardianDepositTransactionId", "guardianRewardTransactionId", "guardianRewardPoints", "result", "webStatus", "plannedStartAt"];
+export function isCanonicalCloudEntity(entityType: CloudEntityType, payload: Record<string, unknown> | null): boolean {
+  return (entityType === "schedule" || entityType === "focus-session") && Boolean(payload && CANONICAL_FOCUS_FIELDS.some((key) => Object.hasOwn(payload, key)));
+}
+
 function area(): chrome.storage.StorageArea {
   return chrome.storage.local;
 }
@@ -68,6 +75,7 @@ export const cloudSyncStorage = {
   },
 
   async enqueue(entityType: CloudEntityType, entityId: string, payload: Record<string, unknown> | null, operation: "upsert" | "delete" = "upsert"): Promise<void> {
+    if (isCanonicalCloudEntity(entityType, payload)) return;
     if (!(await canQueue(entityType === "learning-day" ? "learning-grass" : "cloud-sync"))) return;
     const [pending, metadata, deviceId] = await Promise.all([this.getPending(), this.getMetadata(), getOrCreateDeviceId()]);
     const key = metadataKey(entityType, entityId);

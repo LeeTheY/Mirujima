@@ -41,13 +41,11 @@ export function membershipSupabaseClient(): SupabaseClient {
   return client;
 }
 
-function normalizedEmail(value: string | undefined | null): string {
-  return value?.trim().toLocaleLowerCase() ?? "";
-}
-
 async function chromeAccount(): Promise<{ email: string; id: string }> {
-  const profile = await chrome.identity.getProfileUserInfo({ accountStatus: "ANY" });
-  return { email: profile.email.trim(), id: profile.id };
+  try {
+    const profile = await chrome.identity.getProfileUserInfo({ accountStatus: "ANY" });
+    return { email: profile.email.trim(), id: profile.id };
+  } catch { return { email: "", id: "" }; }
 }
 
 export async function membershipDevicePayload() {
@@ -108,40 +106,35 @@ export const membershipService = {
 
   async signIn(): Promise<MembershipSnapshot> {
     const account = await chromeAccount();
-    if (!account.email) throw new Error("Chrome에 로그인된 Google 계정을 찾지 못했습니다.");
     const redirectTo = chrome.identity.getRedirectURL("supabase-auth");
     const { data, error } = await membershipSupabaseClient().auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo,
         skipBrowserRedirect: true,
-        queryParams: { login_hint: account.email, prompt: "select_account" }
+        queryParams: { ...(account.email ? { login_hint: account.email } : {}), prompt: "select_account" }
       }
     });
-    if (error || !data.url) throw new Error(error?.message || "Google 로그인 주소를 만들지 못했습니다.");
+    if (error || !data.url) throw new Error("Google 로그인 주소를 만들지 못했습니다. 다시 시도해 주세요.");
     let callbackUrl: string | undefined;
     try {
       callbackUrl = await chrome.identity.launchWebAuthFlow({ url: data.url, interactive: true });
     } catch (cause) {
-      throw new Error(cause instanceof Error ? cause.message : "Google 로그인이 취소되었습니다.", { cause });
+      throw new Error("Google 로그인이 취소되었거나 완료되지 않았습니다. 다시 시도해 주세요.", { cause });
     }
     if (!callbackUrl) throw new Error("Google 로그인이 완료되지 않았습니다.");
     const callback = new URL(callbackUrl);
-    const oauthError = callback.searchParams.get("error_description") || callback.searchParams.get("error");
-    if (oauthError) throw new Error(oauthError);
+    const expectedCallback = new URL(redirectTo);
+    if (callback.origin !== expectedCallback.origin || callback.pathname !== expectedCallback.pathname) throw new Error("로그인 응답 주소를 확인하지 못했습니다.");
+    if (callback.searchParams.has("error") || new URLSearchParams(callback.hash.slice(1)).has("error")) throw new Error("Google 로그인이 완료되지 않았습니다. 다시 시도해 주세요.");
     const code = callback.searchParams.get("code");
     if (!code) throw new Error("Google 로그인 일회용 코드를 받지 못했습니다.");
     const { data: sessionData, error: exchangeError } = await membershipSupabaseClient().auth.exchangeCodeForSession(code);
-    if (exchangeError || !sessionData.user) throw new Error(exchangeError?.message || "로그인 세션을 만들지 못했습니다.");
-    if (normalizedEmail(sessionData.user.email) !== normalizedEmail(account.email)) {
-      await membershipSupabaseClient().auth.signOut();
-      await cloudSyncStorage.clearAccountCache();
-      await clearMembershipAccountData();
-      throw new Error(`Chrome 계정(${account.email})과 Google 로그인 계정(${sessionData.user.email ?? "확인 불가"})이 일치하지 않습니다.`);
-    }
+    if (exchangeError || !sessionData.user) throw new Error("로그인 세션을 만들지 못했습니다. 다시 시도해 주세요.");
     const current = await getMembershipCache();
+    if (current.userId && current.userId !== sessionData.user.id) await cloudSyncStorage.clearAccountCache();
     const next: MembershipSnapshot = {
-      ...current,
+      ...(current.userId === sessionData.user.id ? current : FREE_MEMBERSHIP),
       userId: sessionData.user.id,
       email: sessionData.user.email ?? account.email,
       chromeAccountEmail: account.email,
@@ -152,7 +145,7 @@ export const membershipService = {
   },
 
   async openCheckout(): Promise<void> {
-    assertMembershipConfiguration();
+    assertMembershipConfiguration(true);
     await chrome.tabs.create({ url: membershipCheckoutUrl(MEMBERSHIP_PRODUCT.webAppOrigin) });
   },
 
@@ -169,12 +162,6 @@ export const membershipService = {
       return FREE_MEMBERSHIP;
     }
     const account = await chromeAccount();
-    if (!account.email || normalizedEmail(data.session.user.email) !== normalizedEmail(account.email)) {
-      await membershipSupabaseClient().auth.signOut();
-      await cloudSyncStorage.clearAccountCache();
-      await clearMembershipAccountData();
-      return FREE_MEMBERSHIP;
-    }
     try {
       return await cacheServerMembership(
         await invokeEntitlements("get-membership-entitlements"),

@@ -51,11 +51,6 @@ export function familyLinkErrorCopy(code: string): string {
   return diagnosticCode ? `${copy} (오류 코드: ${diagnosticCode})` : copy;
 }
 
-export function shouldRetryFamilyLinkRequest(code: string): boolean {
-  const publicCode = code.split(":", 1)[0];
-  return publicCode === "function_fetch_failed" || publicCode === "function_relay_failed";
-}
-
 export async function safeFunctionErrorCode(error: unknown): Promise<string> {
   if (!error || typeof error !== "object") return "unknown";
   const errorName = Reflect.get(error, "name");

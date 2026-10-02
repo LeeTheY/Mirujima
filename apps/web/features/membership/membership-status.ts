@@ -69,7 +69,8 @@ export function resolveMembershipStatus(
     : typeof record?.current_period_ends_at === "string" ? record.current_period_ends_at
     : null;
   const periodEndsMs = periodEndsAt ? Date.parse(periodEndsAt) : Number.NaN;
-  const periodActive = !periodEndsAt || (Number.isFinite(periodEndsMs) && periodEndsMs > now.getTime());
+  if (record?.plan === "premium" && record.status === "active" && (!periodEndsAt || !Number.isFinite(periodEndsMs))) return UNAVAILABLE_MEMBERSHIP;
+  const periodActive = Number.isFinite(periodEndsMs) && periodEndsMs > now.getTime();
   const premiumActive = record?.plan === "premium" && record.status === "active" && periodActive;
 
   if (!premiumActive) return FREE_MEMBERSHIP;

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   assertTossTestMode,
+  assertTossPaymentConfig,
   assertSandboxTestMode,
   cancelTossPayment,
   confirmTossPayment,
@@ -15,6 +16,17 @@ import {
 } from "./toss";
 
 describe("Toss test payment boundary", () => {
+  it("requires matching API secret keys and an independent live server gate", () => {
+    expect(assertTossPaymentConfig({ TOSS_PAYMENT_MODE: "test", TOSS_SECRET_KEY: "test_sk_fixture" })).toEqual({ secretKey: "test_sk_fixture" });
+    expect(assertTossPaymentConfig({ TOSS_PAYMENT_MODE: "live", TOSS_SECRET_KEY: "live_sk_fixture", MIRUJIMA_LIVE_PAYMENTS_ENABLED: "true" })).toEqual({ secretKey: "live_sk_fixture" });
+    for (const env of [
+      { TOSS_PAYMENT_MODE: "live", TOSS_SECRET_KEY: "live_sk_fixture" },
+      { TOSS_PAYMENT_MODE: "live", TOSS_SECRET_KEY: "test_sk_fixture", MIRUJIMA_LIVE_PAYMENTS_ENABLED: "true" },
+      { TOSS_PAYMENT_MODE: "test", TOSS_SECRET_KEY: "live_sk_fixture" },
+      { TOSS_PAYMENT_MODE: "test", TOSS_SECRET_KEY: "test_gsk_fixture" },
+      { TOSS_SECRET_KEY: "test_sk_fixture" },
+    ]) expect(() => assertTossPaymentConfig(env)).toThrow("payment_configuration_required");
+  });
   it("accepts only fixed wallet topup requests", () => {
     expect(parseTopupOrderRequest({ points: 10000, idempotencyKey: "topup-order:123" }))
       .toEqual({ points: 10000, idempotencyKey: "topup-order:123" });

@@ -145,8 +145,8 @@ export function minimalGuardianAggregates(value: unknown): Array<Record<string, 
     const item = candidate as Record<string, unknown>;
     return [{
       displayName: boundedText(item.displayName, 80) || "학생",
-      completionRate: Math.max(0, Math.min(100, Number(item.completionRate) || 0)),
-      totalFocusMinutes: Math.max(0, Math.min(10_080, Number(item.totalFocusMinutes) || 0)),
+      completionRate: item.completionRate == null ? null : Math.max(0, Math.min(100, Number(item.completionRate) || 0)),
+      totalFocusMinutes: item.totalFocusMinutes == null ? null : Math.max(0, Math.min(10_080, Number(item.totalFocusMinutes) || 0)),
       rewardStatus: boundedText(item.rewardStatus, 80) || "공유 안 함",
       aiSummary: boundedText(item.aiSummary, 1_000) || null,
     }];

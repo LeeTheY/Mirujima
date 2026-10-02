@@ -53,6 +53,8 @@ select is((select status from public.family_links where code_hash=repeat('b',64)
 select is(public.redeem_family_link_code('b5555555-5555-4555-8555-555555555555',repeat('b',64))->>'status','active','eligible third student can redeem the preserved code');
 select is((select count(*)::integer from public.family_links where guardian_user_id='b2222222-2222-4222-8222-222222222222' and status='active'),3,'three students are active after seat purchase');
 select has_function('public','get_guardian_ai_summary_input',array[]::text[],'guardian consented aggregate RPC exists');
+-- AI input requires each linked student to explicitly opt in.
+update public.profiles set sharing_preferences=sharing_preferences || '{"shareAiSummary":true}'::jsonb where id in ('b3333333-3333-4333-8333-333333333333','b4444444-4444-4444-8444-444444444444','b5555555-5555-4555-8555-555555555555');
 set local role authenticated;
 set local request.jwt.claim.sub='b2222222-2222-4222-8222-222222222222';
 select is(jsonb_array_length(public.get_guardian_ai_summary_input()),3,'guardian AI input contains only linked student aggregates');

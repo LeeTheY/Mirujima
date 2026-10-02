@@ -1,3 +1,4 @@
+import { ConnectionCard } from "../web-bridge/ConnectionCard";
 import { useMemo, useState } from "react";
 import { completionPercentForGoals } from "@mirujima/contracts";
 import { useApp } from "../../shared/ui/AppContext";
@@ -17,7 +18,13 @@ export function FocusPage() {
   const elapsed = useMemo(() => session ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now) : 0, [session, now]);
   const target = (schedule?.targetFocusMinutes ?? 0) * 60;
   const remaining = remainingFocusSeconds(schedule?.targetFocusMinutes ?? 0, elapsed);
-  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><EmptyState><span>Web에서 계획을 만들고 집중을 시작하세요.</span><button className="button" onClick={() => openWebApp("/focus")}>Web 집중 페이지 열기</button></EmptyState></section>;
+  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><ConnectionCard /><EmptyState><span>Web에서 계획을 만들고 집중을 시작하세요.</span><button className="button" onClick={() => openWebApp("/focus")}>Web 집중 페이지 열기</button></EmptyState></section>;
+
+  if (session.canonicalStatus === "starting") return <section className="focus-page">
+    <header className="page-heading"><h1 className="page-title">집중 준비 중</h1><p className="page-lead">사이트 차단 적용과 서버 시작 확인을 기다립니다. 아직 집중 시간은 시작되지 않았습니다.</p></header>
+    <ConnectionCard />
+    <article className="card"><h2>{schedule.title}</h2><button className="button" onClick={() => openWebApp("/focus")}>웹에서 준비 상태 확인</button></article>
+  </section>;
 
   const progress = target ? Math.min(100, Math.round(elapsed / target * 100)) : 0;
   const sessionDomains = schedule.blockingMode === "blocklist" ? schedule.blockedDomains : schedule.allowedDomains;
@@ -26,7 +33,8 @@ export function FocusPage() {
   const completionPercent = settlementGoals.length > 0
     ? completionPercentForGoals(settlementGoals.length, completedGoalIds.length)
     : 0;
-  const expectedEarnedPoints = Math.floor((session.selfDepositPoints ?? schedule.selfDepositPoints ?? 0) * completionPercent / 100);
+  const depositPoints = session.selfDepositPoints ?? schedule.selfDepositPoints ?? 0;
+  const expectedEarnedPoints = session.depositPolicy?.mode === "all-or-none" ? completionPercent === 100 ? depositPoints : 0 : Math.floor(depositPoints * completionPercent / 100);
   const onBreak = session.status === "paused" && Boolean(session.breakStartedAt);
   const currentBreakSeconds = session.breakStartedAt
     ? Math.max(0, Math.floor((now - new Date(session.breakStartedAt).getTime()) / 1000))
@@ -66,7 +74,7 @@ export function FocusPage() {
       <div className="focus-result-time"><span>집중한 시간</span><strong>{formatClock(Math.min(elapsed, target))}</strong><small>목표 {schedule.targetFocusMinutes}분</small></div>
       {session.canonical ? (
         <>
-          <p>완료한 목표를 선택해 주세요. 전부 완료 100% · 절반 이상 80% · 일부 완료 60% · 완료 없음 0%로 정산됩니다.</p>
+          <p>{session.depositPolicy?.mode === "all-or-none" ? "모든 목표를 완료하면 예약 포인트 전액을 획득합니다. 일부 목표가 남으면 예약 포인트 전액을 반환합니다." : "기존 세션 정책: 전부 완료 100% · 절반 이상 80% · 일부 완료 60% · 완료 없음 0%로 정산됩니다."}</p>
           <div className="canonical-goal-checklist">
             {settlementGoals.map((goal) => (
               <label key={goal.id} className={completedGoalIds.includes(goal.id) ? "selected" : ""}>
@@ -104,7 +112,7 @@ export function FocusPage() {
         {onBreak ? <section className={`focus-timer-panel break-timer-panel ${breakOvertime > 0 ? "overtime" : ""}`} aria-label="휴식 타이머">
           <span className="focus-section-label">{breakOvertime > 0 ? "휴식 초과 시간" : "남은 휴식 시간"}</span>
           <div className="focus-timer" aria-live="polite">{breakOvertime > 0 ? `+${formatClock(breakOvertime)}` : formatClock(breakRemaining)}</div>
-          <div className="focus-time-meta"><span>이번 휴식 {formatClock(currentBreakSeconds)}</span><span>누적 {formatClock(totalBreakSeconds)}</span><span>권장 총 {schedule.breakMinutes}분</span></div>
+          <div className="focus-time-meta"><span>이번 휴식 {formatClock(currentBreakSeconds)}</span><span>누적 {formatClock(totalBreakSeconds)}</span><span>{session.canonical ? "자동 복귀 · 총" : "권장 총"} {schedule.breakMinutes}분</span></div>
         </section> : <section className="focus-timer-panel" aria-label="집중 타이머">
           <span className="focus-section-label">남은 시간</span>
           <div className="focus-timer" aria-live="polite">{formatClock(remaining)}</div>
@@ -121,7 +129,7 @@ export function FocusPage() {
         </section>}
 
         <section className="focus-actions" aria-label="집중 세션 동작">
-          {session.status === "active" ? <><button className="button secondary" onClick={() => run({ type: "FOCUS_PAUSE" })}>일시정지</button>{!session.canonical && <button className="button secondary" onClick={() => run({ type: "FOCUS_BREAK" })}>휴식 시작</button>}</> : <button className="button" onClick={() => run({ type: "FOCUS_RESUME" })}>{onBreak ? "휴식 끝내고 집중 재개" : "다시 시작"}</button>}
+          {session.status === "active" ? <><button className="button secondary" onClick={() => run({ type: "FOCUS_PAUSE" })}>일시정지</button>{<button className="button secondary" disabled={session.canonical && (session.accumulatedBreakSeconds ?? 0) >= plannedBreakSeconds} onClick={() => run({ type: "FOCUS_BREAK" })}>휴식 시작</button>}</> : <button className="button" onClick={() => run({ type: "FOCUS_RESUME" })}>{onBreak ? "휴식 끝내고 집중 재개" : "다시 시작"}</button>}
           {session.canonical ? (
             <button className="button ghost" onClick={() => void confirmCanonicalFinish([])}>집중 포기</button>
           ) : (

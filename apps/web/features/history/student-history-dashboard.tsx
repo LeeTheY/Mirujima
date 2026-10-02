@@ -13,7 +13,7 @@ export function StudentHistoryDashboard({ history, error, period, anchorDate }: 
   return <>
     <div className="page-heading history-heading">
       <div><p className="eyebrow">학습 분석 및 기록 리포트</p><h1>집중 기록 및 리포트</h1><p>{history ? formatHistoryRange(period, history.range.startDate, history.range.endDate) : anchorDate.replaceAll("-", ".")}</p></div>
-      <div className="history-heading-actions"><button className="button secondary small" type="button" onClick={() => setGuideOpen(true)}><HelpCircle className="w-4 h-4" />기록 사용법</button><HistoryControls period={period} anchorDate={anchorDate} /></div>
+      <div className="history-heading-actions"><button className="button secondary small" type="button" onClick={() => setGuideOpen(true)}><HelpCircle className="w-4 h-4" />기록 사용법</button><HistoryControls timezone={history?.timezone} period={period} anchorDate={anchorDate} /></div>
     </div>
 
     {error ? <section className="card history-state error" role="alert"><strong>기록을 표시하지 못했습니다.</strong><p>{error}</p></section> : null}
@@ -27,7 +27,10 @@ export function StudentHistoryDashboard({ history, error, period, anchorDate }: 
         <Metric label="기록된 세션" value={`${history.sessionCount}개`} detail={history.sessionsTruncated ? "최신 200개 표시" : "조회 기간 전체"} />
       </section>
 
+      <Metric label="디파짓 성공 전환율" value={history.summary.selfDepositConversionRate == null ? "집계 없음" : `${history.summary.selfDepositConversionRate}%`} detail="정산된 자기 디파짓 중 획득 포인트로 전환된 금액 비율" />
       <StudentAiInsights />
+      {history.goals ? <section className="card history-chart-card"><h2>목표별 계획 시간</h2><p>목표별 실제 집중 시간을 측정하지 않아 계획 시간과 완료 여부를 표시합니다.</p><div className="history-table-wrap"><table className="history-table"><caption>조회 기간 전체 목표의 계획 시간 — 실제 시간 미측정</caption><thead><tr><th>목표</th><th>계획 시간</th><th>실제 집중 시간</th></tr></thead><tbody>{history.goals.map((goal) => <tr key={goal.name}><td>{goal.name}<div className="progress-track"><i style={{ width: `${trendBarPercent(goal.plannedMinutes, history.goals!.map((item) => item.plannedMinutes))}%` }} /></div></td><td>{goal.plannedMinutes}분</td><td>미측정</td></tr>)}</tbody></table></div></section> : null}
+      {history.hourlyStarts ? <section className="card history-chart-card"><h2>시간대별 세션 시작</h2><p>{history.timezone ?? "Asia/Seoul"} 기준입니다. 휴식·재개 구간을 시간대별로 측정하지 않아 집중 시간 분포로 해석하지 않습니다.</p><div className="history-table-wrap"><table className="history-table"><caption>시간대별 시작 횟수</caption><thead><tr><th>시간대</th><th>세션 수</th></tr></thead><tbody>{history.hourlyStarts.filter((item) => item.sessionCount > 0).map((item) => <tr key={item.hour}><td>{item.hour}시</td><td>{item.sessionCount}개</td></tr>)}</tbody></table></div></section> : null}
 
       <section className="card chart-card history-chart-card">
         <div className="history-section-heading"><div><span className="card-label">날짜별 집중 추이</span><h2>집중 시간과 달성률</h2></div><BarChart3 className="w-5 h-5 text-muted" /></div>
@@ -40,7 +43,7 @@ export function StudentHistoryDashboard({ history, error, period, anchorDate }: 
         {history.sessions.length === 0 ? <div className="chart-placeholder"><p>이 기간에 완료된 집중 세션이 없습니다.</p></div> : <div className="history-session-list">{history.sessions.map((session) => <article className="history-session-card" key={session.sessionId}>
           <header><div><span>{session.dateKey}</span><strong>{session.status === "success" ? "집중 성공" : session.status === "failed" ? "집중 실패" : "집중 취소"}</strong></div><b className={session.completionPercent === 0 ? "failed" : ""}>{session.completionPercent}%</b></header>
           <div className="history-session-meta"><span>집중 {session.focusMinutes}분 / 목표 {session.targetFocusMinutes}분</span><span>획득 {session.earnedPoints.toLocaleString()}P</span><span>차단 시도 {session.blockedAttemptCount}회</span></div>
-          <ul>{session.goals.map((goal) => <li key={goal.goalId} className={goal.completed ? "completed" : ""}><span>{goal.completed ? "✓" : "–"}</span><div><strong>{goal.name}</strong><small>{goal.minutes}분 · 우선순위 {goal.priority === "high" ? "높음" : goal.priority === "medium" ? "중간" : "낮음"}</small></div></li>)}</ul>
+          <ul>{session.goals.map((goal) => <li key={goal.goalId} className={goal.completed ? "completed" : ""}><span>{goal.completed ? "✓" : "–"}</span><div><strong>{goal.name}</strong><small>계획 {goal.minutes}분 · 우선순위 {goal.priority === "high" ? "높음" : goal.priority === "medium" ? "중간" : "낮음"}</small></div></li>)}</ul>
         </article>)}</div>}
       </section>
     </> : !error ? <section className="card history-state"><strong>기록을 준비하고 있습니다.</strong></section> : null}

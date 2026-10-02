@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { confirmationFailureCopy, getTossPublicConfig, parsePaymentCallback, paymentFailureCopy, readFunctionErrorCode } from "./payment";
 
 describe("membership payment UI boundary", () => {
+  it("requires an explicit live mode and HTTPS for a live client key", () => {
+    expect(getTossPublicConfig({ NEXT_PUBLIC_TOSS_PAYMENT_MODE: "live", NEXT_PUBLIC_TOSS_CLIENT_KEY: "live_ck_example", NEXT_PUBLIC_APP_ORIGIN: "https://mirujima.vercel.app" }).clientKey).toBe("live_ck_example");
+    expect(() => getTossPublicConfig({ NEXT_PUBLIC_TOSS_PAYMENT_MODE: "live", NEXT_PUBLIC_TOSS_CLIENT_KEY: "test_ck_example", NEXT_PUBLIC_APP_ORIGIN: "https://mirujima.vercel.app" })).toThrow();
+    expect(() => getTossPublicConfig({ NEXT_PUBLIC_TOSS_PAYMENT_MODE: "live", NEXT_PUBLIC_TOSS_CLIENT_KEY: "live_ck_example", NEXT_PUBLIC_APP_ORIGIN: "http://localhost:3000" })).toThrow();
+  });
   it("accepts only API individual Toss test client keys", () => {
     expect(getTossPublicConfig({
       NEXT_PUBLIC_TOSS_CLIENT_KEY: "test_ck_example",
@@ -10,11 +15,11 @@ describe("membership payment UI boundary", () => {
     expect(() => getTossPublicConfig({
       NEXT_PUBLIC_TOSS_CLIENT_KEY: "live_ck_example",
       NEXT_PUBLIC_APP_ORIGIN: "http://localhost:3000"
-    })).toThrow("테스트 client key");
+    })).toThrow("결제 서비스를 준비 중");
     expect(() => getTossPublicConfig({
       NEXT_PUBLIC_TOSS_CLIENT_KEY: "test_gck_example",
       NEXT_PUBLIC_APP_ORIGIN: "http://localhost:3000"
-    })).toThrow("테스트 client key");
+    })).toThrow("결제 서비스를 준비 중");
   });
 
   it("parses server-verifiable role and seat callback amounts", () => {
@@ -32,6 +37,9 @@ describe("membership payment UI boundary", () => {
 
   it("separates retryable, amount mismatch, and rejected confirmation copy", async () => {
     expect(confirmationFailureCopy("topup", "payment_temporarily_unavailable")).toContain("같은 결과 주소");
+    expect(confirmationFailureCopy("topup", "payment_temporarily_unavailable")).not.toContain("잔액은 변경되지 않았습니다");
+    expect(confirmationFailureCopy("topup", "unknown")).not.toContain("잔액은 변경되지 않았습니다");
+    expect(confirmationFailureCopy("membership", "payment_temporarily_unavailable")).not.toContain("멤버십은 변경되지 않았습니다");
     expect(confirmationFailureCopy("membership", "membership_payment_amount_mismatch")).toContain("일치하지 않습니다");
     expect(confirmationFailureCopy("topup", "payment_rejected")).toContain("잔액은 변경되지 않았습니다");
     expect(await readFunctionErrorCode({ context: { json: async () => ({ error: "payment_temporarily_unavailable" }) } }))

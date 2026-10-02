@@ -1,3 +1,4 @@
+import { ConnectionCard } from "../features/web-bridge/ConnectionCard";
 import { useEffect, useState } from "react";
 import { sendMessage } from "../shared/chrome/messaging";
 import { useApp } from "../shared/ui/AppContext";
@@ -70,7 +71,10 @@ export function PopupApp() {
           </div>
         )}
         <div className="stack">
-          {session && schedule ? (
+          <ConnectionCard />
+          {session?.canonicalStatus === "starting" ? (
+            <article className="card"><h2>집중 준비 중</h2><p>차단 적용과 서버 확인을 기다리고 있습니다. 아직 집중 시간은 시작되지 않았습니다.</p><button className="button" onClick={() => openWebApp("/focus")}>웹에서 상태 확인</button></article>
+          ) : session && schedule ? (
             <article className="focus-timer-panel popup-focus-card">
               <div className="flex items-center justify-between w-full">
                 <span className="focus-section-label">

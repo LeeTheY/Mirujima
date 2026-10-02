@@ -27,3 +27,13 @@ describe("DNR rule 생성", () => {
     expect(createBlockingRules(baseSchedule, { ...session, status: "paused" }, [], "chrome-extension://id/")).toEqual([]);
   });
 });
+
+it("keeps only the exact control plane origin accessible during blocking", () => {
+  const rules = createBlockingRules(baseSchedule, session, [], "chrome-extension://id/", "https://mirujima.vercel.app");
+  const control = rules.find((rule) => rule.priority === 3)!;
+  const pattern = new RegExp(control.condition.regexFilter!);
+  expect(pattern.test("https://mirujima.vercel.app/focus")).toBe(true);
+  expect(pattern.test("https://mirujima.vercel.app.evil.test/focus")).toBe(false);
+  expect(pattern.test("https://preview.mirujima.vercel.app/focus")).toBe(false);
+  expect(pattern.test("http://mirujima.vercel.app/focus")).toBe(false);
+});

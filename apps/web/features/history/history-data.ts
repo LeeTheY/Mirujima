@@ -55,3 +55,12 @@ export async function loadGuardianFocusHistory(
     ? { data: parsed.data, error: null }
     : { data: null, error: "공유된 기록 형식을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요." };
 }
+
+export async function loadHistoryTimeZone(studentUserId?: string): Promise<string> {
+  const client = await serverClient();
+  const { data, error } = await client.rpc("get_focus_history_context", { p_student_user_id: studentUserId ?? null });
+  if (error || !data || typeof data !== "object") return "Asia/Seoul";
+  const tz = Reflect.get(data, "timezone");
+  try { if (typeof tz === "string") { new Intl.DateTimeFormat("ko", { timeZone: tz }); return tz; } } catch { /* legacy configuration */ }
+  return "Asia/Seoul";
+}

@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.family-link-redeem]
 verify_jwt = true
+
+[functions.notification-push-dispatch]
+verify_jwt = true

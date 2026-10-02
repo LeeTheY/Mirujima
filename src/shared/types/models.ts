@@ -67,8 +67,10 @@ export interface FocusSession {
   activeSegmentStartedAt?: string | null;
   remainingFocusSeconds?: number;
   selfDepositPoints?: number;
+  depositPolicy?: { version: 1; mode: "tiered" } | { version: 2; mode: "all-or-none" };
   canonicalStatus?: "starting" | "active" | "paused" | "awaiting-result" | "success" | "failed" | "cancelled";
   canonicalUpdatedAt?: string;
+  enforcementDeadlineAt?: string | null;
 }
 
 export interface PendingCanonicalSettlement {

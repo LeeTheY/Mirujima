@@ -5,7 +5,7 @@ import { membershipDevicePayload, membershipSupabaseClient } from "../membership
 import { getMembershipCache } from "../membership/storage";
 import { hasPremiumEntitlement } from "../membership/types";
 import { learningDayFromReport, type LearningDay } from "../learning-grass/learning";
-import { cloudSyncStorage, runWithoutCloudQueue } from "./storage";
+import { cloudSyncStorage, isCanonicalCloudEntity, runWithoutCloudQueue } from "./storage";
 import { EMPTY_CLOUD_SYNC_STATE, type CloudEntityType, type CloudRecord, type CloudRestorePreview, type CloudSyncState } from "./types";
 
 interface PushResult {
@@ -78,7 +78,7 @@ function previewCounts(records: CloudRecord[]): CloudRestorePreview {
 
 async function pullRecords(): Promise<CloudRecord[]> {
   const response = await invokeCloud({ action: "pull" });
-  return Array.isArray(response.records) ? response.records : [];
+  return Array.isArray(response.records) ? response.records.filter((record) => !isCanonicalCloudEntity(record.entityType, record.payload)) : [];
 }
 
 async function applyRecords(records: CloudRecord[]): Promise<void> {
@@ -90,6 +90,12 @@ async function applyRecords(records: CloudRecord[]): Promise<void> {
     let learningDays = await cloudSyncStorage.getLearningDays();
 
     for (const record of records) {
+      // A legacy restore must not replace or remove an active canonical
+      // projection, even when an old row/tombstone reuses its identifier.
+      const local = record.entityType === "schedule" ? schedules.find((item) => item.id === record.entityId)
+        : record.entityType === "focus-session" ? sessions.find((item) => item.id === record.entityId) : null;
+      if (isCanonicalCloudEntity(record.entityType, record.payload)
+        || isCanonicalCloudEntity(record.entityType, local ? { ...local } : null)) continue;
       if (record.entityType === "schedule") {
         schedules = schedules.filter((item) => item.id !== record.entityId);
         if (!record.deletedAt && isSchedule(record.payload)) schedules.push(record.payload);
@@ -118,7 +124,19 @@ async function applyRecords(records: CloudRecord[]): Promise<void> {
 }
 
 async function pushPending(): Promise<void> {
-  const pending = await cloudSyncStorage.getPending();
+  const queued = await cloudSyncStorage.getPending();
+  // Old versions may have queued canonical projections before this boundary.
+  // Retire only those forbidden mutations so they cannot poison a legacy batch.
+  const protectedKeys = new Set<string>();
+  for (const schedule of await repository.getSchedules()) {
+    if (isCanonicalCloudEntity("schedule", { ...schedule })) protectedKeys.add(`schedule:${schedule.id}`);
+  }
+  for (const session of await repository.getSessionHistory()) {
+    if (isCanonicalCloudEntity("focus-session", { ...session })) protectedKeys.add(`focus-session:${session.id}`);
+  }
+  const pending = queued.filter((item) => !isCanonicalCloudEntity(item.entityType, item.payload)
+    && !protectedKeys.has(`${item.entityType}:${item.entityId}`));
+  if (pending.length !== queued.length) await cloudSyncStorage.setPending(pending);
   if (!pending.length) return;
   const response = await invokeCloud({ action: "push", mutations: pending.slice(0, 100) });
   const results = Array.isArray(response.results) ? response.results : [];

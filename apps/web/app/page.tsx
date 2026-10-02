@@ -31,7 +31,7 @@ export default function LandingPage() {
               <ChevronRight className="w-4 h-4" />
             </Link>
             <Link className="button secondary" href="/focus">
-              집중 화면 보기
+              로그인 후 집중 화면 보기
             </Link>
           </div>
           <p className="microcopy mt-6 block text-xs text-muted">

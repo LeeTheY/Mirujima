@@ -5,10 +5,13 @@ import process from "node:process";
 const roots = [resolve("dist"), resolve("apps/web/.next/static")];
 const forbidden = [
   { name: "Toss secret key", pattern: /\b(?:test|live)_(?:sk|gsk)_[A-Za-z0-9_-]{6,}/g },
-  { name: "Toss live client key", pattern: /\blive_(?:ck|gck)_[A-Za-z0-9_-]{6,}/g },
+  // Client keys are public, but a live key in a test artifact is a mode leak.
+  ...(process.env.NEXT_PUBLIC_TOSS_PAYMENT_MODE === "live" ? [] : [
+    { name: "Toss live client key in non-live build", pattern: /\blive_(?:ck|gck)_[A-Za-z0-9_-]{6,}/g }
+  ]),
   { name: "Groq secret key", pattern: /\bgsk_[A-Za-z0-9_-]{12,}/g },
   { name: "Supabase secret key", pattern: /\bsb_secret_[A-Za-z0-9_-]{12,}/g },
-  { name: "server-only environment name", pattern: /\b(?:TOSS_SECRET_KEY|AI_PROVIDER_API_KEY|GROQ_API_KEY|MIRUJIMA_SERVER_SIGNING_SECRET|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY)\b/g },
+  { name: "server-only environment name", pattern: /\b(?:TOSS_SECRET_KEY|AI_PROVIDER_API_KEY|GROQ_API_KEY|MIRUJIMA_SERVER_SIGNING_SECRET|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|VAPID_PRIVATE_KEY|MIRUJIMA_PUSH_DISPATCH_SECRET)\b/g },
   { name: "private key block", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
 ];
 

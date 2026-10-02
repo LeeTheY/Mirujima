@@ -1,0 +1,13 @@
+{
+  "artifactRevision": "UNVERIFIED",
+  "verifiedAt": null,
+  "checks": {
+    "studentIntegration": { "status": "unverified", "evidence": "실제 테스트 계정 없음" },
+    "guardianIntegration": { "status": "unverified", "evidence": "실제 테스트 계정 없음" },
+    "providerPaymentRefund": { "status": "unverified", "evidence": "provider 테스트 주문 없음" },
+    "providerAiConsent": { "status": "unverified", "evidence": "실제 provider 및 철회 동작 검증 필요" },
+    "devicePwaPush": { "status": "unverified", "evidence": "실제 지원 기기·VAPID 구독 없음" },
+    "extensionCompatibility": { "status": "unverified", "evidence": "구버전 canonical 실계정 검증 필요" },
+    "stagingRecovery": { "status": "unverified", "evidence": "Vercel staging 연결 및 DB 복원 연습 필요" }
+  }
+}

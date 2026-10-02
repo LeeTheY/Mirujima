@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Unlink, X, Check } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Dialog } from "@/components/dialog";
+import { disconnectFamilyLink } from "./privacy-mutations";
+import { Unlink, Check } from "lucide-react";
 import type { LinkedStudent } from "./linked-students";
 
 export function LinkedStudentsList({
@@ -16,6 +19,30 @@ export function LinkedStudentsList({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [studentsToDisconnect, setStudentsToDisconnect] = useState<LinkedStudent[] | null>(null);
 
+  const router = useRouter();
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectError, setDisconnectError] = useState("");
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const visibleStudents = students.filter((student) => !removedIds.includes(student.studentUserId));
+  async function disconnectSelected() {
+    if (!studentsToDisconnect || disconnecting) return;
+    setDisconnecting(true);
+    setDisconnectError("");
+    const succeeded: string[] = [];
+    const failures: LinkedStudent[] = [];
+    const messages: string[] = [];
+    for (const student of studentsToDisconnect) {
+      try { await disconnectFamilyLink(student.studentUserId); succeeded.push(student.studentUserId); }
+      catch (error) { failures.push(student); messages.push(`${student.displayName}: ${error instanceof Error ? error.message : "연결을 해제하지 못했습니다."}`); }
+    }
+    setRemovedIds((previous) => [...previous, ...succeeded]);
+    setSelectedIds(failures.map((student) => student.studentUserId));
+    setStudentsToDisconnect(failures.length ? failures : null);
+    setDisconnectError(messages.join(" "));
+    setDisconnecting(false);
+    if (succeeded.length) router.refresh();
+  }
+
   if (loadFailed) {
     return (
       <div className="notice error">
@@ -25,14 +52,14 @@ export function LinkedStudentsList({
     );
   }
 
-  if (students.length === 0) {
+  if (visibleStudents.length === 0) {
     return <div className="sub-card text-center text-muted text-sm">연결된 학생이 없습니다.</div>;
   }
 
   return (
     <>
       <div className="space-y-2">
-        {students.map((student) => {
+        {visibleStudents.map((student) => {
           const isChecked = selectedIds.includes(student.studentUserId);
           return (
             <label
@@ -92,8 +119,9 @@ export function LinkedStudentsList({
             type="button"
             disabled={selectedIds.length === 0}
             onClick={() => {
-              const selected = students.filter((s) => selectedIds.includes(s.studentUserId));
+              const selected = visibleStudents.filter((s) => selectedIds.includes(s.studentUserId));
               if (selected.length > 0) {
+                setDisconnectError("");
                 setStudentsToDisconnect(selected);
               }
             }}
@@ -111,46 +139,14 @@ export function LinkedStudentsList({
       )}
 
       {studentsToDisconnect && studentsToDisconnect.length > 0 && (
-        <div className="modal-overlay" onClick={() => setStudentsToDisconnect(null)}>
-          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h2 className="text-xl font-extrabold text-rose-600 m-0">학생 연결 해제</h2>
-              <button
-                className="icon-close-button"
-                type="button"
-                onClick={() => setStudentsToDisconnect(null)}
-                aria-label="닫기"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 m-0">
-              {studentsToDisconnect.length === 1
-                ? `${studentsToDisconnect[0].displayName} 학생과의 연결을 해제하면 학습 공유 및 가족 보상 요청이 즉시 중단됩니다. 해제하시겠습니까?`
-                : `선택한 ${studentsToDisconnect.length}명의 학생과의 연결을 해제하면 학습 공유 및 가족 보상 요청이 즉시 중단됩니다. 해제하시겠습니까?`}
-            </p>
-            <div className="flex gap-2 mt-4">
-              <button
-                className="button secondary full"
-                type="button"
-                onClick={() => setStudentsToDisconnect(null)}
-              >
-                취소
-              </button>
-              <button
-                className="button full"
-                style={{ background: "#FF5A5F", borderColor: "#FF5A5F" }}
-                type="button"
-                onClick={() => {
-                  setSelectedIds([]);
-                  setStudentsToDisconnect(null);
-                }}
-              >
-                연결 해제
-              </button>
-            </div>
+        <Dialog title="학생 연결 해제" onClose={() => { if (!disconnecting) setStudentsToDisconnect(null); }}>
+          <p className="text-sm text-gray-600 m-0">{studentsToDisconnect.map((student) => student.displayName).join(", ")} 학생과의 연결을 해제합니다. 미정산 보상·예약 포인트가 있는 학생은 연결을 유지합니다.</p>
+          {disconnectError && <p className="notice error" role="alert">{disconnectError}</p>}
+          <div className="flex gap-2 mt-4">
+            <button className="button secondary full" type="button" disabled={disconnecting} onClick={() => setStudentsToDisconnect(null)}>취소</button>
+            <button className="button full" style={{ background: "#FF5A5F", borderColor: "#FF5A5F" }} type="button" disabled={disconnecting} onClick={() => void disconnectSelected()}>{disconnecting ? "해제 확인 중…" : "연결 해제"}</button>
           </div>
-        </div>
+        </Dialog>
       )}
     </>
   );

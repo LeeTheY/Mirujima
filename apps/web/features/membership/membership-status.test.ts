@@ -42,4 +42,9 @@ describe("membership status", () => {
     }, now).tier).toBe("free");
     expect(resolveMembershipStatus({ plan: "premium", status: "inactive" }, now).tier).toBe("free");
   });
+  it("does not display malformed or missing active periods as Premium", () => {
+    expect(resolveMembershipStatus({ plan: "premium", status: "active" }, now).tier).toBe("unavailable");
+    expect(resolveMembershipStatus({ plan: "premium", status: "active", currentPeriodEndsAt: "invalid" }, now).tier).toBe("unavailable");
+    expect(resolveMembershipStatus({ plan: "premium", status: "active", currentPeriodEndsAt: now.toISOString() }, now).tier).toBe("free");
+  });
 });

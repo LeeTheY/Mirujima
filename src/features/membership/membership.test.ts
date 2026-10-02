@@ -12,12 +12,16 @@ describe("Premium feature gate", () => {
       ...FREE_MEMBERSHIP,
       plan: "premium" as const,
       status: "active" as const,
+      currentPeriodEndsAt: "2099-02-01T00:00:00.000Z",
       entitlements: ["cloud-sync" as const]
     };
     expect(hasPremiumEntitlement(premium, "cloud-sync")).toBe(true);
     expect(hasPremiumEntitlement(premium, "screen-ocr")).toBe(false);
     expect(hasPremiumEntitlement(premium, "content-summary")).toBe(false);
     expect(hasPremiumEntitlement({ ...premium, status: "inactive" }, "cloud-sync")).toBe(false);
+    expect(hasPremiumEntitlement(premium, "cloud-sync", Date.parse(premium.currentPeriodEndsAt))).toBe(false);
+    expect(hasPremiumEntitlement({ ...premium, currentPeriodEndsAt: null }, "cloud-sync")).toBe(false);
+    expect(hasPremiumEntitlement({ ...premium, currentPeriodEndsAt: "invalid" }, "cloud-sync")).toBe(false);
   });
 
   it("falls back safely when the local cache is malformed", () => {

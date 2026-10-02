@@ -13,3 +13,10 @@ describe("AI coaching UI states", () => {
       .toBe("rate_limited");
   });
 });
+
+it("distinguishes timeout, authentication, role and revoked consent", () => {
+  expect(aiCoachingErrorCopy("ai_timeout")).toContain("초과");
+  expect(aiCoachingErrorCopy("authentication_required")).toContain("로그인");
+  expect(aiCoachingErrorCopy("ai_role_required")).toContain("계정 역할");
+  expect(aiCoachingErrorCopy("guardian_consent_changed")).toContain("공유 동의");
+});

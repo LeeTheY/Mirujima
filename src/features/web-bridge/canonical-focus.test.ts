@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canonicalFocusSessionSchema, type FocusPlan } from "@mirujima/contracts";
 import {
+  projectExpiredCanonicalBreak,
   canonicalMetricPayload,
   canonicalRuntimeOwnershipChanged,
   canonicalToLocalFocus,
@@ -125,5 +126,41 @@ describe("canonical focus adapter", () => {
     const local = canonicalToLocalFocus(plan, session).session;
     const client = { rpc: async () => ({ data: null, error: { message: "offline" } }) };
     await expect(syncCanonicalMetricsBestEffort(local, "device-1", client)).resolves.toBe(false);
+  });
+});
+
+describe("canonical timed break recovery", () => {
+  const paused = canonicalToLocalFocus(plan, canonicalFocusSessionSchema.parse({ ...session, status: "paused", pauseKind: "break", remainingFocusSeconds: 120,
+    breakStartedAt: "2026-08-08T10:01:00Z", breakEndsAt: "2026-08-08T10:02:00Z", accumulatedBreakSeconds: 30 })).session;
+  it("keeps the absolute break deadline and server budget in local storage", () => {
+    expect(paused.breakEndsAt).toBe("2026-08-08T10:02:00Z");
+    expect(paused.accumulatedBreakSeconds).toBe(30);
+  });
+  it("does not resume a break early or an indefinite manual pause", () => {
+    expect(projectExpiredCanonicalBreak(paused, Date.parse("2026-08-08T10:01:59Z"))).toBeNull();
+    expect(projectExpiredCanonicalBreak({ ...paused, breakEndsAt: null }, Date.parse("2026-08-08T11:00:00Z"))).toBeNull();
+    expect(projectExpiredCanonicalBreak({ ...paused, breakStartedAt: "invalid" }, Date.parse("2026-08-08T11:00:00Z"))).toBeNull();
+    expect(projectExpiredCanonicalBreak({ ...paused, remainingFocusSeconds: -1 }, Date.parse("2026-08-08T11:00:00Z"))).toBeNull();
+  });
+  it("restores offline enforcement at the deadline without extending focus", () => {
+    const resumed = projectExpiredCanonicalBreak(paused, Date.parse("2026-08-08T10:02:30Z"));
+    expect(resumed?.status).toBe("active");
+    expect(resumed?.endsAt).toBe("2026-08-08T10:04:00.000Z");
+    expect(resumed?.accumulatedBreakSeconds).toBe(90);
+    expect(resumed?.breakEndsAt).toBeNull();
+  });
+  it("returns to result selection if restart happens after focus also expired", () => {
+    expect(projectExpiredCanonicalBreak(paused, Date.parse("2026-08-08T11:00:00Z"))?.status).toBe("awaiting-result");
+  });
+});
+
+describe("canonical deposit policy snapshot", () => {
+  it("preserves the server policy when adapting to Extension storage", () => {
+    const parsed = canonicalFocusSessionSchema.parse({ ...session, depositPolicy: { version: 2, mode: "all-or-none" } });
+    expect(canonicalToLocalFocus(plan, parsed).session.depositPolicy).toEqual({ version: 2, mode: "all-or-none" });
+  });
+  it("keeps old sessions without a policy and rejects unknown versions", () => {
+    expect(canonicalToLocalFocus(plan, session).session.depositPolicy).toBeUndefined();
+    expect(() => canonicalFocusSessionSchema.parse({ ...session, depositPolicy: { version: 99, mode: "all-or-none" } })).toThrow();
   });
 });

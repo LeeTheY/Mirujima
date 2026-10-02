@@ -16,12 +16,22 @@ export function createBlockingRules(
   schedule: Schedule,
   session: FocusSession,
   temporaryAllows: TemporaryAllow[],
-  extensionBaseUrl: string
+  extensionBaseUrl: string,
+  controlPlaneOrigin?: string
 ): chrome.declarativeNetRequest.Rule[] {
   if (schedule.blockingMode === "off" || session.status !== "active") return [];
   const activeAllows = temporaryAllows
     .filter((item) => item.sessionId === session.id && isTemporaryAllowActive(item))
     .map((item) => ({ hostname: item.hostname, includeSubdomains: false }));
+  const controlPlaneRules: chrome.declarativeNetRequest.Rule[] = [];
+  if (controlPlaneOrigin) {
+    const url = new URL(controlPlaneOrigin);
+    if (!["http:", "https:"].includes(url.protocol) || url.origin !== controlPlaneOrigin.replace(/\/$/, "")) throw new Error("Web 앱 origin이 올바르지 않습니다.");
+    controlPlaneRules.push({ id: DNR_RULE_ID_END, priority: 3,
+      action: { type: chrome.declarativeNetRequest.RuleActionType.ALLOW },
+      condition: { regexFilter: `^${escapeRegex(url.origin)}(?:/|$)`, resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME] },
+    });
+  }
   const redirect = { regexSubstitution: `${extensionBaseUrl}blocked.html?host=\\1` };
   const resourceTypes = [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME];
   const allowRules = [...schedule.allowedDomains, ...activeAllows].map((rule, index): chrome.declarativeNetRequest.Rule => ({
@@ -36,7 +46,7 @@ export function createBlockingRules(
       priority: 1,
       action: { type: chrome.declarativeNetRequest.RuleActionType.REDIRECT, redirect },
       condition: { regexFilter: "^https?://([^/:]+)(?::\\d+)?(?:/|$)", resourceTypes }
-    }, ...allowRules];
+    }, ...allowRules, ...controlPlaneRules];
   }
   const temporaryAllowRules = activeAllows.map((rule, index): chrome.declarativeNetRequest.Rule => ({
     id: DNR_RULE_ID_START + 1 + schedule.blockedDomains.length + index,
@@ -50,7 +60,7 @@ export function createBlockingRules(
     action: { type: chrome.declarativeNetRequest.RuleActionType.REDIRECT, redirect },
     condition: { regexFilter: domainRegex(rule.hostname, rule.includeSubdomains), resourceTypes }
   }));
-  return [...blockRules, ...temporaryAllowRules];
+  return [...blockRules, ...temporaryAllowRules, ...controlPlaneRules];
 }
 
 export async function clearBlockingRules(): Promise<void> {
@@ -65,6 +75,6 @@ export async function applyBlockingRules(
   temporaryAllows: TemporaryAllow[]
 ): Promise<void> {
   await clearBlockingRules();
-  const rules = createBlockingRules(schedule, session, temporaryAllows, chrome.runtime.getURL(""));
+  const rules = createBlockingRules(schedule, session, temporaryAllows, chrome.runtime.getURL(""), import.meta.env.VITE_WEB_APP_ORIGIN || undefined);
   if (rules.length) await chrome.declarativeNetRequest.updateSessionRules({ addRules: rules });
 }

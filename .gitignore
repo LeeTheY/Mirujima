@@ -12,3 +12,8 @@ apps/web/playwright-report/
 apps/web/test-results/
 playwright-report/
 test-results/
+
+# Local unpacked development extension
+dist-dev/
+.vercel
+.env*

@@ -15,7 +15,7 @@ import { membershipService } from "../features/membership/service";
 import { cloudSyncService } from "../features/cloud-sync/service";
 import { ALARM_PREFIX } from "../shared/constants";
 import { applyWritingToTab, captureWritingArea } from "./writing-capture";
-import { clearCanonicalRuntimeForSignOut, finishCanonicalFocus, pauseCanonicalFocus, reconcileCanonicalFocus, resumeCanonicalFocus } from "../features/web-bridge/canonical-focus";
+import { prepareCanonicalRuntimeForUser, retryPendingCanonicalSettlements, resyncCanonicalFocus, clearCanonicalRuntimeForSignOut, finishCanonicalFocus, startCanonicalBreak, pauseCanonicalFocus, reconcileCanonicalFocus, resumeCanonicalFocus } from "../features/web-bridge/canonical-focus";
 
 export function isStrongSnoozeWarning(snoozeCount: number): boolean {
   return snoozeCount >= 3;
@@ -132,7 +132,7 @@ async function startBreak(): Promise<void> {
   const session = await repository.getActiveSession();
   if (!session || session.status !== "active") throw new Error("진행 중인 집중 세션이 없습니다.");
   if (session.canonical) {
-    await pauseCanonicalFocus(session.id);
+    await startCanonicalBreak(session.id);
     return;
   }
   const schedules = await repository.getSchedules();
@@ -366,13 +366,29 @@ export async function handleMessage(message: ExtensionMessage): Promise<AppSnaps
       await tabOrganizerRepository.setSettings(message.payload);
       break;
     case "MEMBERSHIP_CHECK_ACCOUNT": await membershipService.checkChromeAccount(); break;
-    case "MEMBERSHIP_SIGN_IN": await membershipService.signIn(); break;
+    case "MEMBERSHIP_SIGN_IN": {
+      const account = await membershipService.signIn();
+      if (account.userId) await prepareCanonicalRuntimeForUser(account.userId);
+      await membershipService.restore();
+      await chrome.alarms.create(ALARM_PREFIX.canonicalFocusSync, { periodInMinutes: 1 });
+      try { await resyncCanonicalFocus(); } catch { /* Login remains usable while the server is temporarily unavailable. */ }
+      break;
+    }
     case "MEMBERSHIP_OPEN_CHECKOUT": await membershipService.openCheckout(); break;
-    case "MEMBERSHIP_RESTORE": await membershipService.restore(); break;
+    case "MEMBERSHIP_RESTORE": {
+      const account = await membershipService.restore();
+      if (account.userId) {
+        await prepareCanonicalRuntimeForUser(account.userId);
+        await chrome.alarms.create(ALARM_PREFIX.canonicalFocusSync, { periodInMinutes: 1 });
+        await retryPendingCanonicalSettlements();
+        await resyncCanonicalFocus();
+      }
+      break;
+    }
     case "MEMBERSHIP_SIGN_OUT":
-      await clearCanonicalRuntimeForSignOut();
-      await membershipService.signOut();
+      await clearCanonicalRuntimeForSignOut(() => membershipService.signOut());
       await chrome.alarms.clear(ALARM_PREFIX.cloudSync);
+      await chrome.alarms.clear(ALARM_PREFIX.canonicalFocusSync);
       break;
     case "CLOUD_INITIAL_BACKUP": await cloudSyncService.initialBackup(); break;
     case "CLOUD_RESTORE_PREVIEW": await cloudSyncService.previewRestore(); break;

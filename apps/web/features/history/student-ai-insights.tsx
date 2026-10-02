@@ -79,7 +79,7 @@ export function StudentAiInsights() {
     {membershipOpen ? <div className="modal-overlay payment-modal-overlay" role="presentation" onClick={() => setMembershipOpen(false)}>
       <section className="modal-content payment-modal-content" role="dialog" aria-modal="true" aria-label="학생 Premium 안내" onClick={(event) => event.stopPropagation()}>
         <header className="payment-modal-header"><h1>기록 기반 AI 코칭은 Premium 기능입니다</h1><button className="icon-close-button" type="button" aria-label="닫기" onClick={() => setMembershipOpen(false)}><X className="w-4 h-4" /></button></header>
-        <div className="payment-modal-body"><div className="notice"><strong>학생 Premium 9,900원/30일</strong><p>학습 순서 추천, 주간 리포트와 집중 계획 첨삭을 제공합니다.</p></div><Link className="button full" href="/membership/checkout">학생 Premium 테스트 결제하기</Link></div>
+        <div className="payment-modal-body"><div className="notice"><strong>학생 Premium 9,900원/30일</strong><p>학습 순서 추천, 주간 리포트와 집중 계획 첨삭을 제공합니다.</p></div><Link className="button full" href="/membership/checkout">학생 Premium 결제하기</Link></div>
       </section>
     </div> : null}
   </>;

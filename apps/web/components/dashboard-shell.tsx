@@ -30,6 +30,7 @@ export function DashboardShell({
             {navigationForRole(role).map((item) => (
               <Link
                 className={`pill-item ${item.href === activeHref ? "active" : ""}`}
+                aria-current={item.href === activeHref ? "page" : undefined}
                 href={item.href}
                 key={item.href}
               >

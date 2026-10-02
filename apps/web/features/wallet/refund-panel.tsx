@@ -1,14 +1,19 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ReceiptText, ShieldCheck, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { requireOnlineAction } from "@/lib/online";
+import Link from "next/link";
+import { newRefundAttempt, restoreRefundAttempt, persistRefundAttempt, parseRefundResult, type RefundAttempt } from "./refund-attempt";
+import { WalletUnavailable } from "./wallet-unavailable";
 
 export function RefundPanel({
+  userId,
   initialTopupAvailable,
   initialMaxRefundableTopup,
 }: {
+  userId: string;
   initialTopupAvailable: number;
   initialMaxRefundableTopup: number;
 }) {
@@ -19,58 +24,85 @@ export function RefundPanel({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const requestKey = useRef(`topup-refund:${crypto.randomUUID()}`);
+  const [unavailable, setUnavailable] = useState(false);
+  const inFlight = useRef(false);
+  const [attempt, setAttempt] = useState<RefundAttempt | null>(null);
+  const [restoring, setRestoring] = useState(true);
+  const [storageFailed, setStorageFailed] = useState(false);
+  useEffect(() => {
+    let current = true;
+    void Promise.resolve().then(() => {
+      if (!current) return;
+      try {
+        const saved = restoreRefundAttempt(sessionStorage, userId);
+        setAttempt(saved); if (saved) setPoints(String(saved.points));
+      } catch { setStorageFailed(true); setError("저장된 환불 요청을 확인하지 못했습니다. 거래 내역을 확인해 주세요."); }
+      setRestoring(false);
+    });
+    return () => { current = false; };
+  }, [userId]);
 
   async function requestRefund() {
+    if (inFlight.current || unavailable || restoring || storageFailed) return;
     try {
       requireOnlineAction("충전 포인트 환불");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "인터넷 연결을 확인해 주세요.");
       return;
     }
-    const refundAmount = Number(points);
-    if (!Number.isSafeInteger(refundAmount) || refundAmount <= 0 || refundAmount > maxRefundableTopup) {
+    const refundAmount = attempt?.points ?? Number(points);
+    if (!Number.isSafeInteger(refundAmount) || refundAmount <= 0 || (!attempt && refundAmount > maxRefundableTopup)) {
       setError("올바른 환불 포인트를 입력해 주세요.");
       return;
     }
 
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     setMessage(null);
-    const { data, error: functionError } = await createClient().functions.invoke("wallet-refund-topup", {
-      body: { idempotencyKey: requestKey.current, points: refundAmount },
-    });
-    setBusy(false);
-    if (functionError || data?.status !== "refunded") {
-      setError("환불 가능한 원 결제를 찾지 못했거나 환불을 처리하지 못했습니다.");
-      return;
+    try {
+      const active = attempt ?? newRefundAttempt(userId, refundAmount);
+      persistRefundAttempt(sessionStorage, userId, active);
+      setAttempt(active);
+      const { data, error: functionError } = await createClient().functions.invoke("wallet-refund-topup", {
+        body: { idempotencyKey: active.idempotencyKey, points: active.points },
+      });
+      if (functionError) throw new Error("refund_unconfirmed");
+      const result = parseRefundResult(data, active.points);
+      persistRefundAttempt(sessionStorage, userId, null);
+      setAttempt(null);
+      if (result.balances && result.maxRefundableTopup !== null) {
+        setTopupAvailable(result.balances.topupAvailable);
+        setMaxRefundableTopup(result.maxRefundableTopup);
+      } else setUnavailable(true);
+      setMessage(result.status === "rejected" ? "환불 요청이 종료되었습니다. 거래 내역과 잔액을 확인해 주세요." : result.actualRefund ? `${result.points.toLocaleString()} P 결제사 취소를 확인했습니다. 실제 계좌 입금 완료를 의미하지 않습니다.` : `${result.points.toLocaleString()} P 내부 환불 기록을 반영했습니다. 결제사 취소는 실행하지 않았습니다.`);
+      setPoints(""); setInputMode("direct");
+    } catch {
+      setError("환불 결과 확인이 필요합니다. 같은 요청으로 다시 확인해 주세요. 결과가 불명확하면 예약 포인트를 유지하며 새 환불을 만들지 않습니다.");
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
     }
-    const updatedAvailable = Number.isSafeInteger(data?.balances?.topupAvailable) ? data.balances.topupAvailable : 0;
-    const updatedRefundLimit = Number.isSafeInteger(data?.maxRefundableTopup) ? data.maxRefundableTopup : 0;
-    setTopupAvailable(updatedAvailable);
-    setMaxRefundableTopup(updatedRefundLimit);
-    setMessage(`${Number(data.points).toLocaleString()} P 원 결제 환불을 완료했습니다.`);
-    setPoints("");
-    setInputMode("direct");
-    requestKey.current = `topup-refund:${crypto.randomUUID()}`;
   }
+
+  if (unavailable) return <><div className="notice"><p>{message}</p></div><WalletUnavailable /></>;
 
   return (
     <section className="payment-card">
       <div className="test-mode-banner">
-        <strong>Toss Payments 테스트 환불</strong>
-        <span>실제 결제 취소 없음 · DB 원장 반영</span>
+        <strong>충전 포인트 환불</strong>
+        <span>서버 처리 결과 확인 후 확정</span>
       </div>
       <div className="flex items-center justify-between">
         <div>
           <p className="eyebrow">TOPUP REFUND</p>
-          <h1>충전 포인트 환불 신청</h1>
+          <h1 className="refund-heading">충전 포인트 환불 신청</h1>
         </div>
-        <ReceiptText className="w-6 h-6 text-blue-600" />
+        <ReceiptText className="w-6 h-6 text-blue-600 shrink-0" />
       </div>
 
       <div className="sub-card">
-        <span className="text-xs text-muted font-bold block">현재 사용 가능한 충전 포인트</span>
+        <span className="text-xs text-muted font-bold block">{attempt ? "마지막으로 확인한 충전 포인트" : "현재 사용 가능한 충전 포인트"}</span>
         <strong className="text-2xl font-extrabold text-navy block mt-1">{topupAvailable.toLocaleString()} P</strong>
       </div>
 
@@ -79,7 +111,7 @@ export function RefundPanel({
           <button
             type="button"
             className={`button secondary small ${inputMode === "direct" ? "active" : ""}`}
-            disabled={busy || maxRefundableTopup === 0}
+            disabled={busy || restoring || storageFailed || !!attempt || maxRefundableTopup === 0}
             onClick={() => {
               setInputMode("direct");
               setPoints("");
@@ -90,7 +122,7 @@ export function RefundPanel({
           <button
             type="button"
             className={`button secondary small ${inputMode === "full" ? "active" : ""}`}
-            disabled={busy || maxRefundableTopup === 0}
+            disabled={busy || restoring || storageFailed || !!attempt || maxRefundableTopup === 0}
             onClick={() => {
               setInputMode("full");
               setPoints(maxRefundableTopup > 0 ? String(maxRefundableTopup) : "");
@@ -102,13 +134,14 @@ export function RefundPanel({
 
         <div className="cashout-request-row">
           <div className="cashout-input-column">
-            <label className="text-xs text-navy font-bold block mb-2">신청 포인트</label>
+            <label htmlFor="refund-points" className="text-xs text-navy font-bold block mb-2">신청 포인트</label>
             <input
+              id="refund-points"
               type="number"
               className="input cashout-amount-input"
               placeholder={`환불할 포인트 입력 (최대 ${maxRefundableTopup.toLocaleString()}P)`}
               value={points}
-              disabled={busy || maxRefundableTopup === 0}
+              disabled={busy || restoring || storageFailed || !!attempt || maxRefundableTopup === 0}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === "") {
@@ -128,14 +161,15 @@ export function RefundPanel({
             type="button"
             disabled={
               busy ||
-              maxRefundableTopup === 0 ||
+              restoring || storageFailed ||
+              (!attempt && maxRefundableTopup === 0) ||
               !points ||
               Number(points) <= 0 ||
-              Number(points) > maxRefundableTopup
+              (!attempt && Number(points) > maxRefundableTopup)
             }
             onClick={() => void requestRefund()}
           >
-            <span>{busy ? "환불 처리 중…" : "환불 신청하기"}</span>
+            <span>{busy ? "환불 처리 중…" : attempt ? "기존 환불 결과 확인" : "환불 신청하기"}</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -145,12 +179,14 @@ export function RefundPanel({
         <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
         <div>
           <strong>원 결제 기준 환불</strong>
-          <p>한 번에 한 원 결제의 남은 금액까지 환불할 수 있습니다. 테스트 모드에서는 실제 결제 취소 없이 DB 환불 원장에만 반영하며, 획득 포인트 환급과는 별도입니다.</p>
+          <p>한 번에 한 원 결제의 남은 금액까지 환불할 수 있습니다. 결제사 취소 확인 여부는 처리 결과에서 안내합니다. 내부 기록 반영만으로 계좌 입금을 확정하지 않습니다. 처리 중에는 금액을 변경할 수 없으며, 획득 포인트 환급과는 별도입니다.</p>
         </div>
       </div>
 
-      {message && <div className="notice"><strong>환불 완료</strong><p>{message}</p></div>}
-      {error && <div className="notice error" role="alert"><strong>환불 실패</strong><p>{error}</p></div>}
+      {attempt && <p className="muted small">{attempt.points.toLocaleString()} P 기존 환불을 확인하기 전에는 새 요청을 만들 수 없습니다. 위 잔액은 마지막 조회값이며, 예약된 포인트로 인해 실제 가용 잔액과 다를 수 있습니다.</p>}
+      <Link className="button secondary" href="/wallet/history">전체 거래 내역 확인</Link>
+      {message && <div className="notice"><strong>환불 처리 결과</strong><p>{message}</p></div>}
+      {error && <div className="notice error" role="alert"><strong>환불 결과 확인 필요</strong><p>{error}</p></div>}
     </section>
   );
 }

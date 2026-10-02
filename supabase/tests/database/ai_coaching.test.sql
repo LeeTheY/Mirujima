@@ -19,6 +19,8 @@ insert into public.memberships(
   'd2222222-2222-4222-8222-222222222222','premium','toss','toss_payment','active',now(),now(),now()+interval '30 days',
   'guardian_family',2,0
 );
+-- Canonical payment activation creates entitlement rows. Inherited access must honor them.
+insert into public.membership_entitlements(user_id,feature_key,enabled,source,valid_until) values ('d2222222-2222-4222-8222-222222222222','ai-weekly-report',true,'toss_payment',now()+interval '30 days');
 insert into public.family_links(student_user_id,guardian_user_id,issuer_user_id,issuer_role,status,linked_at)
 values(
   'd1111111-1111-4111-8111-111111111111','d2222222-2222-4222-8222-222222222222',

@@ -70,3 +70,11 @@ export function finishCanonicalFocusSession(
     p_device_id: deviceId,
   });
 }
+
+export function cancelCanonicalFocusStart(client: FocusRpcClient, sessionId: string, deviceId: string): Promise<CanonicalFocusSession> {
+  return sessionRpc(client, "cancel_focus_start", { p_session_id: sessionId, p_device_id: deviceId });
+}
+
+export async function startCanonicalFocusBreak(client: FocusRpcClient, sessionId: string, deviceId: string, requestId: string): Promise<CanonicalFocusSession> {
+  return sessionRpc(client, "start_focus_break", { p_session_id: sessionId, p_device_id: deviceId, p_request_id: requestId });
+}

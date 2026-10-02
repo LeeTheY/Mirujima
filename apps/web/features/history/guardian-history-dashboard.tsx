@@ -8,11 +8,11 @@ import { HistoryControls } from "./history-controls";
 import { formatFocusMinutes, formatHistoryRange, shortDateLabel, trendBarPercent } from "./history-format";
 import { historyHref } from "./history-query";
 
-export function GuardianHistoryDashboard({ students, selectedStudentId, history, error, period, anchorDate }: { students: LinkedStudent[]; selectedStudentId: string | null; history: GuardianFocusHistory | null; error: string | null; period: HistoryPeriod; anchorDate: string }) {
+export function GuardianHistoryDashboard({ students, selectedStudentId, history, error, period, anchorDate, timezone }: { students: LinkedStudent[]; selectedStudentId: string | null; history: GuardianFocusHistory | null; error: string | null; period: HistoryPeriod; anchorDate: string; timezone?: string }) {
   const router = useRouter();
   const focusValues = history?.trend.flatMap((item) => item.focusMinutes === null ? [] : [item.focusMinutes]) ?? [];
   return <>
-    <div className="page-heading history-heading"><div><p className="eyebrow">FAMILY HISTORY</p><h1>학생 집중 기록</h1><p>{history ? `${history.student.displayName} · ${formatHistoryRange(period, history.range.startDate, history.range.endDate)}` : "학생이 공유에 동의한 집계 정보만 표시됩니다."}</p></div>{selectedStudentId ? <HistoryControls period={period} anchorDate={anchorDate} studentId={selectedStudentId} /> : null}</div>
+    <div className="page-heading history-heading"><div><p className="eyebrow">FAMILY HISTORY</p><h1>학생 집중 기록</h1><p>{history ? `${history.student.displayName} · ${formatHistoryRange(period, history.range.startDate, history.range.endDate)}` : "학생이 공유에 동의한 집계 정보만 표시됩니다."}</p></div>{selectedStudentId ? <HistoryControls timezone={timezone} period={period} anchorDate={anchorDate} studentId={selectedStudentId} /> : null}</div>
     {students.length === 0 ? <section className="card history-state"><strong>먼저 학생을 연결해 주세요.</strong><p>연결된 학생이 생기면 동의된 달성률, 집중 시간과 보상 상태를 확인할 수 있습니다.</p></section> : <label className="history-student-selector">학생 선택<select value={selectedStudentId ?? ""} onChange={(event) => router.push(historyHref(period, anchorDate, event.target.value))}>{students.map((student) => <option key={student.studentUserId} value={student.studentUserId}>{student.displayName}</option>)}</select></label>}
     {error ? <section className="card history-state error" role="alert"><strong>학생 기록을 표시하지 못했습니다.</strong><p>{error}</p></section> : null}
     {history ? <>

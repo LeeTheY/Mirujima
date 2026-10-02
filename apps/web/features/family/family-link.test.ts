@@ -6,7 +6,6 @@ import {
   familyLinkErrorCopy,
   initialRedeemerExpanded,
   safeFunctionErrorCode,
-  shouldRetryFamilyLinkRequest,
 } from "./family-link";
 
 describe("family linking surfaces", () => {
@@ -71,12 +70,6 @@ describe("family linking surfaces", () => {
       .toBe("function_relay_failed");
     expect(await safeFunctionErrorCode({ name: "FunctionsHttpError", context: {} }))
       .toBe("function_response_invalid");
-  });
-
-  it("retries only transient function transport failures", () => {
-    expect(shouldRetryFamilyLinkRequest("function_fetch_failed")).toBe(true);
-    expect(shouldRetryFamilyLinkRequest("function_relay_failed")).toBe(true);
-    expect(shouldRetryFamilyLinkRequest("family_code_issue_failed:issue_rpc-P0001")).toBe(false);
   });
 
   it("formats a partial family code as six visual digits", () => {

@@ -15,9 +15,11 @@ export function isAllowedExternalSender(senderUrl: string | undefined, expectedO
   }
 }
 
+class ExtensionAuthRequired extends Error {}
+
 async function requireExtensionUser(): Promise<string> {
   const { data, error } = await membershipSupabaseClient().auth.getUser();
-  if (error || !data.user) throw new Error("확장 프로그램 로그인이 필요합니다.");
+  if (error || !data.user) throw new ExtensionAuthRequired("확장 프로그램 로그인이 필요합니다.");
   return data.user.id;
 }
 
@@ -54,25 +56,28 @@ async function rememberResponse(
 export async function handleExternalMessage(message: unknown, sender: chrome.runtime.MessageSender): Promise<Record<string, unknown>> {
   const expectedOrigin = import.meta.env.VITE_WEB_APP_ORIGIN ?? "";
   if (!isAllowedExternalSender(sender.url, expectedOrigin)) return { ok: false, error: "허용되지 않은 웹 origin입니다." };
+  let parsed;
+  try { parsed = parseWebToExtensionMessage(message); } catch { return { ok: false, code: "INVALID_REQUEST", error: "요청 형식을 확인할 수 없습니다." }; }
   try {
-    const parsed = parseWebToExtensionMessage(message);
     const userId = await requireExtensionUser();
     await prepareCanonicalRuntimeForUser(userId);
     const cached = await cachedResponse(parsed.requestId, userId);
     if (cached) return cached;
     let response: Record<string, unknown>;
-    if (parsed.type === "mirujima:ping") response = { ok: true, version: 1 };
+    if (parsed.type === "mirujima:ping") response = { ok: true, version: 1, requestId: parsed.requestId, userId };
     if (parsed.type === "mirujima:get-focus-status") {
       const session = await repository.getActiveSession();
-      response = { ok: true, sessionId: session?.id ?? null, status: session?.status ?? "idle" };
+      response = { ok: true, version: 1, requestId: parsed.requestId, sessionId: session?.id ?? null, status: session?.canonicalStatus ?? session?.status ?? "idle" };
     } else if (parsed.type !== "mirujima:ping") {
       const session = await reconcileCanonicalFocus(parsed.scheduleId, parsed.sessionId);
-      response = { ok: true, sessionId: parsed.sessionId, status: session?.status ?? "idle" };
+      response = { ok: true, version: 1, requestId: parsed.requestId, sessionId: parsed.sessionId, status: session?.status ?? "idle" };
     }
     await rememberResponse(parsed.requestId, userId, response!);
     return response!;
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "집중 동기화에 실패했습니다." };
+    return { ok: false, version: 1, requestId: parsed.requestId,
+      code: error instanceof ExtensionAuthRequired ? "AUTH_REQUIRED" : "SYNC_FAILED",
+      error: error instanceof ExtensionAuthRequired ? "확장 프로그램 로그인이 필요합니다." : "집중 동기화에 실패했습니다. 연결 상태를 확인해 주세요." };
   }
 }
 

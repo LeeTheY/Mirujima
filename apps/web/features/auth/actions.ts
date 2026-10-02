@@ -4,34 +4,43 @@ import { userRoleSchema } from "@mirujima/contracts";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { reportRoleSelectionError } from "./role-error";
-import { destinationForRole, resolvePersistedRole, resolveRoleSelection } from "./role-routing";
+import { resolvePersistedRole, resolveRoleSelection } from "./role-routing";
 
-export async function signInWithGoogle(): Promise<void> {
+import { destinationAfterLogin, loginHref, safeLoginDestination } from "./login-destination";
+
+export async function signInWithGoogle(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const origin = process.env.NEXT_PUBLIC_APP_ORIGIN;
-  if (!origin) throw new Error("웹 앱 origin 환경변수가 설정되지 않았습니다.");
+  const next = safeLoginDestination(formData.get("next"));
+  if (!origin) redirect(loginHref(next, "oauth"));
+  const callback = new URL("/auth/callback", origin);
+  if (next) callback.searchParams.set("next", next);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: `${origin}/auth/callback`, skipBrowserRedirect: true },
+    options: { redirectTo: callback.toString(), skipBrowserRedirect: true },
   });
-  if (error || !data.url) throw new Error("Google 로그인 주소를 만들지 못했습니다.");
+  if (error || !data.url) redirect(loginHref(next, "oauth"));
   redirect(data.url);
 }
 
 export async function selectRole(formData: FormData): Promise<void> {
-  const role = userRoleSchema.parse(formData.get("role"));
+  const next = safeLoginDestination(formData.get("next"));
+  const parsedRole = userRoleSchema.safeParse(formData.get("role"));
+  if (!parsedRole.success) redirect(loginHref(next, "profile"));
+  const role = parsedRole.data;
   const timezone = String(formData.get("timezone") || "Asia/Seoul").slice(0, 80);
   const supabase = await createClient();
   const { data: authData, error: authError } = await supabase.auth.getUser();
-  if (authError || !authData.user) redirect("/login");
-  const { data: profile } = await supabase
+  if (authError || !authData.user) redirect(loginHref(next));
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", authData.user.id)
     .maybeSingle();
+  if (profileError) redirect(loginHref(next, "profile"));
   const storedRole = userRoleSchema.safeParse(profile?.role);
   const decision = resolveRoleSelection(storedRole.success ? storedRole.data : null, role);
-  if (!decision.shouldPersist) redirect(destinationForRole(decision.role));
+  if (!decision.shouldPersist) redirect(destinationAfterLogin(decision.role, next));
 
   const { data, error } = await supabase.rpc("set_profile_role", {
     p_role: role,
@@ -45,23 +54,26 @@ export async function selectRole(formData: FormData): Promise<void> {
       .eq("id", authData.user.id)
       .maybeSingle();
     const currentRole = userRoleSchema.safeParse(currentProfile?.role);
-    if (currentRole.success) redirect(destinationForRole(currentRole.data));
+    if (currentRole.success) redirect(destinationAfterLogin(currentRole.data, next));
   }
-  if (error) throw new Error(reportRoleSelectionError(error));
+  if (error) { reportRoleSelectionError(error); redirect(loginHref(next, "profile")); }
   const persistedRole = resolvePersistedRole(data);
   if (!persistedRole) {
-    throw new Error(reportRoleSelectionError({
+    reportRoleSelectionError({
       code: "INVALID_RPC_RESPONSE",
       message: "set_profile_role returned no persisted role",
       details: JSON.stringify(data),
       hint: null,
-    }));
+    });
+    redirect(loginHref(next, "profile"));
   }
-  redirect(destinationForRole(persistedRole));
+  redirect(destinationAfterLogin(persistedRole, next));
 }
 
 export async function signOut(): Promise<void> {
   const supabase = await createClient();
+  const revoked = await supabase.rpc("revoke_all_push_subscriptions");
+  if (revoked.error) throw new Error("기기 알림을 해제하지 못했습니다. 연결을 확인한 뒤 다시 로그아웃해 주세요.");
   const { error } = await supabase.auth.signOut({ scope: "global" });
   if (error) {
     console.error("[auth.signOut] Supabase session termination failed", {

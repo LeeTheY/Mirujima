@@ -40,3 +40,7 @@ describe("AI coaching server boundary", () => {
     expect(result).toEqual([{ displayName: "학생", completionRate: 80, totalFocusMinutes: 100, rewardStatus: "공유 허용", aiSummary: null }]);
   });
 });
+
+it("does not turn unshared family aggregates into zero achievement", () => {
+  expect(minimalGuardianAggregates([{ displayName: "학생", completionRate: null, totalFocusMinutes: null }])).toMatchObject([{ completionRate: null, totalFocusMinutes: null }]);
+});

@@ -3,7 +3,7 @@
   --surface: #FFFFFF;
   --surface-soft: #F1F5FA;
   --text: #111827;
-  --muted: #75839A;
+  --muted: #596B84;
   --primary: #2F6FF2;
   --primary-strong: #1F5FE5;
   --primary-soft: #EAF2FF;
@@ -485,7 +485,7 @@ select {
   padding: 0 22px;
   border: 1px solid var(--primary);
   border-radius: 12px;
-  background: var(--primary);
+  background: var(--primary-strong);
   color: white;
   display: inline-flex;
   align-items: center;
@@ -2658,6 +2658,22 @@ select {
   justify-content: space-between;
 }
 
+.refund-heading {
+  font-size: clamp(1.3rem, 4vw, 1.7rem);
+  word-break: keep-all;
+}
+
+.membership-checkout h1 {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  word-break: keep-all;
+}
+
+.membership-checkout .payment-price {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .payment-card {
   width: min(100%, 640px);
   margin: 0 auto;
@@ -2886,4 +2902,84 @@ select {
 
 .topup-history-scroll-list::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Saved plans remain usable at narrow widths and with long titles. */
+.focus-saved-plans { margin-bottom: 24px; }
+.focus-saved-plans > button { margin: 0 8px 12px 0; }
+.focus-saved-plan-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+.focus-saved-plan-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.focus-saved-plan-list li > button:first-child { flex: 1 1 240px; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+
+.focus-plan-fields { display: contents; border: 0; padding: 0; margin: 0; min-width: 0; }
+
+/* Approval actions remain readable within narrow focus cards. */
+.focus-layout > * {
+  min-width: 0;
+}
+
+.focus-actions-row .button {
+  min-width: 0;
+  white-space: normal;
+}
+
+.wallet-history-filters, .wallet-history-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.wallet-history-filters button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); border-color: var(--primary); }
+.wallet-history-list { display: grid; gap: 16px; list-style: none; padding: 0; }
+.wallet-history-list > li { min-width: 0; overflow-wrap: anywhere; }
+.wallet-history-item-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.wallet-history-item-heading h2 { font-size: 18px; margin: 0; }
+.wallet-history-list dl { font-size: 12px; display: grid; gap: 4px; }
+.wallet-history-list dt { color: var(--text-muted); }
+.wallet-history-list dd { margin: 0 0 8px; }
+.wallet-history-links a { color: var(--primary); text-decoration: underline; }
+.wallet-history-panel .test-mode-banner { display: block; }
+.wallet-history-panel .test-mode-banner strong, .wallet-history-panel .test-mode-banner span { display: block; }
+
+/* Shared public layout and keyboard access. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--primary-strong); outline-offset: 3px;
+}
+h1, h2, h3, p, button, label { word-break: keep-all; overflow-wrap: anywhere; }
+.public-detail { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding-bottom: 64px; }
+.public-detail-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 88px; }
+.public-detail > section { margin: 40px 0; }
+.public-detail h1 { font-size: clamp(28px, 4vw, 44px); line-height: 1.25; max-width: 850px; margin: 12px 0 20px; }
+.public-detail-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; }
+.public-detail-grid h2 { font-size: 22px; margin: 12px 0; }
+.public-detail-grid ul { padding-left: 20px; }
+.route-state { width: min(680px, calc(100% - 32px)); margin: 48px auto; padding: 28px; }
+.route-state h1 { font-size: 24px; margin-bottom: 12px; }
+.route-state p { margin-bottom: 18px; }
+.pwa-update { position: fixed; z-index: 80; bottom: 16px; right: 16px; width: min(400px,calc(100% - 32px)); padding: 18px; }
+@media (max-width: 900px) { .public-detail-grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .public-detail { width: calc(100% - 32px); }
+  .public-detail > section { margin: 24px 0; }
+  .step-grid { grid-template-columns: 1fr; gap: 20px; }
+  .step-grid article { padding: 20px; }
+  .step-grid article + article { border-left: 0; border-top: 1px solid var(--border); }
+  .app-header { height: auto; min-height: 68px; flex-wrap: wrap; padding-block: 12px; gap: 12px; }
+  .app-header nav { order: 3; width: 100%; }
+  .app-header .pill-nav { width: 100%; justify-content: space-between; }
+  .history-heading-actions { flex-wrap: wrap; }
+  .onboarding h1, .landing h1 { font-size: clamp(30px,8vw,44px); }
+  .notification-popover { width: min(420px,calc(100vw - 24px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
+.brand, .brand-name { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 640px) {
+  .public-header { height: auto; min-height: 68px; flex-wrap: wrap; gap: 12px; padding-block: 14px; }
+  .public-header nav { width: 100%; justify-content: space-between; gap: 12px; }
+  .public-header nav a { white-space: nowrap; }
+  .onboarding-action-wrap { order: -1; }
+  .onboarding-hero-container { padding-top: 24px; gap: 24px; }
+}
+
+@media (max-width: 640px) {
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions .button { width: 100%; }
+  .button span { word-break: keep-all; overflow-wrap: normal; }
 }

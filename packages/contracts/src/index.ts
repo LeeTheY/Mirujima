@@ -112,6 +112,7 @@ export const studyRecommendationResultSchema = z.object({
 export type StudyRecommendationResult = z.infer<typeof studyRecommendationResultSchema>;
 
 export const guardianSummaryResultSchema = z.object({
+  consentRevision: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   task: z.literal("guardian-summary"),
   title: z.string().trim().min(1).max(120),
   summary: aiTextSchema,
@@ -206,10 +207,19 @@ const canonicalFocusSessionBaseSchema = z.object({
   blockingMode: z.enum(["allowlist", "blocklist", "off"]),
   goals: focusGoalsSchema.optional().default([]),
   status: z.enum(["starting", "active", "paused", "awaiting-result", "success", "failed", "cancelled"]),
+  enforcementDeadlineAt: isoDateTimeSchema.nullable().optional(),
   activeSegmentStartedAt: isoDateTimeSchema.nullable().optional(),
   pausedAt: isoDateTimeSchema.nullable().optional(),
+  pauseKind: z.enum(["manual", "break"]).nullable().optional(),
+  breakStartedAt: isoDateTimeSchema.nullable().optional(),
+  breakEndsAt: isoDateTimeSchema.nullable().optional(),
+  accumulatedBreakSeconds: z.number().int().min(0).max(7200).optional(),
   accumulatedFocusSeconds: z.number().int().min(0).max(720 * 60).optional(),
   remainingFocusSeconds: z.number().int().min(0).max(720 * 60).optional(),
+  depositPolicy: z.discriminatedUnion("version", [
+    z.object({ version: z.literal(1), mode: z.literal("tiered") }),
+    z.object({ version: z.literal(2), mode: z.literal("all-or-none") }),
+  ]).optional(),
   selfDepositPoints: z.number().int().min(0).max(1_000_000_000).optional(),
   result: focusSettlementResultSchema.nullable().optional(),
   updatedAt: isoDateTimeSchema.optional()
@@ -287,9 +297,14 @@ const historyRangeSchema = z.object({ startDate: dateKeySchema, endDate: dateKey
 const historyCompletionPercentSchema = z.union([z.literal(0), z.literal(60), z.literal(80), z.literal(100)]);
 
 export const studentFocusHistorySchema = z.object({
+  timezone: z.string().optional(),
+  goals: z.array(z.object({ name: z.string(), plannedMinutes: z.number().int().min(0), actualFocusMinutes: z.number().nullable(), goalCount: z.number().int().min(0) })).optional(),
+  hourlyStarts: z.array(z.object({ hour: z.number().int().min(0).max(23), sessionCount: z.number().int().min(0) })).max(24).optional(),
   period: historyPeriodSchema,
   range: historyRangeSchema,
   summary: z.object({
+    selfDepositConversionRate: z.number().int().min(0).max(100).nullable().optional(),
+    totalFocusSeconds: z.number().int().min(0).optional(),
     completionRate: z.number().int().min(0).max(100),
     totalFocusMinutes: z.number().int().min(0),
     successfulSessionCount: z.number().int().min(0),
@@ -303,6 +318,7 @@ export const studentFocusHistorySchema = z.object({
   }),
   trend: z.array(z.object({
     dateKey: dateKeySchema,
+    focusSeconds: z.number().int().min(0).optional(),
     focusMinutes: z.number().int().min(0),
     successfulSessionCount: z.number().int().min(0),
     failedSessionCount: z.number().int().min(0),
@@ -356,7 +372,7 @@ export const guardianFocusHistorySchema = z.object({
 export type GuardianFocusHistory = z.infer<typeof guardianFocusHistorySchema>;
 
 export const guardianRewardRequestStatusSchema = z.enum([
-  "pending", "approved", "completed", "returned", "declined", "expired",
+  "pending", "approved", "completed", "returned", "declined", "expired", "cancelled",
 ]);
 export type GuardianRewardRequestStatus = z.infer<typeof guardianRewardRequestStatusSchema>;
 
@@ -417,3 +433,13 @@ export const notificationPageSchema = z.object({
   nextCursor: notificationCursorSchema.nullable(),
 });
 export type NotificationPage = z.infer<typeof notificationPageSchema>;
+
+export const plannedGuardianRewardSchema = z.object({
+  requestId: z.string().uuid(),
+  studentUserId: z.string().uuid(),
+  scheduleId: z.string().trim().min(1).max(300),
+  sessionId: z.string().uuid(),
+  points: z.number().int().positive().max(1_000_000_000),
+  status: z.enum(["pending", "approved", "started", "completed", "returned", "declined"]),
+});
+export type PlannedGuardianReward = z.infer<typeof plannedGuardianRewardSchema>;

@@ -38,3 +38,8 @@ describe("history query", () => {
     expect(historyHref("monthly", "2026-08-24", "student-1")).toBe("?period=monthly&date=2026-08-24&student=student-1");
   });
 });
+
+it("uses the canonical student timezone at the date boundary", () => {
+  expect(normalizeHistoryQuery({}, new Date("2026-10-01T16:30:00Z"), "America/Los_Angeles").anchorDate).toBe("2026-10-01");
+  expect(normalizeHistoryQuery({}, new Date("2026-10-01T16:30:00Z"), "Asia/Seoul").anchorDate).toBe("2026-10-02");
+});

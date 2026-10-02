@@ -12,6 +12,8 @@ import {
 } from "@/features/notifications/notification-data";
 import { notificationCategory, relativeNotificationTime } from "@/features/notifications/notification-format";
 
+import { PushSettings } from "@/features/notifications/push-settings";
+
 export function NotificationCenter({
   isOpen,
   onClose,
@@ -134,11 +136,12 @@ export function NotificationCenter({
           <div className="notification-title-row"><h2>알림 센터</h2>{unreadCount > 0 && <span className="unread-badge">{unreadCount}개 안읽음</span>}</div>
           <button className="icon-close-button" onClick={onClose} aria-label="닫기"><X className="w-4 h-4" /></button>
         </div>
-        <div className="notification-tabs" role="tablist" aria-label="알림 필터">
-          <button className={`tab-item ${activeTab === "all" ? "active" : ""}`} onClick={() => setActiveTab("all")}>전체</button>
-          <button className={`tab-item ${activeTab === "unread" ? "active" : ""}`} onClick={() => setActiveTab("unread")}>미읽음 ({unreadCount})</button>
-          <button className={`tab-item ${activeTab === "family" ? "active" : ""}`} onClick={() => setActiveTab("family")}>보호자 연결</button>
+        <div className="notification-tabs" role="group" aria-label="알림 필터">
+          <button className={`tab-item ${activeTab === "all" ? "active" : ""}`} aria-pressed={activeTab === "all"} onClick={() => setActiveTab("all")}>전체</button>
+          <button className={`tab-item ${activeTab === "unread" ? "active" : ""}`} aria-pressed={activeTab === "unread"} onClick={() => setActiveTab("unread")}>미읽음 ({unreadCount})</button>
+          <button className={`tab-item ${activeTab === "family" ? "active" : ""}`} aria-pressed={activeTab === "family"} onClick={() => setActiveTab("family")}>보호자 연결</button>
         </div>
+        <PushSettings />
         <div className="notification-list" aria-live="polite">
           {error && <div className="notice error"><strong>알림을 확인하지 못했습니다.</strong><p>{error}</p><button className="text-button" onClick={() => void loadFirstPage()}>다시 시도</button></div>}
           {!error && loading && notifications.length === 0 && <div className="notification-empty"><Bell className="w-8 h-8 text-muted" /><p>알림을 불러오는 중입니다.</p></div>}

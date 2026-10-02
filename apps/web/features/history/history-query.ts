@@ -30,10 +30,11 @@ function validDateKey(value: string | undefined): value is string {
 export function normalizeHistoryQuery(
   params: { period?: string; date?: string; student?: string },
   now = new Date(),
+  timeZone = "Asia/Seoul",
 ): HistoryQuery {
   const parsedPeriod = historyPeriodSchema.safeParse(params.period);
-  const today = dateKeyInTimeZone(now);
-  const earliest = earliestHistoryDate(now);
+  const today = dateKeyInTimeZone(now, timeZone);
+  const earliest = earliestHistoryDate(now, timeZone);
   const anchorDate = validDateKey(params.date) && params.date <= today
     ? params.date < earliest ? earliest : params.date
     : today;
@@ -44,8 +45,8 @@ export function normalizeHistoryQuery(
   };
 }
 
-export function earliestHistoryDate(now = new Date()): string {
-  const [year, month, day] = dateKeyInTimeZone(now).split("-").map(Number);
+export function earliestHistoryDate(now = new Date(), timeZone = "Asia/Seoul"): string {
+  const [year, month, day] = dateKeyInTimeZone(now, timeZone).split("-").map(Number);
   const earliest = new Date(Date.UTC(year, month - 1, day));
   earliest.setUTCDate(earliest.getUTCDate() - 364);
   return earliest.toISOString().slice(0, 10);

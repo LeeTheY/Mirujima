@@ -28,6 +28,7 @@ select throws_ok(
   $$select public.reserve_latest_topup_refund('c1111111-1111-4111-8111-111111111111','refund-partial-0001',4000)$$,
   'P0001','idempotency key mismatch','idempotency key cannot change its amount'
 );
+select public.prepare_topup_refund('c1111111-1111-4111-8111-111111111111',(select id from public.wallet_transactions where idempotency_key='refund-partial-0001'),'sandbox',null);
 select throws_ok(
   $$select public.complete_topup_refund(
     'c1111111-1111-4111-8111-111111111111',

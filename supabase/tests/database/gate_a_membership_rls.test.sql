@@ -15,7 +15,7 @@ select is((select relrowsecurity from pg_class where oid = 'public.memberships':
 select is((select relrowsecurity from pg_class where oid = 'public.membership_entitlements'::regclass), true, 'entitlements RLS is enabled');
 select is((select relrowsecurity from pg_class where oid = 'public.devices'::regclass), true, 'devices RLS is enabled');
 
-select ok(not has_function('public', 'activate_deferred_membership', array['uuid']), 'deferred activation is removed');
+select hasnt_function('public', 'activate_deferred_membership', array['uuid'], 'deferred activation is removed');
 select ok(not has_function_privilege('authenticated', 'public.create_membership_payment_order(uuid,text)', 'EXECUTE'), 'clients cannot create privileged payment orders');
 select ok(has_function_privilege('service_role', 'public.create_membership_payment_order(uuid,text)', 'EXECUTE'), 'only the server role can create payment orders');
 select is(

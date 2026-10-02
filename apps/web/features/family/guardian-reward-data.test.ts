@@ -34,7 +34,17 @@ describe("guardian reward gateway", () => {
 
   it("maps server boundaries to safe actionable copy", () => {
     expect(guardianRewardErrorCopy("insufficient guardian topup points")).toContain("충전");
-    expect(guardianRewardErrorCopy("reward request is no longer pending")).toContain("종료");
+    expect(guardianRewardErrorCopy("reward request is no longer pending")).toContain("상태가 변경");
     expect(guardianRewardErrorCopy("database detail")).not.toContain("database detail");
   });
+});
+
+it("rejects approval responses for a different request or missing reservation", async () => {
+  for (const data of [
+    {requestId:request.studentUserId, studentUserId:request.studentUserId, points:2000,status:"approved",reservationId:"33333333-3333-4333-8333-333333333333"},
+    {requestId:request.id, studentUserId:request.studentUserId,points:2000,status:"approved"},
+    {requestId:request.id, studentUserId:request.studentUserId,points:2000,status:"declined"},
+  ]) {
+    await expect(approveGuardianRewardRequest(request.id, {rpc:vi.fn().mockResolvedValue({data,error:null})})).rejects.toThrow("처리 결과");
+  }
 });

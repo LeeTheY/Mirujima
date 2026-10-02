@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PwaRegister } from "@/components/pwa-register";
+import { DialogAccessibility } from "@/components/dialog-accessibility";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,5 +15,5 @@ export default function RootLayout({
   children: React.ReactNode;
   modal: React.ReactNode;
 }>) {
-  return <html lang="ko" data-scroll-behavior="smooth"><body><PwaRegister />{children}{modal}</body></html>;
+  return <html lang="ko" data-scroll-behavior="smooth"><body><PwaRegister /><DialogAccessibility />{children}{modal}</body></html>;
 }

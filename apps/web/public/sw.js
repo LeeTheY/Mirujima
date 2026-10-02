@@ -1,4 +1,4 @@
-const CACHE_NAME = "mirujima-shell-v3";
+const CACHE_NAME = "mirujima-shell-v4";
 const APP_SHELL = ["/", "/how", "/privacy", "/offline"];
 const PUBLIC_PAGES = new Set(APP_SHELL);
 const SENSITIVE_PREFIXES = ["/api", "/auth", "/focus", "/guardian", "/history", "/home", "/login", "/membership", "/my", "/wallet"];
@@ -42,7 +42,7 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(Promise.all([
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))),
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("mirujima-") && key !== CACHE_NAME).map((key) => caches.delete(key)))),
     self.clients.claim(),
   ]));
 });
@@ -64,4 +64,26 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   event.respondWith(fetch(event.request).catch(() => caches.match("/offline")));
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "mirujima:activate-update") event.waitUntil(self.skipWaiting());
+  if (event.data?.type === "mirujima:clear-private-cache") {
+    event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("mirujima-private-")).map((key) => caches.delete(key)))));
+  }
+});
+self.addEventListener("push", (event) => {
+  let payload;
+  try { payload = event.data?.json(); } catch { return; }
+  if (!payload || typeof payload.id !== "string" || !/^[0-9a-f-]{36}$/i.test(payload.id)) return;
+  // Never display server-provided names, balances, goal titles, URLs or summaries on lock screens.
+  event.waitUntil(self.registration.showNotification("미루지마", {
+    body: "새 알림이 도착했습니다. 앱에서 확인해 주세요.", icon: "/icons/icon-192.png",
+    tag: `mirujima:${payload.id}`, renotify: false, data: { id: payload.id },
+  }));
+});
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  // Login routing resolves the current canonical role; no arbitrary payload URL is followed.
+  event.waitUntil(self.clients.openWindow(new URL("/login?next=/home", self.location.origin).href));
 });

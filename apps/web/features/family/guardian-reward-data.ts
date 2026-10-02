@@ -16,7 +16,7 @@ function browserClient(): GuardianRewardRpcClient {
 
 export function guardianRewardErrorCopy(message: string | undefined): string {
   if (message?.includes("insufficient guardian topup points")) return "보호자 충전 포인트가 부족합니다. 포인트를 충전한 뒤 다시 승인해 주세요.";
-  if (message?.includes("no longer pending")) return "집중 세션이 이미 종료되어 이 요청을 처리할 수 없습니다.";
+  if (message?.includes("no longer pending")) return "계획이나 집중 상태가 변경되어 요청을 처리할 수 없습니다. 목록을 새로 확인해 주세요.";
   if (message?.includes("already declined")) return "이미 거절된 보상 요청입니다.";
   if (message?.includes("approved reward")) return "이미 승인된 보상은 거절할 수 없습니다.";
   if (message?.includes("active family link")) return "학생과의 활성 연결을 확인할 수 없습니다.";
@@ -39,10 +39,15 @@ async function mutateReward(
   requestId: string,
   client: GuardianRewardRpcClient,
 ): Promise<GuardianRewardActionResult> {
+  if (!guardianRewardActionResultSchema.shape.requestId.safeParse(requestId).success) throw new Error("보상 요청 식별자를 확인하지 못했습니다.");
   const { data, error } = await client.rpc(name, { p_request_id: requestId });
   if (error) throw new Error(guardianRewardErrorCopy(error.message));
   const parsed = guardianRewardActionResultSchema.safeParse(data);
-  if (!parsed.success) throw new Error("보상 처리 결과를 확인하지 못했습니다.");
+  if (!parsed.success || parsed.data.requestId !== requestId
+    || parsed.data.status !== (name === "approve_guardian_reward_request" ? "approved" : "declined")
+    || (name === "approve_guardian_reward_request" && !parsed.data.reservationId)) {
+    throw new Error("보상 처리 결과를 확인하지 못했습니다. 목록을 다시 확인해 주세요.");
+  }
   return parsed.data;
 }
 

@@ -176,7 +176,7 @@ cp apps/web/.env.example apps/web/.env.local
 
 `NEXT_PUBLIC_MIRUJIMA_EXTENSION_ID`는 현재 `apps/web/.env.example`에 포함되지 않았지만, 사이트 차단 세션의 Extension 연결에 사용됩니다.
 
-Supabase Edge Function secret에는 기능에 따라 `TOSS_SECRET_KEY`, `TOSS_PAYMENT_MODE=test`, `GROQ_API_KEY`가 필요합니다. `service_role` 계열 키와 Toss secret은 `NEXT_PUBLIC_*` 또는 `VITE_*` 변수에 저장하지 않습니다.
+Supabase Edge Function secret에는 기능에 따라 `TOSS_SECRET_KEY`, `TOSS_PAYMENT_MODE=test`, `GROQ_API_KEY`가 필요합니다. 신규 환불 복구 handler는 `MIRUJIMA_REFUND_MODE=sandbox` 또는 `provider_test`를 명시해야 하며, 미설정 시 예약 전에 중단합니다. `sandbox`는 DB 원장만 반영하고 `provider_test`는 Toss 카드 테스트 취소 거래를 확인합니다. 0011 SQL·handler·Web을 함께 검증하기 전에는 새 환불 경로를 배포하지 않습니다. `service_role` 계열 키와 Toss secret은 `NEXT_PUBLIC_*` 또는 `VITE_*` 변수에 저장하지 않습니다.
 
 ### 3. Web 실행
 

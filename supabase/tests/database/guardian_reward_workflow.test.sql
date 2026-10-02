@@ -1,6 +1,13 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=public,extensions;
+-- Emulate sessions already started under the old post-start request policy.
+-- Test-only definer helper disappears on rollback; the production helper stays revoked.
+create function pg_temp.start_legacy_reward_session(p_plan text,p_device text)
+returns jsonb language sql security definer set search_path='' as
+' select public.start_focus_session_post_start_reward_internal(p_plan,p_device) ';
+grant execute on function pg_temp.start_legacy_reward_session(text,text) to authenticated;
+
 select plan(22);
 
 select has_function('public','get_guardian_reward_requests',array['text'],'guardian reward list RPC exists');
@@ -23,7 +30,7 @@ values('topup_confirmed','posted',null,'b2222222-2222-4222-8222-222222222222','e
 set local request.jwt.claim.sub='b1111111-1111-4111-8111-111111111111';
 set local role authenticated;
 select public.upsert_focus_plan('reward-plan-1','{"title":"보상 집중","description":"","dateKey":"2026-08-24","plannedStartAt":null,"targetFocusMinutes":5,"activityMode":"interactive","blockingMode":"off","allowedDomains":[],"blockedDomains":[],"breakMinutes":5,"priority":"high","selfDepositPoints":0,"guardianRewardRequestPoints":2000,"goals":[{"id":"goal-1","name":"목표","detail":"","minutes":5,"priority":"high"}],"status":"ready","createdAt":"2026-08-24T09:00:00.000Z","updatedAt":"2026-08-24T09:00:00.000Z"}'::jsonb,'reward-device');
-select public.start_focus_session('reward-plan-1','reward-device');
+select pg_temp.start_legacy_reward_session('reward-plan-1','reward-device');
 create temporary table reward_ids as select entity_id session_id from public.cloud_focus_sessions where payload->>'scheduleId'='reward-plan-1';
 select is((select count(*) from public.wallet_transactions where kind='guardian_reward_requested' and session_id=(select session_id from reward_ids)),1::bigint,'focus start creates one guardian request');
 
@@ -52,7 +59,7 @@ select is((public.get_wallet_balances('b2222222-2222-4222-8222-222222222222')->>
 set local request.jwt.claim.sub='b1111111-1111-4111-8111-111111111111';
 set local role authenticated;
 select public.upsert_focus_plan('reward-plan-2','{"title":"거절 집중","description":"","dateKey":"2026-08-24","plannedStartAt":null,"targetFocusMinutes":5,"activityMode":"interactive","blockingMode":"off","allowedDomains":[],"blockedDomains":[],"breakMinutes":5,"priority":"medium","selfDepositPoints":0,"guardianRewardRequestPoints":3000,"goals":[{"id":"goal-2","name":"목표","detail":"","minutes":5,"priority":"medium"}],"status":"ready","createdAt":"2026-08-24T09:00:00.000Z","updatedAt":"2026-08-24T09:00:00.000Z"}'::jsonb,'reward-device');
-select public.start_focus_session('reward-plan-2','reward-device');
+select pg_temp.start_legacy_reward_session('reward-plan-2','reward-device');
 create temporary table reward_ids_2 as select entity_id session_id from public.cloud_focus_sessions where payload->>'scheduleId'='reward-plan-2';
 reset role;
 set local request.jwt.claim.sub='b2222222-2222-4222-8222-222222222222';
@@ -66,7 +73,7 @@ reset role;
 set local request.jwt.claim.sub='b1111111-1111-4111-8111-111111111111';
 set local role authenticated;
 select public.upsert_focus_plan('reward-plan-3','{"title":"잔액 부족","description":"","dateKey":"2026-08-24","plannedStartAt":null,"targetFocusMinutes":5,"activityMode":"interactive","blockingMode":"off","allowedDomains":[],"blockedDomains":[],"breakMinutes":5,"priority":"medium","selfDepositPoints":0,"guardianRewardRequestPoints":20000,"goals":[{"id":"goal-3","name":"목표","detail":"","minutes":5,"priority":"medium"}],"status":"ready","createdAt":"2026-08-24T09:00:00.000Z","updatedAt":"2026-08-24T09:00:00.000Z"}'::jsonb,'reward-device');
-select throws_ok($$select public.start_focus_session('reward-plan-3','reward-device')$$,'P0001','active focus session already exists','another active focus still blocks a third request');
+select throws_ok($$select pg_temp.start_legacy_reward_session('reward-plan-3','reward-device')$$,'P0001','active focus session already exists','another active focus still blocks a third request');
 
 select * from finish();
 rollback;

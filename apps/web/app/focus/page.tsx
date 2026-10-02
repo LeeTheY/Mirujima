@@ -1,7 +1,16 @@
 import { DashboardShell } from "@/components/dashboard-shell";
 import { FocusPlanner } from "@/features/focus/focus-planner";
 
-export default function FocusPage() {
+import { requireAuthenticatedRole } from "@/features/auth/require-role";
+import { createClient } from "@/lib/supabase/server";
+
+export default async function FocusPage() {
+  const { user } = await requireAuthenticatedRole("/focus");
+  const client = await createClient();
+  const { data: profile } = await client.from("profiles").select("timezone").eq("id", user.id).maybeSingle();
+  let timeZone = profile?.timezone ?? "Asia/Seoul";
+  try { new Intl.DateTimeFormat("en-CA", { timeZone }).format(); }
+  catch { timeZone = "Asia/Seoul"; }
   return (
     <DashboardShell role="student" activeHref="/focus">
       <div className="page-heading">
@@ -10,7 +19,7 @@ export default function FocusPage() {
           <h1>목표를 세우고 세션을 시작해보세요</h1>
         </div>
       </div>
-      <FocusPlanner />
+      <FocusPlanner timeZone={timeZone} />
     </DashboardShell>
   );
 }

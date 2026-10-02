@@ -7,30 +7,38 @@ import { ChevronRight, ShieldCheck, CheckCircle2 } from "lucide-react";
 import { hasSupabasePublicConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import { selectRole, signInWithGoogle } from "@/features/auth/actions";
-import { destinationForRole } from "@/features/auth/role-routing";
+import { OAuthErrorRecovery } from "@/features/auth/oauth-error-recovery";
+import { destinationAfterLogin, loginErrorMessage, safeLoginDestination } from "@/features/auth/login-destination";
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
+  const params = await searchParams;
+  const next = safeLoginDestination(params.next);
+  let errorMessage = loginErrorMessage(params.error);
   let signedIn = false;
   if (hasSupabasePublicConfig()) {
     const supabase = await createClient();
     const user = (await supabase.auth.getUser()).data.user;
     signedIn = Boolean(user);
     if (user) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .maybeSingle();
       const storedRole = userRoleSchema.safeParse(profile?.role);
-      if (storedRole.success) redirect(destinationForRole(storedRole.data));
+      if (profileError) errorMessage = loginErrorMessage("profile");
+      if (storedRole.success && !profileError && params.error !== "profile") redirect(destinationAfterLogin(storedRole.data, next));
     }
   }
 
   return (
     <main className="onboarding">
+      <OAuthErrorRecovery next={next} />
       <header className="public-header">
         <Brand />
       </header>
+
+      {errorMessage && <div className="notice error" role="alert" aria-label="로그인 오류"><strong>로그인 확인</strong><p>{errorMessage}</p>{signedIn && <Link className="text-button" href={next ?? "/home"}>계정 정보 다시 확인</Link>}</div>}
 
       <section className="onboarding-hero-container">
         {/* Left Side: Dark Hero Info Card */}
@@ -67,7 +75,7 @@ export default async function LoginPage() {
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-200">
                 <CheckCircle2 className="w-4.5 h-4.5 text-emerald-400 shrink-0" />
-                <span>개인정보보호: URL 및 검색어 미수집 원칙</span>
+                <span>보호자에게 방문 URL 및 검색어를 공유하지 않습니다</span>
               </div>
             </div>
           )}
@@ -84,6 +92,7 @@ export default async function LoginPage() {
               </div>
               <div className="role-options-grid">
                 <form action={selectRole}>
+                  <input type="hidden" name="next" value={next ?? ""} />
                   <input type="hidden" name="role" value="student" />
                   <input type="hidden" name="timezone" value="Asia/Seoul" />
                   <button type="submit" className="role-card">
@@ -95,6 +104,7 @@ export default async function LoginPage() {
                 </form>
 
                 <form action={selectRole}>
+                  <input type="hidden" name="next" value={next ?? ""} />
                   <input type="hidden" name="role" value="guardian" />
                   <input type="hidden" name="timezone" value="Asia/Seoul" />
                   <button type="submit" className="role-card">
@@ -115,11 +125,12 @@ export default async function LoginPage() {
 
               <h2>미루지마 계정 로그인</h2>
               <p className="login-panel-description">
-                이메일이 아닌 Supabase 보안 사용자 ID로 웹과 확장 프로그램을 안전하게 연결합니다.
+                웹과 확장 프로그램에 같은 Google 계정으로 로그인해 주세요.
               </p>
 
               {hasSupabasePublicConfig() ? (
                 <form action={signInWithGoogle}>
+                  <input type="hidden" name="next" value={next ?? ""} />
                   <button className="google-auth-button" type="submit">
                     <GoogleIcon className="w-5 h-5 shrink-0" />
                     <span>Google 계정으로 로그인</span>
@@ -129,8 +140,8 @@ export default async function LoginPage() {
                 <div className="notice">
                   <strong>로컬 미리보기 모드</strong>
                   <p className="mt-1">Supabase 공개 환경변수를 설정하면 Google 로그인이 활성화됩니다.</p>
-                  <Link className="text-button flex items-center gap-1 mt-3" href="/home">
-                    <span>학생 화면 미리보기</span>
+                  <Link className="text-button flex items-center gap-1 mt-3" href="/">
+                    <span>서비스 소개 보기</span>
                     <ChevronRight className="w-4 h-4" />
                   </Link>
                 </div>
