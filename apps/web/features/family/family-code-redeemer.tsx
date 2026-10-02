@@ -64,7 +64,7 @@ export function FamilyCodeRedeemer() {
     } finally { inFlight.current = false; setBusy(false); }
   }
 
-  if (!expanded) return <button className="button secondary full small" type="button" onClick={() => { setExpanded(true); requestAnimationFrame(() => inputRef.current?.focus()); }}><span>보호자 연결 코드 입력하기</span><ChevronDown className="w-4 h-4" /></button>;
+  if (!expanded) return <button className="button secondary small" type="button" onClick={() => { setExpanded(true); requestAnimationFrame(() => inputRef.current?.focus()); }}><span>보호자 연결 코드 입력하기</span><ChevronDown className="w-4 h-4" /></button>;
 
   return (
     <><form className="code-card" action={redeem}>
@@ -94,10 +94,10 @@ export function FamilyCodeRedeemer() {
         </div>
       </div>
       <p className="text-xs text-muted" role="status">{lockSeconds > 0 ? `입력 횟수를 초과했습니다. ${familyCountdownLabel(lockSeconds)} 뒤 다시 입력할 수 있습니다.` : lockedUntil ? "입력 잠금 시간이 지났습니다. 새 연결 코드로 다시 시도해 주세요." : message}</p>
-      <button className="button full small mt-4" type="submit" disabled={busy || lockSeconds > 0}>{busy ? "확인 중..." : "보호자 연결하기"}</button>
+      <button className="button small mt-4" type="submit" disabled={busy || lockSeconds > 0}>{busy ? "확인 중..." : "보호자 연결하기"}</button>
     </form>{conflictModalOpen ? <Dialog title="멤버십을 함께 사용할 수 없습니다" onClose={() => setConflictModalOpen(false)}>
       <div className="notice error"><strong>학생 Premium 이용 기간을 먼저 확인해 주세요</strong><p>연결하려는 보호자가 가족 Premium을 이용 중입니다. 현재 학생 Premium은 즉시 없애지 않으며, 남은 이용 기간이 끝난 뒤 다시 연결하면 가족 멤버십으로 전환됩니다.</p></div>
-      <button className="button full" type="button" onClick={() => setConflictModalOpen(false)}>확인</button>
+      <button className="button" type="button" onClick={() => setConflictModalOpen(false)}>확인</button>
     </Dialog> : null}</>
   );
 }

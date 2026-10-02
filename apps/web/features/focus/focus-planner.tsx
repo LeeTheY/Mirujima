@@ -1357,7 +1357,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
 
       {membershipModalOpen ? (
         <div className="modal-overlay payment-modal-overlay" role="presentation" onClick={() => setMembershipModalOpen(false)}>
-          <section className="modal-content payment-modal-content" role="dialog" aria-modal="true" aria-label="학생 Premium 안내" onClick={(event) => event.stopPropagation()}>
+          <section className="modal-content payment-modal-content premium-info-modal" role="dialog" aria-modal="true" aria-label="학생 Premium 안내" onClick={(event) => event.stopPropagation()}>
             <header className="payment-modal-header">
               <h1>AI 스마트 추천은 Premium 기능입니다</h1>
               <button className="icon-close-button" type="button" onClick={() => setMembershipModalOpen(false)} aria-label="닫기"><X className="w-4 h-4" /></button>

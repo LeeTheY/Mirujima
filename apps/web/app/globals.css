@@ -3136,3 +3136,30 @@ h1, h2, h3, p, button, label { word-break: keep-all; overflow-wrap: anywhere; }
 .notification-empty { padding: 24px 16px; gap: 8px; font-size: 13px; }
 .notification-empty p { margin: 0; font-size: 13px; }
 .notification-footer { padding: 10px 18px; flex-shrink: 0; }
+
+/* Informational dialogs and standalone actions follow their content width. */
+.button:not(.full) { max-width: 100%; justify-self: start; white-space: normal; }
+.card-action-footer > .button,
+.guardian-link-actions > .button,
+.modal-content:not(.payment-modal-content) .button.full {
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 8px 16px;
+  white-space: normal;
+}
+.modal-content h1, .modal-content h2 { min-width: 0; overflow-wrap: anywhere; }
+.premium-info-modal { width: min(100%, 480px); }
+.premium-info-modal .payment-modal-header { padding: 18px 20px; gap: 12px; }
+.premium-info-modal .payment-modal-header h1 { font-size: 17px; line-height: 1.5; }
+.premium-info-modal .icon-close-button { width: 32px; height: 32px; }
+.premium-info-modal .payment-modal-body { display: grid; gap: 16px; padding: 20px; }
+.premium-info-modal .notice { padding: 14px 16px; }
+.premium-info-modal .button.full { width: fit-content; max-width: 100%; justify-self: end; min-height: 40px; padding: 8px 16px; white-space: normal; font-size: 13px; }
+@media (max-width: 640px) {
+  .premium-info-modal { padding: 0; }
+  .premium-info-modal .payment-modal-header, .premium-info-modal .payment-modal-body { padding: 16px; }
+  .premium-info-modal .payment-modal-header h1 { font-size: 16px; }
+}
