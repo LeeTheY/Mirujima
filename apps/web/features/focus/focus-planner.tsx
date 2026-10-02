@@ -993,13 +993,14 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
         {savedPlan ? <p className="saved-plan-editing" role="status">선택한 계획을 편집하고 있습니다.</p> : null}
       </section>
         <form ref={formRef} className="card focus-form" action={(data) => submit(data)}>
-          <fieldset className="focus-plan-fields" disabled={hasCurrentSession || status === "saving" || status === "recovering" || rewardLocked || rewardBusy}>
+          <div className="focus-plan-fields">
           <div className="focus-form-heading border-b border-gray-800 pb-3">
             <span className="card-label">일일 계획 수립</span>
             <h2>오늘의 집중 계획 작성</h2>
           </div>
 
           <div className="focus-plan-basics">
+          <fieldset className="focus-plan-inputs" disabled={hasCurrentSession || status === "saving" || status === "recovering" || rewardLocked || rewardBusy}>
           <div className="field-row">
             <label>
               계획명
@@ -1180,8 +1181,29 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
 
           </div>
 
+          </fieldset>
+          <div className="focus-plan-extension">
+            {blockingMode !== "off" && <ExtensionConnectionPanel onConnectionChange={setExtensionConnected} />}
+          </div>
           </div>
           <div className="focus-plan-goals">
+          <div className="focus-plan-summary">
+          {(status !== "idle" || message !== INITIAL_GUIDANCE) && <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
+            <strong>
+              {status === "recovering"
+                ? "진행 중인 세션 확인"
+                : status === "active"
+                ? "집중 시작 완료"
+                : status === "paused"
+                ? "집중 일시정지"
+                : status === "awaiting-result"
+                ? "집중 결과 확인"
+                : status === "saving"
+                ? "집중 준비 중"
+                : "집중 계획 안내"}
+            </strong>
+            <p>{message}</p>
+          </div>}
           {(() => {
             const realism = evaluateRealism(title, targetFocusMinutes, goals);
             return (
@@ -1200,8 +1222,9 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
               </div>
             );
           })()}
+          </div>
 
-          <div className="goal-list-section" tabIndex={0} role="region" aria-label="세부 목표 작성">
+          <fieldset className="goal-list-section" tabIndex={0} role="region" aria-label="세부 목표 작성" disabled={hasCurrentSession || status === "saving" || status === "recovering" || rewardLocked || rewardBusy}>
             <div className="flex items-center justify-between">
               <strong className="text-sm text-navy">목표 목록 ({goals.length}개)</strong>
             </div>
@@ -1289,16 +1312,15 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
               </div>
             ))}
 
+          </fieldset>
+
           </div>
 
-
-          </div>
-
-            <button type="button" className="add-goal-button" onClick={addGoal}>
+            <button type="button" className="add-goal-button" disabled={hasCurrentSession || status === "saving" || status === "recovering" || rewardLocked || rewardBusy} onClick={addGoal}>
               <Plus className="w-4 h-4" />
               <span>목표 추가</span>
             </button>
-          </fieldset>
+          </div>
           {guardianRewardRequested && !hasCurrentSession ? <section className="sub-card" aria-label="보호자 보상 승인">
             <h3>집중 시작 전 보호자 승인</h3>
             <p>계획 저장 → 보상 요청 → 보호자 승인 → 집중 시작 순서로 진행합니다. 요청 중에는 계획을 수정할 수 없습니다.</p>
@@ -1310,27 +1332,6 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
               {rewardLocked ? <button className="button secondary small" type="button" disabled={rewardBusy || status === "saving"} onClick={() => void manageReward("withdraw")}>보상 요청 취소</button> : null}
             </div>
           </section> : null}
-          <div className="focus-runtime-info">
-          {blockingMode !== "off" && <ExtensionConnectionPanel onConnectionChange={setExtensionConnected} />}
-
-          {(status !== "idle" || message !== INITIAL_GUIDANCE) && <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
-            <strong>
-              {status === "recovering"
-                ? "진행 중인 세션 확인"
-                : status === "active"
-                ? "집중 시작 완료"
-                : status === "paused"
-                ? "집중 일시정지"
-                : status === "awaiting-result"
-                ? "집중 결과 확인"
-                : status === "saving"
-                ? "집중 준비 중"
-                : "집중 계획 안내"}
-            </strong>
-            <p>{message}</p>
-          </div>}
-
-          </div>
           {aiRecommendation ? (
             <div className="notice ai-focus-recommendation" role="status">
               <strong>{aiRecommendation.recommendedTitle}</strong>
