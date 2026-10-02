@@ -41,3 +41,5 @@ Edge Function 13개를 JWT 검증 ON으로 배포했다: `membership-create-orde
 ## GitHub 및 Preview
 
 새 브랜치 `feat/v3-release-readiness`, Draft PR #3을 생성했다. Vercel Preview 빌드는 READY이며 실제 공개 화면과 미인증 집중 페이지의 로그인 복귀 주소를 확인했다. 최초 GitHub CI의 공식 Supabase DB 검사와 493개 단위·타입·빌드 검사는 통과했다. 공개 E2E는 Supabase 환경변수가 없는 CI에서 로그인 폼이 생성된다고 가정한 검사 1개가 실패했다. 설정 없는 상태의 명시적 안내와 설정 있는 상태의 목적지 form을 구분하도록 검사만 수정했다. 제품 인증 경계는 변경하지 않았다. 최신 CI 결과는 PR Checks를 따른다.
+
+설정 없는 CI의 Extension 검사는 Supabase client를 만들지 못해 `SYNC_FAILED`를 반환했지만 smoke 계약은 구성된 client의 미인증 `AUTH_REQUIRED`를 기대했다. CI development 빌드에 실제 계정이나 키가 아닌 로컬 URL·공개 placeholder를 명시하여 미인증 상태를 구성한다. product 오류 코드를 바꾸거나 검사 기대값을 느슨하게 만들지 않는다. 이 smoke 검사는 서버 로그인이나 금융 동작을 수행하지 않는다.

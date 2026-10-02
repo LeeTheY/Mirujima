@@ -25,6 +25,11 @@ jobs:
       - run: npm run test:web:dialog
       - run: npm run test:web:pwa
       - run: npm run build:dev
+        # Public placeholders construct a signed-out client; no real account or
+        # backend is used by the isolated local extension smoke fixtures.
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
       - run: npm run test:extension:smoke
       - uses: actions/upload-artifact@v4
         if: failure()
