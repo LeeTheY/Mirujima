@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ShieldCheck, CreditCard, History } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { TopupHistoryModal } from "@/features/wallet/topup-history-modal";
 
 export function GuardianHomeWalletCard() {
@@ -16,7 +16,7 @@ export function GuardianHomeWalletCard() {
           <ShieldCheck className="w-4 h-4 text-blue-600" />
         </div>
         <p className="m-0 text-sm text-muted">
-          학생 보상에 사용할 테스트 포인트를 안전하게 관리합니다.
+          학생 보상에 사용할 포인트를 안전하게 관리합니다.
         </p>
         <div className="grid grid-cols-2 gap-2 mt-4">
           <Link

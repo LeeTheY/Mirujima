@@ -25,6 +25,8 @@ select public.start_focus_session('focus-100','db-test-device');
 select is((select sum(case when to_bucket='topup' then points else -points end) from public.wallet_transactions where (to_user_id='a1111111-1111-4111-8111-111111111111' or from_user_id='a1111111-1111-4111-8111-111111111111') and (to_bucket='topup' or from_bucket='topup')),9000::numeric,'start reserves topup points');
 select is((select sum(points) from public.wallet_transactions where kind='self_deposit_reserved'),1000::numeric,'reservation appears in wallet');
 reset role;
+-- Emulate sessions created before the policy snapshot rollout; legacy tiered settlements remain unchanged.
+update public.cloud_focus_sessions set payload=payload-'depositPolicy' where user_id='a1111111-1111-4111-8111-111111111111' and payload->>'status' in ('active','starting');
 update public.cloud_focus_sessions set payload=jsonb_set(payload,'{endsAt}',to_jsonb(now()-interval '1 second')) where entity_id=(select entity_id from public.cloud_focus_sessions where payload->>'scheduleId'='focus-100');
 set local request.jwt.claim.sub = 'a1111111-1111-4111-8111-111111111111';
 set local role authenticated;
@@ -39,6 +41,8 @@ select public.upsert_focus_plan(
 );
 select public.start_focus_session('focus-60','db-test-device');
 reset role;
+-- Emulate sessions created before the policy snapshot rollout; legacy tiered settlements remain unchanged.
+update public.cloud_focus_sessions set payload=payload-'depositPolicy' where user_id='a1111111-1111-4111-8111-111111111111' and payload->>'status' in ('active','starting');
 update public.cloud_focus_sessions set payload=jsonb_set(payload,'{endsAt}',to_jsonb(now()-interval '1 second')) where entity_id=(select entity_id from public.cloud_focus_sessions where payload->>'scheduleId'='focus-60');
 set local request.jwt.claim.sub = 'a1111111-1111-4111-8111-111111111111';
 set local role authenticated;
@@ -55,6 +59,8 @@ select public.upsert_focus_plan(
 );
 select public.start_focus_session('focus-80','db-test-device');
 reset role;
+-- Emulate sessions created before the policy snapshot rollout; legacy tiered settlements remain unchanged.
+update public.cloud_focus_sessions set payload=payload-'depositPolicy' where user_id='a1111111-1111-4111-8111-111111111111' and payload->>'status' in ('active','starting');
 update public.cloud_focus_sessions set payload=jsonb_set(payload,'{endsAt}',to_jsonb(now()-interval '1 second')) where entity_id=(select entity_id from public.cloud_focus_sessions where payload->>'scheduleId'='focus-80');
 set local request.jwt.claim.sub = 'a1111111-1111-4111-8111-111111111111';
 set local role authenticated;

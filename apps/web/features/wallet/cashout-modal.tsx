@@ -1,21 +1,19 @@
+import { redirect } from "next/navigation";
 import { PaymentOverlay } from "@/components/payment-overlay";
 import { requireAuthenticatedRole } from "@/features/auth/require-role";
-import { createClient } from "@/lib/supabase/server";
+import { loadWalletRead } from "./wallet-data";
+import { WalletUnavailable } from "./wallet-unavailable";
 import { CashoutPanel } from "./cashout-panel";
 
 export async function CashoutModal({ closeMode = "route" }: { closeMode?: "back" | "route" }) {
-  await requireAuthenticatedRole("/wallet/cashout");
-  const supabase = await createClient();
-  const { data } = await supabase.functions.invoke("wallet-summary", { body: {} });
-  const initialBalances = {
-    earnedAvailable: Number.isSafeInteger(data?.earnedAvailable) ? data.earnedAvailable : 0,
-    cashoutReserved: Number.isSafeInteger(data?.cashoutReserved) ? data.cashoutReserved : 0,
-    cashoutCompleted: Number.isSafeInteger(data?.cashoutCompleted) ? data.cashoutCompleted : 0,
-  };
+  const { role } = await requireAuthenticatedRole("/wallet/cashout");
+  if (role !== "student") redirect("/guardian/my");
+  const wallet = await loadWalletRead();
 
   return (
-    <PaymentOverlay title="포인트 환급 신청" returnHref="/my" closeMode={closeMode} wide>
-      <CashoutPanel initialBalances={initialBalances} />
+    <PaymentOverlay title="포인트 현금화 안내" returnHref="/my" closeMode={closeMode} wide>
+      <CashoutPanel key={wallet.checkedAt} initialBalances={wallet.status === "ready" ? wallet.summary : null} />
+      {wallet.status !== "ready" && <WalletUnavailable checkedAt={wallet.checkedAt} />}
     </PaymentOverlay>
   );
 }

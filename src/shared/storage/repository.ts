@@ -4,8 +4,10 @@ import type {
   ActivityEvent,
   AppSnapshot,
   DailyReport,
+  ExternalRequestReceipt,
   FocusSession,
   NotificationState,
+  PendingCanonicalSettlement,
   Schedule,
   TemporaryAllow,
   UserSettings
@@ -66,7 +68,10 @@ export const repository = {
       tabOrganizerSettings: await tabOrganizerRepository.getSettings(),
       tabOrganizerSummary: (values[STORAGE_KEYS.tabOrganizerSummary] as import("../types/models").TabOrganizerSummary | undefined) ?? EMPTY_TAB_ORGANIZER_SUMMARY,
       membership: await getMembershipCache(),
-      cloudSync: await cloudSyncStorage.getSnapshot()
+      cloudSync: await cloudSyncStorage.getSnapshot(),
+      pendingCanonicalSettlements: Array.isArray(values[STORAGE_KEYS.canonicalPendingSettlements])
+        ? values[STORAGE_KEYS.canonicalPendingSettlements] as PendingCanonicalSettlement[]
+        : []
     };
   },
 
@@ -101,6 +106,12 @@ export const repository = {
   setNotificationState: (value: NotificationState) => setValue(STORAGE_KEYS.notificationState, value),
   getTemporaryAllows: () => getValue<TemporaryAllow[]>(STORAGE_KEYS.temporaryAllows, []),
   setTemporaryAllows: (value: TemporaryAllow[]) => setValue(STORAGE_KEYS.temporaryAllows, value),
+  getPendingCanonicalSettlements: () => getValue<PendingCanonicalSettlement[]>(STORAGE_KEYS.canonicalPendingSettlements, []),
+  setPendingCanonicalSettlements: (value: PendingCanonicalSettlement[]) => setValue(STORAGE_KEYS.canonicalPendingSettlements, value),
+  getCanonicalRuntimeUserId: () => getValue<string | null>(STORAGE_KEYS.canonicalRuntimeUserId, null),
+  setCanonicalRuntimeUserId: (value: string | null) => setValue(STORAGE_KEYS.canonicalRuntimeUserId, value),
+  getExternalRequestReceipts: () => getValue<ExternalRequestReceipt[]>(STORAGE_KEYS.externalRequestReceipts, []),
+  setExternalRequestReceipts: (value: ExternalRequestReceipt[]) => setValue(STORAGE_KEYS.externalRequestReceipts, value),
 
   async appendEvent(event: ActivityEvent): Promise<void> {
     const events = await this.getEvents();

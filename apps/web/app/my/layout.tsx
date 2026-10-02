@@ -4,15 +4,19 @@ import { loadOwnDisplayName } from "@/features/profile/profile-data";
 import { ProfileDisplayNameProvider } from "@/features/profile/profile-display-provider";
 import { loadStudentHasActiveGuardian } from "@/features/family/student-link-data";
 import { loadMembershipStatus } from "@/features/membership/membership-data";
-import { loadWalletSummary } from "@/features/wallet/wallet-data";
+import { loadWalletRead } from "@/features/wallet/wallet-data";
+import { loadOwnMonthlyStudySummary } from "@/features/profile/study-summary-data";
+import { loadOwnSharingPreferences } from "@/features/family/sharing-data";
 
 export default async function StudentMyLayout({ children }: { children: ReactNode }) {
   const { user } = await requireAuthenticatedRole("/my");
-  const [displayName, hasActiveGuardian, membershipStatus, walletSummary] = await Promise.all([
+  const [displayName, hasActiveGuardian, membershipStatus, walletRead, sharingPreferences, studySummary] = await Promise.all([
     loadOwnDisplayName(user.id),
     loadStudentHasActiveGuardian(user.id),
     loadMembershipStatus(user.id),
-    loadWalletSummary(),
+    loadWalletRead(),
+    loadOwnSharingPreferences(user.id),
+    loadOwnMonthlyStudySummary(user.id),
   ]);
-  return <ProfileDisplayNameProvider displayName={displayName} hasActiveGuardian={hasActiveGuardian} membershipStatus={membershipStatus} walletSummary={walletSummary}>{children}</ProfileDisplayNameProvider>;
+  return <ProfileDisplayNameProvider displayName={displayName} hasActiveGuardian={hasActiveGuardian} membershipStatus={membershipStatus} walletSummary={walletRead.status === "ready" ? walletRead.summary : null} walletCheckedAt={walletRead.checkedAt} sharingPreferences={sharingPreferences} studySummary={studySummary}>{children}</ProfileDisplayNameProvider>;
 }

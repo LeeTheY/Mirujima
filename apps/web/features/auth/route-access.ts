@@ -2,7 +2,7 @@ import type { UserRole } from "@mirujima/contracts";
 
 export type RouteAccess = "public" | "shared" | UserRole;
 
-const publicRoutes = new Set(["/", "/login", "/auth/callback", "/how", "/privacy"]);
+const publicRoutes = new Set(["/", "/login", "/auth/callback", "/how", "/privacy", "/offline"]);
 const studentRoutes = new Set(["/home", "/focus", "/history", "/my", "/wallet/cashout"]);
 const guardianRoutes = new Set(["/guardian", "/guardian/students", "/guardian/history", "/guardian/my", "/guardian/rewards", "/wallet/refund"]);
 

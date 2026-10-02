@@ -1,3 +1,4 @@
+import { syncServerNotifications } from "./server-notifications";
 import { ensureDailyReportAlarm, ensureFocusCheckAlarm, setBreakEndAlarm, setFocusEndAlarm, syncScheduleAlarms } from "./alarms";
 import { applyBlockingRules, clearBlockingRules } from "./blocking";
 import { generateMissedReports } from "./reports";
@@ -8,17 +9,36 @@ import { markFocusAwaitingResult } from "./message-handler";
 import { membershipService } from "../features/membership/service";
 import { cloudSyncService } from "../features/cloud-sync/service";
 import { ALARM_PREFIX } from "../shared/constants";
+import { restoreExpiredCanonicalBreak, resyncCanonicalFocus, retryPendingCanonicalSettlements } from "../features/web-bridge/canonical-focus";
 
 export async function bootstrap(): Promise<void> {
   await repository.initialize();
+  void syncServerNotifications().catch(() => undefined);
+  // Canonical resync is independent of Premium cloud backup and must survive SW/browser restart.
+  await chrome.alarms.create(ALARM_PREFIX.canonicalFocusSync, { periodInMinutes: 1 });
   try { await membershipService.restore(); } catch (error) { console.warn("멤버십 복구를 건너뛰었습니다.", error); }
+  try {
+    await retryPendingCanonicalSettlements();
+    await resyncCanonicalFocus();
+  } catch (error) { console.warn("서버 집중 세션 복구를 건너뛰었습니다.", error); }
+  await restoreExpiredCanonicalBreak();
   const snapshot = await repository.getSnapshot();
   await syncMainUI(snapshot.settings.mainUI);
   await syncScheduleAlarms(snapshot.schedules);
   await ensureDailyReportAlarm();
   const session = snapshot.activeSession;
   const schedule = session ? snapshot.schedules.find((item) => item.id === session.scheduleId) : undefined;
-  if (session && schedule && session.status === "active") {
+  if (session?.canonicalStatus === "starting" && schedule) {
+    await ensureFocusCheckAlarm(false);
+    const deadline = session.enforcementDeadlineAt ? Date.parse(session.enforcementDeadlineAt) : 0;
+    if (deadline > Date.now()) {
+      await applyBlockingRules(schedule, session, snapshot.temporaryAllows);
+      await chrome.action.setBadgeText({ text: "준비" });
+    } else {
+      await clearBlockingRules();
+      await chrome.action.setBadgeText({ text: "연결" });
+    }
+  } else if (session && schedule && session.status === "active") {
     const elapsed = elapsedFocusSeconds(session.startedAt, null, session.accumulatedFocusSeconds);
     const remainingSeconds = session.endsAt
       ? Math.max(0, Math.floor((new Date(session.endsAt).getTime() - Date.now()) / 1000))

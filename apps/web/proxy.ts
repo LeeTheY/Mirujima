@@ -1,11 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { loginHref } from "@/features/auth/login-destination";
+import { routeAccess } from "@/features/auth/route-access";
 import { hasSupabasePublicConfig, getSupabasePublicConfig } from "@/lib/supabase/config";
 
-const publicPaths = new Set(["/", "/login", "/auth/callback"]);
-
 export async function proxy(request: NextRequest) {
-  if (!hasSupabasePublicConfig()) return NextResponse.next();
+  if (!hasSupabasePublicConfig()) {
+    if (routeAccess(request.nextUrl.pathname) !== "public") return NextResponse.redirect(new URL(loginHref(`${request.nextUrl.pathname}${request.nextUrl.search}`), request.url));
+    return NextResponse.next();
+  }
   let response = NextResponse.next({ request });
   const config = getSupabasePublicConfig();
   const supabase = createServerClient(config.url, config.publishableKey, {
@@ -19,8 +22,12 @@ export async function proxy(request: NextRequest) {
     },
   });
   const { data } = await supabase.auth.getClaims();
-  const isPublic = publicPaths.has(request.nextUrl.pathname);
-  if (!data?.claims?.sub && !isPublic) return NextResponse.redirect(new URL("/login", request.url));
+  const isPublic = routeAccess(request.nextUrl.pathname) === "public";
+  if (!data?.claims?.sub && !isPublic) {
+    const redirect = NextResponse.redirect(new URL(loginHref(`${request.nextUrl.pathname}${request.nextUrl.search}`), request.url));
+    response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+    return redirect;
+  }
   return response;
 }
 

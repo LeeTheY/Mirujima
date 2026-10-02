@@ -11,7 +11,8 @@ const EMPTY_SNAPSHOT: AppSnapshot = {
   notificationState: {}, temporaryAllows: [],
   tabOrganizerSettings: DEFAULT_TAB_ORGANIZER_SETTINGS, tabOrganizerSummary: EMPTY_TAB_ORGANIZER_SUMMARY,
   membership: FREE_MEMBERSHIP,
-  cloudSync: { state: EMPTY_CLOUD_SYNC_STATE, learningDays: [] }
+  cloudSync: { state: EMPTY_CLOUD_SYNC_STATE, learningDays: [] },
+  pendingCanonicalSettlements: []
 };
 
 interface AppContextValue {

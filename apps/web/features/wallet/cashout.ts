@@ -18,6 +18,7 @@ export function cashoutFullAmount(available: number): string {
 }
 
 export function cashoutErrorCopy(code: string): string {
+  if (code === "cashout_unavailable") return "현금화 서비스를 준비 중입니다. 획득 포인트는 지갑에 보관됩니다.";
   if (code === "insufficient_earned_points" || code.includes("잔액")) return "현금화 가능 잔액이 부족합니다.";
   if (code === "invalid_amount" || code.includes("1P")) return "1P 이상의 포인트를 정수로 입력해 주세요.";
   return "현금화 요청을 처리하지 못했습니다. 다시 시도해 주세요.";

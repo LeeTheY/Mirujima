@@ -4,8 +4,12 @@ import { TOPUP_PRESETS, parseTopupCallback, parseTopupOrder, selectTopupPreset, 
 describe("wallet topup domain", () => {
   it("offers only the approved presets", () => expect(TOPUP_PRESETS).toEqual([10_000, 30_000, 50_000, 100_000, 150_000, 300_000]));
   it("validates server orders", () => {
-    expect(parseTopupOrder({ orderId: "mirujima_topup_123456", amount: 30_000, points: 30_000, orderName: "Mirujima 30,000P 충전" }).amount).toBe(30_000);
+    expect(parseTopupOrder({ orderId: "mirujima_topup_123456", amount: 30_000, points: 30_000, orderName: "Mirujima 30,000P 충전", status: "pending" }).amount).toBe(30_000);
     expect(() => parseTopupOrder({ orderId: "bad", amount: 20_000, points: 20_000, orderName: "bad" })).toThrow("충전 주문");
+  });
+  it("does not reopen a payment window when canonical order state is missing", () => {
+    expect(() => parseTopupOrder({ orderId: "mirujima_topup_123456", amount: 30000, points: 30000, orderName: "Mirujima 30,000P 충전" })).toThrow("주문 상태");
+    expect(parseTopupOrder({ orderId: "mirujima_topup_123456", amount: 30000, points: 30000, orderName: "Mirujima 30,000P 충전", status: "confirming" }).status).toBe("confirming");
   });
   it("validates callbacks and selection", () => {
     expect(parseTopupCallback(new URLSearchParams("paymentKey=payment_123&orderId=mirujima_topup_123456&amount=50000")).amount).toBe(50_000);

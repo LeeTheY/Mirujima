@@ -6,6 +6,17 @@ export interface TossTestConfig {
   secretKey: string;
 }
 
+// Existing test helpers remain strict. Live activation requires both an
+// explicit mode and an independent server-only launch switch.
+export function assertTossPaymentConfig(env: Record<string, string | undefined>): TossTestConfig {
+  const mode = env.TOSS_PAYMENT_MODE;
+  if (mode !== "test" && mode !== "live") throw new Error("payment_configuration_required");
+  if (mode === "live" && env.MIRUJIMA_LIVE_PAYMENTS_ENABLED !== "true") throw new Error("payment_configuration_required");
+  const secretKey = env.TOSS_SECRET_KEY?.trim() ?? "";
+  if (!new RegExp(`^${mode}_sk_[A-Za-z0-9_-]+$`).test(secretKey)) throw new Error("payment_configuration_required");
+  return { secretKey };
+}
+
 export interface TossPaymentInput {
   paymentKey: string;
   orderId: string;
@@ -90,22 +101,27 @@ export function parseTopupConfirmationRequest(value: unknown): MembershipConfirm
   return { paymentKey, orderId, amount };
 }
 
-export function sandboxRefundPayload(paymentKey: string, now = new Date()): Record<string, unknown> {
+export function sandboxRefundPayload(paymentKey: string, cancelAmount: number, now = new Date()): Record<string, unknown> {
   if (!paymentKey || paymentKey.length > 200) throw new Error("결제 키가 올바르지 않습니다.");
+  if (!Number.isSafeInteger(cancelAmount) || cancelAmount <= 0) throw new Error("환불 금액이 올바르지 않습니다.");
   return {
     status: "CANCELED",
     paymentKey,
+    cancelAmount,
     canceledAt: now.toISOString(),
     sandbox: true,
     actualRefund: false,
   };
 }
 
-export function parseTopupRefundRequest(value: unknown): { idempotencyKey: string } {
+export function parseTopupRefundRequest(value: unknown): { idempotencyKey: string; points: number } {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const idempotencyKey = typeof input.idempotencyKey === "string" ? input.idempotencyKey.trim() : "";
   if (!/^[A-Za-z0-9._:-]{8,200}$/.test(idempotencyKey)) throw new Error("환불 요청 식별자가 올바르지 않습니다.");
-  return { idempotencyKey };
+  if (typeof input.points !== "number" || !Number.isSafeInteger(input.points) || input.points <= 0 || input.points > 300_000) {
+    throw new Error("환불 금액이 올바르지 않습니다.");
+  }
+  return { idempotencyKey, points: input.points };
 }
 
 function authorization(secretKey: string): string {
@@ -118,18 +134,31 @@ async function tossRequest(
   init: RequestInit,
   fetcher: typeof fetch
 ): Promise<Record<string, unknown>> {
-  const response = await fetcher(url, {
-    ...init,
-    headers: {
-      Authorization: authorization(config.secretKey),
-      "Content-Type": "application/json",
-      ...(init.headers ?? {})
-    }
-  });
-  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+  let response: Response;
+  try {
+    response = await fetcher(url, {
+      ...init,
+      signal: init.signal ?? AbortSignal.timeout(10_000),
+      headers: {
+        Authorization: authorization(config.secretKey),
+        "Content-Type": "application/json",
+        ...(init.headers ?? {})
+      }
+    });
+  } catch {
+    throw new TossApiError("Toss 결제를 처리하지 못했습니다.", "TOSS_NETWORK_ERROR", 503, true);
+  }
+  let payload: Record<string, unknown>;
+  try {
+    payload = await response.json() as Record<string, unknown>;
+  } catch {
+    throw new TossApiError("Toss 결제를 처리하지 못했습니다.", "TOSS_INVALID_RESPONSE", 502, true);
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new TossApiError("Toss 결제 응답을 확인하지 못했습니다.", "TOSS_INVALID_RESPONSE", 502, true);
   if (!response.ok) {
     const code = typeof payload.code === "string" ? payload.code : "TOSS_API_ERROR";
-    throw new TossApiError("Toss 결제를 처리하지 못했습니다.", code, response.status, response.status >= 500);
+    const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+    throw new TossApiError("Toss 결제를 처리하지 못했습니다.", code, response.status, retryable);
   }
   return payload;
 }
@@ -139,13 +168,13 @@ function sanitizedPayment(payload: Record<string, unknown>, expected: TossPaymen
     || payload.orderId !== expected.orderId
     || payload.paymentKey !== expected.paymentKey
     || payload.totalAmount !== expected.amount) {
-    throw new Error("Toss 결제 응답 검증에 실패했습니다.");
+    throw new TossApiError("Toss 결제 응답 검증에 실패했습니다.", "TOSS_RESPONSE_MISMATCH", 502, true);
   }
   return {
     status: "DONE",
     method: typeof payload.method === "string" ? payload.method : null,
     approvedAt: typeof payload.approvedAt === "string" ? payload.approvedAt : null,
-    transactionKey: typeof payload.transactionKey === "string" ? payload.transactionKey : null
+    transactionKey: typeof payload.lastTransactionKey === "string" ? payload.lastTransactionKey : typeof payload.transactionKey === "string" ? payload.transactionKey : null
   };
 }
 
@@ -179,23 +208,25 @@ export async function fetchTossPayment(
 
 export async function cancelTossPayment(
   config: TossTestConfig,
-  input: { paymentKey: string; idempotencyKey: string; cancelReason: string },
+  input: { paymentKey: string; idempotencyKey: string; cancelReason: string; cancelAmount?: number },
   fetcher: typeof fetch = fetch
 ): Promise<Record<string, unknown>> {
   if (!input.paymentKey || input.paymentKey.length > 200) throw new Error("결제 키가 올바르지 않습니다.");
   if (input.cancelReason.length < 1 || input.cancelReason.length > 200) throw new Error("취소 사유가 올바르지 않습니다.");
+  if (input.cancelAmount !== undefined && (!Number.isSafeInteger(input.cancelAmount) || input.cancelAmount <= 0)) throw new Error("취소 금액이 올바르지 않습니다.");
   const payload = await tossRequest(
     config,
     `https://api.tosspayments.com/v1/payments/${encodeURIComponent(input.paymentKey)}/cancel`,
     {
       method: "POST",
       headers: { "Idempotency-Key": input.idempotencyKey },
-      body: JSON.stringify({ cancelReason: input.cancelReason }),
+      body: JSON.stringify({ cancelReason: input.cancelReason, ...(input.cancelAmount === undefined ? {} : { cancelAmount: input.cancelAmount }) }),
     },
     fetcher
   );
-  if (payload.paymentKey !== input.paymentKey || payload.status !== "CANCELED") {
-    throw new Error("Toss 환불 응답 검증에 실패했습니다.");
+  const allowedStatuses = input.cancelAmount === undefined ? ["CANCELED"] : ["CANCELED", "PARTIALLY_CANCELED"];
+  if (payload.paymentKey !== input.paymentKey || !allowedStatuses.includes(String(payload.status))) {
+    throw new TossApiError("Toss 환불 응답 검증에 실패했습니다.", "TOSS_RESPONSE_MISMATCH", 502, true);
   }
   return payload;
 }

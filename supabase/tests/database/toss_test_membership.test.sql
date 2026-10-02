@@ -11,7 +11,7 @@ select has_function('public', 'create_membership_payment_order', array['uuid', '
 select has_function('public', 'claim_membership_payment', array['uuid', 'text', 'text', 'bigint'], 'server claim RPC exists');
 select has_function('public', 'confirm_toss_membership_payment', array['uuid', 'text', 'text', 'jsonb'], 'server confirmation RPC exists');
 select has_function('public', 'fail_membership_payment', array['uuid', 'text', 'text'], 'server failure RPC exists');
-select ok(not has_function('public', 'activate_deferred_membership', array['uuid']), 'deferred activation RPC is removed');
+select hasnt_function('public', 'activate_deferred_membership', array['uuid'], 'deferred activation RPC is removed');
 select ok(not has_table_privilege('authenticated', 'public.membership_payment_orders', 'INSERT'), 'clients cannot create payment orders');
 select ok(not has_table_privilege('authenticated', 'public.membership_payment_orders', 'UPDATE'), 'clients cannot update payment orders');
 select ok(not has_function_privilege('authenticated', 'public.confirm_toss_membership_payment(uuid,text,text,jsonb)', 'EXECUTE'), 'clients cannot confirm payments');
@@ -56,20 +56,20 @@ select is(
 );
 select is((select billing_integration from public.memberships where user_id = '81111111-1111-4111-8111-111111111111'), 'toss', 'membership uses Toss');
 select is((select activation_source from public.memberships where user_id = '81111111-1111-4111-8111-111111111111'), 'toss_payment', 'membership records Toss activation');
-select is((select count(*) from public.membership_entitlements where user_id = '81111111-1111-4111-8111-111111111111' and enabled), 6::bigint, 'all Premium entitlements are enabled');
+select is((select count(*) from public.membership_entitlements where user_id = '81111111-1111-4111-8111-111111111111' and enabled), 10::bigint, 'all Premium entitlements are enabled');
 select is(
   (select count(distinct valid_until) from public.membership_entitlements where user_id = '81111111-1111-4111-8111-111111111111'),
   1::bigint,
   'all entitlements share one expiry'
 );
 select is(
-  public.confirm_toss_membership_payment(
+  (public.confirm_toss_membership_payment(
     '81111111-1111-4111-8111-111111111111',
     (select order_id from public.membership_payment_orders where idempotency_key = 'membership-idem-0001'),
     'test_payment_key_0001',
     '{"status":"DONE","method":"카드","approvedAt":"2026-08-09T00:00:00+09:00","transactionKey":"tx-1"}'::jsonb
-  )->>'currentPeriodEndsAt',
-  (select current_period_ends_at::text from public.memberships where user_id = '81111111-1111-4111-8111-111111111111'),
+  )->>'currentPeriodEndsAt')::timestamptz,
+  (select current_period_ends_at from public.memberships where user_id = '81111111-1111-4111-8111-111111111111'),
   'duplicate confirmation does not extend twice'
 );
 

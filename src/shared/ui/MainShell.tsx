@@ -1,3 +1,4 @@
+import { ConnectionCard } from "../../features/web-bridge/ConnectionCard";
 import { useState } from "react";
 import { FocusPage } from "../../features/focus/FocusPage";
 import { TabOrganizerCard } from "../../features/tab-organizer/TabOrganizerCard";
@@ -12,6 +13,7 @@ function WebControlPanel() {
       <p className="page-lead">계획, 기록, 계정과 포인트 관리는 Web에서 이어서 이용하세요.</p>
     </header>
     <div className="stack">
+      <ConnectionCard />
       <article className="card">
         <span className="eyebrow">CONTROL PLANE</span>
         <h2>Web에서 관리하기</h2>

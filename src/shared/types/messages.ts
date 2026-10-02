@@ -11,6 +11,7 @@ export type ExtensionMessage =
   | { type: "FOCUS_RESUME" }
   | { type: "FOCUS_BREAK" }
   | { type: "FOCUS_FINISH"; result: "completed" | "incomplete" }
+  | { type: "CANONICAL_FOCUS_FINISH"; completedGoalIds: string[] }
   | { type: "ACTIVITY_HEARTBEAT"; occurredAt: string; visible: boolean }
   | { type: "BLOCKED_ATTEMPT"; hostname: string }
   | { type: "TEMPORARY_ALLOW"; hostname: string; minutes: number; reason: string }

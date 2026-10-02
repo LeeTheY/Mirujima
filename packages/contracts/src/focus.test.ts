@@ -95,4 +95,51 @@ describe("Mirujima focus contracts", () => {
     expect(remainingFocusMs("2026-08-08T12:25:00.000Z", Date.parse("2026-08-08T12:00:00.000Z"))).toBe(25 * 60_000);
     expect(remainingFocusMs("2026-08-08T12:25:00.000Z", Date.parse("2026-08-08T12:30:00.000Z"))).toBe(0);
   });
+
+  it("normalizes legacy canonical sessions with lifecycle defaults", () => {
+    const schema = Reflect.get(contracts, "canonicalFocusSessionSchema") as {
+      parse(value: unknown): Record<string, unknown>;
+    };
+    const session = schema.parse({
+      id: "session-1",
+      scheduleId: "schedule-1",
+      ownerUserId: "11111111-1111-4111-8111-111111111111",
+      startedAt: "2026-08-08T12:00:00.000Z",
+      endsAt: "2026-08-08T12:25:00.000Z",
+      targetFocusMinutes: 25,
+      blockingMode: "off",
+      goals: [{ id: "goal-1", name: "집중", detail: "", minutes: 25, priority: "medium" }],
+      status: "active",
+    });
+
+    expect(session.activeSegmentStartedAt).toBe("2026-08-08T12:00:00.000Z");
+    expect(session.pausedAt).toBeNull();
+    expect(session.accumulatedFocusSeconds).toBe(0);
+    expect(session.remainingFocusSeconds).toBe(25 * 60);
+    expect(session.result).toBeNull();
+  });
+
+  it("derives completion grades from completed goal counts", () => {
+    const completionPercentForGoals = Reflect.get(contracts, "completionPercentForGoals") as (total: number, completed: number) => number;
+
+    expect(completionPercentForGoals(1, 0)).toBe(0);
+    expect(completionPercentForGoals(1, 1)).toBe(100);
+    expect(completionPercentForGoals(3, 1)).toBe(60);
+    expect(completionPercentForGoals(3, 2)).toBe(80);
+    expect(completionPercentForGoals(4, 2)).toBe(80);
+    expect(() => completionPercentForGoals(0, 0)).toThrow();
+  });
+
+  it("accepts a versioned focus reconcile request", () => {
+    const parse = Reflect.get(contracts, "parseWebToExtensionMessage") as (value: unknown) => Record<string, unknown>;
+    const message = parse({
+      type: "mirujima:focus-reconcile-request",
+      version: 1,
+      requestId: "request-3",
+      scheduleId: "schedule-1",
+      sessionId: "session-1",
+    });
+
+    expect(message.type).toBe("mirujima:focus-reconcile-request");
+  });
 });

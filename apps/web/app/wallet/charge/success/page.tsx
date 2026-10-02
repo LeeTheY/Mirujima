@@ -2,14 +2,16 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { requireAuthenticatedRole } from "@/features/auth/require-role";
 import { parseTopupCallback } from "@/features/wallet/topup";
+import { confirmationFailureCopy, readFunctionErrorCode } from "@/features/membership/payment";
 import { createClient } from "@/lib/supabase/server";
 import { X } from "lucide-react";
+import { topupConfirmationCopy } from "@/features/wallet/topup-confirmation";
 
 export default async function ChargeSuccessPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { role } = await requireAuthenticatedRole("/wallet/charge/success");
   const returnHref = role === "guardian" ? "/guardian/my" : "/my";
-  let title = "포인트 충전을 완료하지 못했습니다.";
-  let description = "포인트 잔액은 변경되지 않았습니다.";
+  let title = "충전 결과 확인이 필요합니다.";
+  let description = "충전 내역과 잔액을 다시 확인해 주세요.";
 
   try {
     const values = await searchParams;
@@ -19,11 +21,13 @@ export default async function ChargeSuccessPage({ searchParams }: { searchParams
     }
     const input = parseTopupCallback(query);
     const { data, error } = await (await createClient()).functions.invoke("wallet-confirm-topup", { body: input });
-    if (error || data?.status !== "confirmed") throw new Error();
-    title = `${Number(data.points).toLocaleString()}P가 충전되었습니다.`;
-    description = `사용 가능 충전 포인트: ${Number(data.balances?.topupAvailable ?? 0).toLocaleString()}P`;
+    if (error) {
+      description = confirmationFailureCopy("topup", await readFunctionErrorCode(error));
+    } else {
+      ({ title, description } = topupConfirmationCopy(data, input.amount));
+    }
   } catch {
-    /* safe result */
+    description = "결제 결과 주소 또는 서버 응답을 확인하지 못했습니다. 충전 내역과 잔액을 다시 확인해 주세요.";
   }
 
   return (
@@ -44,8 +48,8 @@ export default async function ChargeSuccessPage({ searchParams }: { searchParams
           </header>
           <div className="payment-modal-body text-center">
             <div className="test-mode-banner mb-5 text-left">
-              <strong>테스트 결제</strong>
-              <span>실제 청구 없음</span>
+              <strong>포인트 충전 결과</strong>
+              <span>서버에서 확인한 승인 결과를 안내합니다.</span>
             </div>
 
             <h2 className="text-2xl font-extrabold text-navy mb-2">{title}</h2>

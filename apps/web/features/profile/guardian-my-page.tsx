@@ -1,8 +1,12 @@
 "use client";
+import { WalletBalanceGuide } from "../wallet/wallet-balance-guide";
+import { WalletUnavailable } from "@/features/wallet/wallet-unavailable";
+
+import { formatWalletPoints } from "../wallet/wallet-summary";
 
 import { useState } from "react";
 import Link from "next/link";
-import { CreditCard, ShieldCheck, History, Sparkles, Award, X } from "lucide-react";
+import { ShieldCheck, Sparkles, Award, X } from "lucide-react";
 import { DashboardShell } from "../../components/dashboard-shell";
 import { FamilyCodeIssuer } from "../family/family-link-panel";
 import { LinkedStudentsList } from "../family/linked-students-list";
@@ -20,10 +24,12 @@ interface GuardianMyPageProps {
   students: LinkedStudent[];
   studentLoadFailed: boolean;
   membershipStatus: MembershipStatusView;
-  walletSummary: WalletSummary;
+  walletSummary: WalletSummary | null;
+  walletCheckedAt?: string;
+  pendingRewardCount: number | null;
 }
 
-export function GuardianMyPage({ displayName, students, studentLoadFailed, membershipStatus, walletSummary }: GuardianMyPageProps) {
+export function GuardianMyPage({ displayName, students, studentLoadFailed, membershipStatus, walletSummary, walletCheckedAt, pendingRewardCount }: GuardianMyPageProps) {
   const [isTopupHistoryModalOpen, setIsTopupHistoryModalOpen] = useState(false);
   const [isBenefitModalOpen, setIsBenefitModalOpen] = useState(false);
   const showConnectionHeading = GUARDIAN_MY_CARDS.find((card) => card.label === "연결 학생")?.showHeading !== false;
@@ -36,6 +42,10 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed, membe
           <p>계정과 가족 연결, 포인트와 멤버십을 관리합니다.</p>
         </div>
       </div>
+
+      <WalletBalanceGuide summary={walletSummary} checkedAt={walletCheckedAt} />
+      <Link className="button secondary small" href="/wallet/history">전체 포인트 거래 내역</Link>
+      {!walletSummary && <WalletUnavailable checkedAt={walletCheckedAt} />}
 
       <section className="settings-grid">
         <article className="card">
@@ -88,13 +98,13 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed, membe
               <div className="sub-card flex items-center justify-between" style={{ background: "#EAF2FF", borderColor: "#C9DCFF" }}>
                 <div>
                   <span className="text-xs text-blue-600 font-bold block">학생 보상 가능 포인트</span>
-                  <strong className="text-xl font-extrabold text-navy block mt-1">{walletSummary.topupAvailable.toLocaleString()} P</strong>
+                  <strong className="text-xl font-extrabold text-navy block mt-1">{formatWalletPoints(walletSummary?.topupAvailable)}</strong>
                 </div>
                 <ShieldCheck className="w-6 h-6 text-blue-600" />
               </div>
               <div className="sub-card flex items-center justify-between">
                 <span className="text-xs text-muted font-bold">누적 지급 완료</span>
-                <strong className="text-base font-extrabold text-navy">{walletSummary.guardianRewardCompleted.toLocaleString()} P</strong>
+                <strong className="text-base font-extrabold text-navy">{formatWalletPoints(walletSummary?.guardianRewardCompleted)}</strong>
               </div>
             </div>
           </div>
@@ -139,11 +149,11 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed, membe
             <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="sub-card text-center">
                 <span className="text-xs text-muted font-bold block">연결 학생</span>
-                <strong className="text-xl font-extrabold text-navy block mt-1">{students.length}명</strong>
+                <strong className="text-xl font-extrabold text-navy block mt-1">{studentLoadFailed ? "확인 불가" : `${students.length}명`}</strong>
               </div>
               <div className="sub-card text-center">
-                <span className="text-xs text-muted font-bold block">오늘 완료 목표</span>
-                <strong className="text-xl font-extrabold text-navy block mt-1">0개</strong>
+                <span className="text-xs text-muted font-bold block">집중 기록</span>
+                <strong className="text-xl font-extrabold text-navy block mt-1"><Link href="/guardian/history">학생별 확인</Link></strong>
               </div>
             </div>
             <p className="text-xs text-muted mt-3">학생이 허용한 달성 여부와 총 집중 시간만 표시됩니다.</p>
@@ -157,9 +167,9 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed, membe
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="card-label">보상 요청 관리</span>
-              <span className="badge-pill inactive">대기 0건</span>
+              <span className="badge-pill inactive">{pendingRewardCount === null ? "확인 필요" : `대기 ${pendingRewardCount}건`}</span>
             </div>
-            <h2>대기 중인 요청이 없습니다.</h2>
+            <h2>{pendingRewardCount === null ? "보상 요청을 확인하지 못했습니다." : pendingRewardCount > 0 ? `${pendingRewardCount}개의 요청을 확인해 주세요.` : "대기 중인 요청이 없습니다."}</h2>
             <p>학생이 보상을 요청하면 이름과 요청 포인트를 확인하고 승인할 수 있습니다.</p>
             <div className="sub-card mt-4">
               <span className="text-xs text-muted font-bold block">보상 원칙</span>

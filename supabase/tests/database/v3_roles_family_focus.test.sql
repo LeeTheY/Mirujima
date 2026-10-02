@@ -1,7 +1,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
-select plan(36);
+select plan(37);
 
 select has_column('public', 'profiles', 'role', 'profiles has a role');
 select has_column('public', 'profiles', 'onboarding_completed', 'profiles tracks onboarding');
@@ -93,7 +93,8 @@ select is(
   'ready',
   'student stores a validated plan in cloud schedules'
 );
-select is(public.start_focus_session('schedule-web-1', 'web-test-device')->>'status', 'active', 'student starts a canonical focus session');
+select is(public.start_focus_session('schedule-web-1', 'web-test-device')->>'status', 'starting', 'student prepares a canonical focus session');
+select is(public.confirm_focus_enforcement((select entity_id from public.cloud_focus_sessions where payload->>'scheduleId'='schedule-web-1'),'extension-device')->>'status','active','extension application confirms the start');
 select is((select payload->>'ownerUserId' from public.cloud_schedules where entity_id = 'schedule-web-1'), '71111111-1111-4111-8111-111111111111', 'server fixes plan ownership to auth user');
 
 set local request.jwt.claim.sub = '74444444-4444-4444-8444-444444444444';

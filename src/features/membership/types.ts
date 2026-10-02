@@ -53,10 +53,12 @@ export const FREE_MEMBERSHIP: MembershipSnapshot = {
 
 export function hasPremiumEntitlement(
   membership: MembershipSnapshot,
-  feature: PremiumEntitlement
+  feature: PremiumEntitlement,
+  now = Date.now()
 ): boolean {
   return membership.plan === "premium"
     && membership.status === "active"
+    && Boolean(membership.currentPeriodEndsAt && Date.parse(membership.currentPeriodEndsAt) > now)
     && membership.entitlements.includes(feature);
 }
 

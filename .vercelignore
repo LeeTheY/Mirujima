@@ -1,0 +1,15 @@
+.git/
+node_modules/
+/dist/
+/src/
+/public/
+/supabase/
+/docs/
+/scripts/
+/.github/
+**/.env*
+**/.auth/
+**/.next/
+**/test-results/
+**/playwright-report/
+**/coverage/

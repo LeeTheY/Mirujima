@@ -1,0 +1,45 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path=public,extensions;
+select plan(12);
+insert into auth.users(id,email) values
+ ('f2111111-1111-4111-8111-111111111111','privacy-student@example.com'),
+ ('f2222222-2222-4222-8222-222222222222','privacy-guardian@example.com'),
+ ('f2333333-3333-4333-8333-333333333333','privacy-other@example.com');
+update public.profiles set role=case when id='f2222222-2222-4222-8222-222222222222' then 'guardian' else 'student' end,onboarding_completed=true where id in ('f2111111-1111-4111-8111-111111111111','f2222222-2222-4222-8222-222222222222','f2333333-3333-4333-8333-333333333333');
+insert into public.family_links(student_user_id,guardian_user_id,issuer_user_id,issuer_role,status,linked_at) values('f2111111-1111-4111-8111-111111111111','f2222222-2222-4222-8222-222222222222','f2111111-1111-4111-8111-111111111111','student','active',now());
+set local request.jwt.claim.sub='f2111111-1111-4111-8111-111111111111';
+set local role authenticated;
+select is(public.set_guardian_sharing_preferences('{"shareCompletion":false,"shareTotalFocusMinutes":false,"shareRewardStatus":false,"shareAiSummary":false}')->>'shareCompletion','false','student can revoke sharing');
+select is((select sharing_preferences->>'shareTotalFocusMinutes' from public.profiles where id=auth.uid()),'false','preferences persist in profile');
+select throws_ok($$select public.set_guardian_sharing_preferences('{"shareCompletion":"true","shareTotalFocusMinutes":true,"shareRewardStatus":true,"shareAiSummary":false}')$$,'P0001','invalid sharing preferences','string booleans rejected');
+reset role;
+set local request.jwt.claim.sub='f2222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select is(public.get_guardian_focus_history('f2111111-1111-4111-8111-111111111111','daily',current_date)#>'{summary,totalFocusMinutes}','null'::jsonb,'guardian history reflects revoked focus sharing');
+select throws_ok($$select public.set_guardian_sharing_preferences('{"shareCompletion":true,"shareTotalFocusMinutes":true,"shareRewardStatus":true,"shareAiSummary":true}')$$,'P0001','student role required','guardian cannot set student sharing');
+reset role;
+set local request.jwt.claim.sub='f2333333-3333-4333-8333-333333333333';
+set local role authenticated;
+select throws_ok($$select public.disconnect_family_link('f2111111-1111-4111-8111-111111111111')$$,'P0001','family link access denied','unrelated student cannot disconnect another student');
+reset role;
+insert into public.wallet_transactions(kind,status,from_user_id,to_user_id,from_bucket,to_bucket,points,idempotency_key,session_id) values('guardian_reward_requested','posted','f2111111-1111-4111-8111-111111111111','f2222222-2222-4222-8222-222222222222','external','external',1000,'privacy-request-1','privacy-session');
+set local request.jwt.claim.sub='f2111111-1111-4111-8111-111111111111';
+set local role authenticated;
+select throws_ok($$select public.disconnect_family_link(null)$$,'P0001','pending guardian rewards must be resolved','pending request blocks disconnect');
+reset role;
+insert into public.wallet_transactions(kind,status,from_user_id,to_user_id,from_bucket,to_bucket,points,idempotency_key,related_transaction_id,session_id) select 'guardian_deposit_reserved','posted','f2222222-2222-4222-8222-222222222222','f2222222-2222-4222-8222-222222222222','topup','reserved',1000,'privacy-reserve-1',id,'privacy-session' from public.wallet_transactions where idempotency_key='privacy-request-1';
+set local role authenticated;
+select throws_ok($$select public.disconnect_family_link(null)$$,'P0001','reserved guardian points must be settled','unsettled reservation blocks disconnect');
+reset role;
+insert into public.wallet_transactions(kind,status,from_user_id,to_user_id,from_bucket,to_bucket,points,idempotency_key,related_transaction_id,session_id) select 'guardian_deposit_returned','posted','f2222222-2222-4222-8222-222222222222','f2222222-2222-4222-8222-222222222222','reserved','topup',1000,'privacy-return-1',id,'privacy-session' from public.wallet_transactions where idempotency_key='privacy-reserve-1';
+set local role authenticated;
+select is(public.disconnect_family_link(null)->>'status','disconnected','settled relationship can disconnect');
+select is(public.disconnect_family_link(null)->>'status','disconnected','repeated disconnect is idempotent');
+reset role;
+select is((select count(*) from public.notifications where kind='family_disconnected'),2::bigint,'one notification per participant');
+set local request.jwt.claim.sub='f2222222-2222-4222-8222-222222222222';
+set local role authenticated;
+select throws_ok($$select public.get_guardian_focus_history('f2111111-1111-4111-8111-111111111111','daily',current_date)$$,'P0001','active family link required','guardian access ends after disconnect');
+select * from finish();
+rollback;

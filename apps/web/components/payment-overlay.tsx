@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 
@@ -26,13 +26,6 @@ export function PaymentOverlay({
     router.push(returnHref);
   }, [closeMode, returnHref, router]);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [close]);
 
   return (
     <div className="modal-overlay payment-modal-overlay" onClick={close}>
@@ -42,6 +35,7 @@ export function PaymentOverlay({
         className={`modal-content payment-modal-content ${wide ? "payment-modal-wide" : ""}`}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
+        tabIndex={-1}
       >
         <header className="payment-modal-header">
           <h1>{title}</h1>

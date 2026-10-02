@@ -4,7 +4,7 @@ import { completionPercentForGoals, parseFocusDraft, parseFocusGoals } from "./f
 describe("focus plan form", () => {
   it("normalizes valid input", () => {
     const result = parseFocusDraft({
-      title: "수학 문제 풀이",
+      dateKey: "2026-10-02", title: "수학 문제 풀이",
       targetFocusMinutes: "50",
       selfDepositPoints: "3000",
       breakMinutes: "10",
@@ -12,18 +12,25 @@ describe("focus plan form", () => {
       domains: "youtube.com, www.instagram.com",
     });
     expect(result).toEqual({
-      title: "수학 문제 풀이",
+      dateKey: "2026-10-02", title: "수학 문제 풀이",
       targetFocusMinutes: 50,
       selfDepositPoints: 3000,
       breakMinutes: 10,
       blockingMode: "blocklist",
       domains: ["youtube.com", "instagram.com"],
+      description: "", activityMode: "interactive", priority: "medium", guardianRewardRequestPoints: 0,
     });
+  });
+
+  it("rejects impossible dates and unsupported browser schemes", () => {
+    const base = { title: "공부", targetFocusMinutes: 50, selfDepositPoints: 0, breakMinutes: 10, blockingMode: "blocklist", domains: "youtube.com" };
+    expect(() => parseFocusDraft({ ...base, dateKey: "2026-02-30" })).toThrow("존재하는 날짜");
+    expect(() => parseFocusDraft({ ...base, dateKey: "2026-10-02", domains: "chrome://youtube.com" })).toThrow("HTTP");
   });
 
   it("rejects invalid duration", () => {
     expect(() => parseFocusDraft({
-      title: "공부",
+      dateKey: "2026-10-02", title: "공부",
       targetFocusMinutes: "0",
       selfDepositPoints: "0",
       breakMinutes: "10",
@@ -33,7 +40,7 @@ describe("focus plan form", () => {
   });
 
   it("rejects negative or fractional deposit points", () => {
-    const base = { title: "공부", targetFocusMinutes: "50", breakMinutes: "10", blockingMode: "off", domains: "" };
+    const base = { dateKey: "2026-10-02", title: "공부", targetFocusMinutes: "50", breakMinutes: "10", blockingMode: "off", domains: "" };
     expect(() => parseFocusDraft({ ...base, selfDepositPoints: "-1" })).toThrow("걸 포인트");
     expect(() => parseFocusDraft({ ...base, selfDepositPoints: "1.5" })).toThrow("걸 포인트");
   });

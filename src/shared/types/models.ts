@@ -1,3 +1,5 @@
+import type { FocusGoal, FocusSettlementResult } from "@mirujima/contracts";
+
 export type MainUI = "sidepanel" | "popup";
 export type ActivityMode = "interactive" | "reading" | "watching" | "offline";
 export type BlockingMode = "allowlist" | "blocklist" | "off";
@@ -38,6 +40,7 @@ export interface Schedule {
   priority?: "low" | "medium" | "high";
   selfDepositPoints?: number;
   guardianRewardRequestPoints?: number;
+  goals?: FocusGoal[];
   webStatus?: "draft" | "planned" | "ready" | "active" | "completed" | "failed" | "cancelled";
 }
 
@@ -59,6 +62,34 @@ export interface FocusSession {
   accumulatedBreakSeconds?: number;
   endsAt?: string;
   canonical?: boolean;
+  goals?: FocusGoal[];
+  result?: FocusSettlementResult | null;
+  activeSegmentStartedAt?: string | null;
+  remainingFocusSeconds?: number;
+  selfDepositPoints?: number;
+  depositPolicy?: { version: 1; mode: "tiered" } | { version: 2; mode: "all-or-none" };
+  canonicalStatus?: "starting" | "active" | "paused" | "awaiting-result" | "success" | "failed" | "cancelled";
+  canonicalUpdatedAt?: string;
+  enforcementDeadlineAt?: string | null;
+}
+
+export interface PendingCanonicalSettlement {
+  idempotencyKey: string;
+  sessionId: string;
+  scheduleId: string;
+  completedGoalIds: string[];
+  deviceId: string;
+  createdAt: string;
+  lastAttemptAt: string;
+  attempts: number;
+  ownerUserId?: string;
+}
+
+export interface ExternalRequestReceipt {
+  requestId: string;
+  userId: string;
+  processedAt: string;
+  response: Record<string, unknown>;
 }
 
 export type ActivityEventType =
@@ -192,4 +223,5 @@ export interface AppSnapshot {
   tabOrganizerSummary: TabOrganizerSummary;
   membership: import("../../features/membership/types").MembershipSnapshot;
   cloudSync: import("../../features/cloud-sync/types").CloudSyncSnapshot;
+  pendingCanonicalSettlements: PendingCanonicalSettlement[];
 }

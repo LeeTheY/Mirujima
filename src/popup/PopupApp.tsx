@@ -1,3 +1,4 @@
+import { ConnectionCard } from "../features/web-bridge/ConnectionCard";
 import { useEffect, useState } from "react";
 import { sendMessage } from "../shared/chrome/messaging";
 import { useApp } from "../shared/ui/AppContext";
@@ -64,8 +65,16 @@ export function PopupApp() {
             <button type="button" onClick={() => setLocalError(null)}>닫기</button>
           </div>
         )}
+        {snapshot.pendingCanonicalSettlements.length > 0 && (
+          <div className="action-error-banner" role="status">
+            <span>정산 요청을 안전하게 보관 중입니다. 연결이 복구되면 자동으로 다시 시도합니다.</span>
+          </div>
+        )}
         <div className="stack">
-          {session && schedule ? (
+          <ConnectionCard />
+          {session?.canonicalStatus === "starting" ? (
+            <article className="card"><h2>집중 준비 중</h2><p>차단 적용과 서버 확인을 기다리고 있습니다. 아직 집중 시간은 시작되지 않았습니다.</p><button className="button" onClick={() => openWebApp("/focus")}>웹에서 상태 확인</button></article>
+          ) : session && schedule ? (
             <article className="focus-timer-panel popup-focus-card">
               <div className="flex items-center justify-between w-full">
                 <span className="focus-section-label">
@@ -105,12 +114,16 @@ export function PopupApp() {
                 >
                   {organizingTabs ? "정리 중…" : "탭 정리"}
                 </button>
-                <button className="button" onClick={() => void finish("completed")}>
-                  완료
-                </button>
-                <button className="button danger" onClick={() => void finish("incomplete")}>
-                  종료
-                </button>
+                {session.canonical ? (
+                  <button className="button" onClick={openSidePanel} disabled={currentWindowId === null}>
+                    {remaining === 0 ? "목표별 결과 선택" : "집중 종료 선택"}
+                  </button>
+                ) : (
+                  <>
+                    <button className="button" onClick={() => void finish("completed")}>완료</button>
+                    <button className="button danger" onClick={() => void finish("incomplete")}>종료</button>
+                  </>
+                )}
               </div>
             </article>
           ) : (

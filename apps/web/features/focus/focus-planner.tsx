@@ -1,12 +1,39 @@
 "use client";
+import { aiCoachingErrorCopy } from "@/features/membership/ai-coaching-ui";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import type { CanonicalFocusSession, FocusPlan } from "@mirujima/contracts";
+import {
+  canonicalFocusSessionSchema,
+  completionPercentForGoals,
+  focusCoachRequestSchema,
+  focusCoachResultSchema,
+  type CanonicalFocusSession,
+  type FocusCoachResult,
+  type FocusPlan,
+  type PlannedGuardianReward,
+} from "@mirujima/contracts";
 import { createClient } from "@/lib/supabase/client";
-import { completionPercentForGoals, parseFocusDraft, parseFocusGoals } from "./focus-form";
-import { chromeExternalSender, pingExtension, requestFocusSync, requiresExtension } from "@/features/extension/bridge";
+import { cancelFocusPlan, loadFocusPlans, saveFocusPlan } from "./focus-plan-service";
+import { focusDraftFromPlan, focusPlanMatchesDraft, parseFocusDraft, parseFocusGoals } from "./focus-form";
+import { checkExtensionConnection, chromeExternalSender, requestFocusReconcile, requestFocusSync, requiresExtension } from "@/features/extension/bridge";
+import {
+  cancelCanonicalFocusStart,
+  finishCanonicalFocusSession,
+  getCanonicalFocusSession,
+  getCurrentCanonicalFocusSession,
+  pauseCanonicalFocusSession,
+  resumeCanonicalFocusSession,
+  startCanonicalFocusBreak,
+  type FocusRpcClient,
+} from "./canonical-focus-service";
+import { canonicalSessionIdFromRealtimePayload } from "./canonical-focus-realtime";
+import { ExtensionConnectionPanel } from "@/features/extension/connection-panel";
 import { Plus, Trash2, ArrowUp, ArrowDown, Sparkles, Shield, Flame, CheckCircle2, HelpCircle, X } from "lucide-react";
+import { dateKeyInTimeZone } from "@/features/history/history-query";
+import { requireOnlineAction } from "@/lib/online";
+
+import { getPlannedGuardianReward, requestPlannedGuardianReward, withdrawPlannedGuardianReward } from "../family/planned-reward-data";
 
 interface GoalItem {
   id: string;
@@ -16,28 +43,7 @@ interface GoalItem {
   priority: "low" | "medium" | "high";
 }
 
-interface FocusSettlementResult {
-  completionPercent: number;
-  earnedPoints: number;
-  returnedPoints: number;
-  completedGoalIds: string[];
-  completedGoalCount: number;
-  totalGoalCount: number;
-}
-
-interface ActiveFocusSession extends CanonicalFocusSession {
-  selfDepositPoints?: number;
-  result?: FocusSettlementResult | null;
-}
-
-interface FocusCoachResult {
-  summary: string;
-  recommendedTitle: string;
-  recommendedFocusMinutes: number;
-  recommendedBreakMinutes: number;
-  steps: string[];
-  reason: string;
-}
+type ActiveFocusSession = CanonicalFocusSession;
 
 interface RealismEvaluation {
   score: number;
@@ -98,13 +104,6 @@ function evaluateRealism(
   };
 }
 
-function localDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 const BLOCKLIST_PRESETS = [
   { label: "유튜브", domain: "youtube.com" },
   { label: "인스타그램", domain: "instagram.com" },
@@ -132,22 +131,40 @@ function getDeviceId(): string {
   return created;
 }
 
-export function FocusPlanner() {
+export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string }) {
+  const submitInFlight = useRef(false);
+  const pendingPlan = useRef<FocusPlan | null>(null);
+  const selectedPlan = useRef<FocusPlan | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const [status, setStatus] = useState<"idle" | "saving" | "active" | "completed" | "error">("idle");
+  const [status, setStatus] = useState<"recovering" | "idle" | "saving" | "starting" | "active" | "paused" | "awaiting-result" | "completed" | "error">("recovering");
   const [message, setMessage] = useState("사이트 차단 계획은 확장 프로그램 설치와 로그인 상태를 확인한 뒤 시작할 수 있습니다.");
+  const [breakSeconds, setBreakSeconds] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(50 * 60);
   const [activeSession, setActiveSession] = useState<ActiveFocusSession | null>(null);
   const [guardianRewardRequested, setGuardianRewardRequested] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiRecommendation, setAiRecommendation] = useState<FocusCoachResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [membershipModalOpen, setMembershipModalOpen] = useState(false);
   const [completedGoalIds, setCompletedGoalIds] = useState<string[]>([]);
 
+  const [savedPlan, setSavedPlan] = useState<FocusPlan | null>(null);
+  const [reward, setReward] = useState<PlannedGuardianReward | null>(null);
+  const [rewardBusy, setRewardBusy] = useState(false);
+  const [rewardMessage, setRewardMessage] = useState<string | null>(null);
+  const rewardMutation = useRef(false);
+  const rewardRevision = useRef(0);
+  const [savedPlans, setSavedPlans] = useState<FocusPlan[] | null>(null);
+  const [plansError, setPlansError] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
+  const [activityMode, setActivityMode] = useState<FocusPlan["activityMode"]>("interactive");
+  const [priority, setPriority] = useState<FocusPlan["priority"]>("medium");
+  const [guardianPoints, setGuardianPoints] = useState<number | "">(2000);
   const [title, setTitle] = useState("");
-  const [todayDate, setTodayDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [todayDate, setTodayDate] = useState(() => dateKeyInTimeZone(new Date(), timeZone));
   const [targetFocusMinutes, setTargetFocusMinutes] = useState<number | "">(50);
+  const [breakMinutes, setBreakMinutes] = useState<number | "">(10);
   const [selfDepositPoints, setSelfDepositPoints] = useState<number | "">(0);
   const [extensionConnected, setExtensionConnected] = useState<boolean | null>(null);
 
@@ -158,15 +175,244 @@ export function FocusPlanner() {
     { id: "goal-1", name: "", detail: "", minutes: 50, priority: "medium" },
   ]);
 
+  const onTimedBreak = status === "paused" && activeSession?.pauseKind === "break" && Boolean(activeSession.breakEndsAt);
+  const displaySeconds = onTimedBreak ? breakSeconds : remainingSeconds;
+  const hasCurrentSession = status === "starting" || status === "active" || status === "paused" || status === "awaiting-result";
+
+  const currentReward = reward?.scheduleId === savedPlan?.id ? reward : null;
+  const rewardLocked = currentReward?.status === "pending" || currentReward?.status === "approved";
+  const approvalRequired = guardianRewardRequested && Number(guardianPoints) > 0;
+  const approvedReward = currentReward?.status === "approved" && currentReward.points === savedPlan?.guardianRewardRequestPoints;
+
   useEffect(() => {
-    if (blockingMode === "off") {
-      return;
+    let live = true;
+    const plan = savedPlan;
+    const refresh = async () => {
+      if (!plan || plan.guardianRewardRequestPoints <= 0 || rewardMutation.current) return;
+      const revision = ++rewardRevision.current;
+      setRewardBusy(true);
+      try {
+        const next = await getPlannedGuardianReward(plan.id, plan.ownerUserId, createClient() as unknown as FocusRpcClient);
+        if (live && revision === rewardRevision.current) {
+          setReward(next); setRewardMessage(null);
+          if (next?.status === "pending" || next?.status === "approved") restorePlanFields(plan);
+        }
+      } catch (cause) {
+        if (live && revision === rewardRevision.current) setRewardMessage(cause instanceof Error ? cause.message : "보상 상태를 확인하지 못했습니다.");
+      } finally { if (live && revision === rewardRevision.current) setRewardBusy(false); }
+    };
+    const timer = window.setTimeout(() => { setReward(null); setRewardMessage(null); void refresh(); }, 0);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    return () => { live = false; window.clearTimeout(timer); window.removeEventListener("focus", refresh); window.removeEventListener("online", refresh); };
+  }, [savedPlan]);
+
+  async function manageReward(action: "request" | "refresh" | "withdraw") {
+    const plan = savedPlan;
+    if (!plan || hasCurrentSession || rewardMutation.current || submitInFlight.current) return;
+    rewardMutation.current = true; ++rewardRevision.current; setRewardBusy(true); setRewardMessage(null);
+    try {
+      requireOnlineAction("보호자 보상 요청 처리");
+      const client = createClient() as unknown as FocusRpcClient;
+      let next: PlannedGuardianReward | null;
+      if (action === "request") {
+        if (!formRef.current) return;
+        const draft = parseFocusDraft({ ...Object.fromEntries(new FormData(formRef.current)), guardianRewardRequestPoints: guardianRewardRequested ? guardianPoints : 0 });
+        if (!focusPlanMatchesDraft(plan, draft, parseFocusGoals(goals))) throw new Error("수정한 계획을 먼저 저장한 뒤 보상을 요청해 주세요.");
+        next = await requestPlannedGuardianReward(plan.id, plan.ownerUserId, client);
+      } else if (action === "withdraw" && currentReward) {
+        next = await withdrawPlannedGuardianReward(currentReward, client);
+      } else {
+        next = await getPlannedGuardianReward(plan.id, plan.ownerUserId, client);
+      }
+      if (selectedPlan.current?.id === plan.id) {
+        setReward(next);
+        if (action === "withdraw") setRewardMessage("보상 요청을 취소했습니다. 예약된 보호자 포인트는 반환되었습니다.");
+      }
+    } catch (cause) {
+      if (selectedPlan.current?.id === plan.id) setRewardMessage(cause instanceof Error ? cause.message : "보상 요청을 처리하지 못했습니다.");
+    } finally { rewardMutation.current = false; setRewardBusy(false); }
+  }
+
+  async function refreshPlans() {
+    try { setSavedPlans(await loadFocusPlans()); setPlansError(null); }
+    catch (error) { setPlansError(error instanceof Error ? error.message : "계획을 불러오지 못했습니다."); }
+  }
+
+  async function cancelSavedPlan(plan: FocusPlan) {
+    if (hasCurrentSession || submitInFlight.current) return;
+    submitInFlight.current = true; setStatus("saving");
+    try {
+      requireOnlineAction("계획 취소");
+      const cancelled = await cancelFocusPlan(plan, createClient() as unknown as FocusRpcClient);
+      setSavedPlans((plans) => (plans ?? []).map((item) => item.id === plan.id ? cancelled : item));
+      if (savedPlan?.id === plan.id) { selectedPlan.current = null; setSavedPlan(null); }
+      setStatus("idle"); setMessage("계획을 취소했습니다. 기록은 보존됩니다.");
+    } catch (error) { setStatus("error"); setMessage(error instanceof Error ? error.message : "계획을 취소하지 못했습니다."); }
+    finally { submitInFlight.current = false; }
+  }
+
+  function restorePlanFields(plan: FocusPlan) {
+    setTitle(plan.title); setTodayDate(plan.dateKey);
+    setDescription(plan.description); setActivityMode(plan.activityMode); setPriority(plan.priority);
+    setTargetFocusMinutes(plan.targetFocusMinutes); setBreakMinutes(plan.breakMinutes);
+    setSelfDepositPoints(plan.selfDepositPoints); setBlockingMode(plan.blockingMode);
+    setDomainsText((plan.blockingMode === "allowlist" ? plan.allowedDomains : plan.blockedDomains).map((rule) => rule.hostname).join("\n"));
+    setGuardianRewardRequested(plan.guardianRewardRequestPoints > 0);
+    setGuardianPoints(plan.guardianRewardRequestPoints || 2000);
+    setGoals(plan.goals.map((goal) => ({ ...goal })));
+  }
+
+  function openPlan(plan: FocusPlan) {
+    if (hasCurrentSession || status === "saving" || rewardMutation.current) return;
+    pendingPlan.current = null;
+    selectedPlan.current = plan;
+    setReward(null); setRewardMessage(null); setRewardBusy(plan.guardianRewardRequestPoints > 0);
+    setSavedPlan(plan); restorePlanFields(plan);
+    setRemainingSeconds(plan.targetFocusMinutes * 60); setCompletedGoalIds([]); setActiveSession(null);
+    setStatus("idle"); setMessage("저장한 계획을 열었습니다. 수정 후 저장하거나 집중을 시작하세요.");
+  }
+
+
+  function applyCanonicalSession(session: CanonicalFocusSession) {
+    setActiveSession(session);
+    setTargetFocusMinutes(session.targetFocusMinutes);
+    setSelfDepositPoints(session.selfDepositPoints);
+    setBlockingMode(session.blockingMode);
+    setGoals(session.goals.map((goal) => ({ ...goal })));
+    setCompletedGoalIds(session.result?.completedGoalIds ?? []);
+    if (selectedPlan.current?.id === session.scheduleId) setTitle(selectedPlan.current.title);
+    else if (!title.trim()) setTitle("진행 중인 집중 계획");
+    if (session.status === "success" || session.status === "failed" || session.status === "cancelled") {
+      setRemainingSeconds(0);
+      setStatus("completed");
+      setMessage(session.result
+        ? `집중 결과 ${session.result.completionPercent}% · ${session.result.earnedPoints.toLocaleString()}P 획득 · ${session.result.returnedPoints.toLocaleString()}P 반환`
+        : "집중 세션이 종료되었습니다.");
+    } else if (session.status === "starting") {
+      setRemainingSeconds(session.targetFocusMinutes * 60);
+      setStatus("starting");
+      setMessage("확장 프로그램의 차단 적용을 확인하고 있습니다. 준비가 끝나면 집중 시간이 시작됩니다.");
+    } else if (session.status === "paused") {
+      setRemainingSeconds(session.remainingFocusSeconds);
+      setStatus("paused");
+      setBreakSeconds(session.breakEndsAt ? Math.max(0, Math.ceil((Date.parse(session.breakEndsAt) - Date.now()) / 1000)) : 0);
+      setMessage(session.pauseKind === "break" ? "휴식 중에는 차단을 해제합니다. 남은 휴식 시간이 끝나면 자동으로 집중에 복귀합니다." : "일시정지된 집중 세션을 서버에서 복구했습니다.");
+    } else if (session.status === "awaiting-result") {
+      setRemainingSeconds(0);
+      setStatus("awaiting-result");
+      setMessage("목표 시간이 끝났습니다. 완료한 목표를 선택해 결과를 제출해 주세요.");
+    } else {
+      setRemainingSeconds(Math.max(0, Math.ceil((Date.parse(session.endsAt) - Date.now()) / 1000)));
+      setStatus("active");
+      setMessage("진행 중인 집중 세션을 서버에서 복구했습니다.");
     }
-    const extensionId = process.env.NEXT_PUBLIC_MIRUJIMA_EXTENSION_ID ?? "";
-    pingExtension(extensionId, chromeExternalSender)
-      .then((connected) => setExtensionConnected(connected))
-      .catch(() => setExtensionConnected(false));
-  }, [blockingMode]);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      getCurrentCanonicalFocusSession(),
+      loadFocusPlans().catch((error: unknown) => {
+        if (!cancelled) setPlansError(error instanceof Error ? error.message : "계획을 불러오지 못했습니다.");
+        return null;
+      }),
+    ])
+      .then(([session, plans]) => {
+        if (cancelled) return;
+        setSavedPlans(plans);
+        const currentPlan = session ? plans?.find((plan) => plan.id === session.scheduleId) : null;
+        if (currentPlan) openPlan(currentPlan);
+        if (session) applyCanonicalSession(session);
+        else setStatus("idle");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStatus("error");
+        setMessage("진행 중인 집중 세션을 불러오지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+      });
+    return () => { cancelled = true; };
+    // Initial canonical recovery must run only once for this mounted planner.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let disposed = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let refreshInFlight = false;
+    let queuedSessionId: string | null = null;
+
+    const refresh = async (sessionId: string) => {
+      queuedSessionId = sessionId;
+      if (refreshInFlight) return;
+      refreshInFlight = true;
+      try {
+        while (!disposed && queuedSessionId) {
+          const nextSessionId = queuedSessionId;
+          queuedSessionId = null;
+          const session = await getCanonicalFocusSession(
+            supabase as unknown as FocusRpcClient,
+            nextSessionId,
+          );
+          if (!disposed && session) applyCanonicalSession(session);
+        }
+      } catch {
+        if (!disposed) setMessage("서버 집중 상태가 변경됐지만 최신 상태를 불러오지 못했습니다. 잠시 후 다시 시도합니다.");
+      } finally {
+        refreshInFlight = false;
+      }
+    };
+
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (disposed || error || !data.user) return;
+      channel = supabase
+        .channel(`focus-session:${data.user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "cloud_focus_sessions",
+            filter: `user_id=eq.${data.user.id}`,
+          },
+          (payload) => {
+            const sessionId = canonicalSessionIdFromRealtimePayload(payload);
+            if (sessionId) void refresh(sessionId);
+          },
+        )
+        .subscribe();
+    });
+
+    return () => {
+      disposed = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+    // Realtime events are invalidations only; the RPC applies validated canonical state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+  useEffect(() => {
+    let disposed = false;
+    let busy = false;
+    const refresh = () => {
+      if (busy || document.visibilityState === "hidden") return;
+      busy = true;
+      void getCurrentCanonicalFocusSession().then((session) => { if (!disposed && session) applyCanonicalSession(session); })
+        .catch(() => { if (!disposed) setMessage("서버 집중 상태를 다시 확인하지 못했습니다. 연결 복구 후 다시 확인합니다."); })
+        .finally(() => { busy = false; });
+    };
+    window.addEventListener("online", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      disposed = true; window.removeEventListener("online", refresh); window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+    // Focus/reconnection events re-fetch canonical state after missed realtime messages.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleBlockingModeChange = (mode: "blocklist" | "allowlist" | "off") => {
     setBlockingMode(mode);
@@ -201,12 +447,36 @@ export function FocusPlanner() {
   useEffect(() => {
     if (status !== "active" || !activeSession) return;
     const updateRemaining = () => {
-      setRemainingSeconds(Math.max(0, Math.ceil((Date.parse(activeSession.endsAt) - Date.now()) / 1000)));
+      const next = Math.max(0, Math.ceil((Date.parse(activeSession.endsAt) - Date.now()) / 1000));
+      setRemainingSeconds(next);
+      if (next === 0) setStatus("awaiting-result");
     };
     updateRemaining();
     const timer = window.setInterval(updateRemaining, 1000);
     return () => window.clearInterval(timer);
   }, [activeSession, status]);
+
+  useEffect(() => {
+    if (!onTimedBreak || !activeSession?.breakEndsAt) return;
+    let disposed = false;
+    let busy = false;
+    let lastAttempt = 0;
+    const update = () => {
+      const seconds = Math.max(0, Math.ceil((Date.parse(activeSession.breakEndsAt!) - Date.now()) / 1000));
+      setBreakSeconds(seconds);
+      if (seconds > 0 || busy || Date.now() - lastAttempt < 5000) return;
+      busy = true; lastAttempt = Date.now();
+      void getCanonicalFocusSession(createClient() as unknown as FocusRpcClient, activeSession.id).then((session) => {
+        if (!disposed && session) applyCanonicalSession(session);
+      }).catch(() => { if (!disposed) setMessage("휴식 시간이 끝났습니다. 연결이 복구되면 서버 상태를 다시 확인합니다. 확장 프로그램은 저장된 종료 시각에 따라 차단을 복구합니다."); })
+        .finally(() => { busy = false; });
+    };
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => { disposed = true; window.clearInterval(timer); };
+    // Server state, rather than a local UI timer, confirms automatic resumption.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onTimedBreak, activeSession?.id, activeSession?.breakEndsAt]);
 
   const addGoal = () => {
     setGoals((prev) => [
@@ -236,99 +506,165 @@ export function FocusPlanner() {
     );
   };
 
-  async function submit(formData: FormData) {
+  async function submit(formData: FormData, start = true) {
+    if (activeSession && hasCurrentSession) {
+      setMessage("진행 중인 집중 세션을 먼저 완료해 주세요.");
+      return;
+    }
+    if (submitInFlight.current || rewardMutation.current) return;
+    submitInFlight.current = true;
     setStatus("saving");
+    let requestedSession: CanonicalFocusSession | null = null;
     try {
-      const draft = parseFocusDraft(Object.fromEntries(formData));
-      const validatedGoals = parseFocusGoals(goals);
+      requireOnlineAction("집중 계획 저장과 시작");
+      if (start && approvalRequired && (!approvedReward || !savedPlan)) throw new Error("계획을 저장하고 보호자 보상 승인을 받은 뒤 집중을 시작해 주세요.");
+      const approvedPlan = start && approvedReward ? savedPlan : null;
+      const draft = approvedPlan ? focusDraftFromPlan(approvedPlan) : parseFocusDraft({ ...Object.fromEntries(formData), guardianRewardRequestPoints: guardianRewardRequested ? guardianPoints : 0 });
+      if (guardianRewardRequested && draft.guardianRewardRequestPoints < 1) throw new Error("보호자 보상 요청 금액은 1P 이상이어야 합니다.");
+      const validatedGoals = approvedPlan ? approvedPlan.goals : parseFocusGoals(goals);
       const supabase = createClient();
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) throw new Error("Google 로그인 후 집중을 시작해 주세요.");
 
       const extensionId = process.env.NEXT_PUBLIC_MIRUJIMA_EXTENSION_ID ?? "";
-      if (requiresExtension(draft.blockingMode)) {
-        const connected = await pingExtension(extensionId, chromeExternalSender);
-        if (!connected) throw new Error("미루지마 확장 프로그램과 연결되지 않았습니다. 확장 프로그램을 실행한 뒤 다시 시도해 주세요.");
+      if (start && requiresExtension(draft.blockingMode)) {
+        const connection = await checkExtensionConnection(extensionId, chromeExternalSender, authData.user.id);
+        setExtensionConnected(connection.status === "connected");
+        if (connection.status !== "connected") throw new Error(connection.message);
       }
 
+      const existing = await getCurrentCanonicalFocusSession(supabase as unknown as FocusRpcClient);
+      if (existing && ["starting", "active", "paused", "awaiting-result"].includes(existing.status)) {
+        applyCanonicalSession(existing);
+        return;
+      }
       const now = new Date();
-      const scheduleId = crypto.randomUUID();
-      const rules = draft.domains.map((hostname) => ({ hostname, includeSubdomains: true }));
+      const scheduleId = savedPlan?.id ?? pendingPlan.current?.id ?? crypto.randomUUID();
+      const existingRules = draft.blockingMode === "allowlist" ? savedPlan?.allowedDomains : savedPlan?.blockedDomains;
+      const rules = [...new Set(draft.domains)].map((hostname) => ({ hostname, includeSubdomains: existingRules?.find((rule) => rule.hostname === hostname)?.includeSubdomains ?? true }));
       const plan: FocusPlan = {
         id: scheduleId,
         ownerUserId: authData.user.id,
         title: draft.title || goals[0]?.name || "오늘의 집중 계획",
-        description: "",
-        dateKey: localDateKey(now),
-        plannedStartAt: null,
+        description: draft.description,
+        dateKey: draft.dateKey,
+        plannedStartAt: savedPlan?.plannedStartAt ?? null,
         targetFocusMinutes: draft.targetFocusMinutes,
-        activityMode: "interactive",
+        activityMode: draft.activityMode,
         blockingMode: draft.blockingMode,
-        allowedDomains: draft.blockingMode === "allowlist" ? rules : [],
-        blockedDomains: draft.blockingMode === "blocklist" ? rules : [],
+        allowedDomains: draft.blockingMode === "allowlist" ? rules : savedPlan?.allowedDomains ?? [],
+        blockedDomains: draft.blockingMode === "blocklist" ? rules : savedPlan?.blockedDomains ?? [],
         breakMinutes: draft.breakMinutes,
-        priority: "medium",
+        priority: draft.priority,
         selfDepositPoints: draft.selfDepositPoints,
-        guardianRewardRequestPoints: guardianRewardRequested ? 2000 : 0,
+        guardianRewardRequestPoints: draft.guardianRewardRequestPoints,
         goals: validatedGoals,
-        status: "ready",
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
+        status: start ? "ready" : "planned",
+        createdAt: savedPlan?.createdAt ?? pendingPlan.current?.createdAt ?? now.toISOString(),
+        updatedAt: savedPlan?.updatedAt ?? pendingPlan.current?.updatedAt ?? now.toISOString(),
       };
       const deviceId = getDeviceId();
-      const { error: saveError } = await supabase.rpc("upsert_focus_plan", {
-        p_schedule_id: scheduleId,
-        p_payload: plan,
-        p_device_id: deviceId,
-      });
-      if (saveError) throw new Error("계획을 저장하지 못했습니다. 입력 내용을 확인하고 다시 시도해 주세요.");
+      pendingPlan.current = plan;
+      const saved = approvedPlan ?? await saveFocusPlan(plan, deviceId, supabase as unknown as FocusRpcClient);
+      pendingPlan.current = null;
+      selectedPlan.current = saved;
+      setSavedPlan(saved);
+      setPlansError(null);
+      setSavedPlans((plans) => [saved, ...(plans ?? []).filter((item) => item.id !== saved.id)]);
+      if (!start) {
+        setStatus("idle"); setMessage("계획을 저장했습니다. 포인트 예약과 사이트 차단은 집중을 시작할 때 적용됩니다.");
+        return;
+      }
 
       const { data, error: startError } = await supabase.rpc("start_focus_session", {
         p_schedule_id: scheduleId,
         p_device_id: deviceId,
       });
       if (startError) {
+        if (startError.message.includes("guardian approval required")) throw new Error("보호자 승인 상태가 변경됐습니다. 보상 상태를 다시 확인해 주세요.");
         if (startError.message.includes("insufficient topup points")) {
           throw new Error("걸 포인트보다 사용 가능한 충전 포인트가 부족합니다.");
         }
+        if (startError.message.includes("active guardian link required")) {
+          throw new Error("보호자 보상을 요청하려면 먼저 보호자 계정을 연결해 주세요.");
+        }
         throw new Error("집중 세션을 시작하지 못했습니다. 진행 중인 세션이 있는지 확인해 주세요.");
       }
-      const session = data as CanonicalFocusSession;
+      const session = canonicalFocusSessionSchema.parse(data);
+      requestedSession = session;
       if (requiresExtension(draft.blockingMode)) {
         await requestFocusSync(extensionId, chromeExternalSender, scheduleId, session.id);
       }
-      setActiveSession(session);
-      setCompletedGoalIds([]);
-      setRemainingSeconds(Math.max(0, Math.ceil((Date.parse(session.endsAt) - Date.now()) / 1000)));
-      setStatus("active");
+      const confirmed = await getCanonicalFocusSession(supabase as unknown as FocusRpcClient, session.id);
+      if (!confirmed || confirmed.status !== "active") throw new Error("차단 적용 후 서버 시작 상태를 확인하지 못했습니다.");
+      applyCanonicalSession(confirmed);
       setMessage(draft.selfDepositPoints > 0
-        ? `${draft.selfDepositPoints.toLocaleString()}P가 충전 포인트에서 안전하게 예약되었습니다.`
+        ? `${draft.selfDepositPoints.toLocaleString()}P가 예약되었고 집중 세션이 시작되었습니다.`
         : "집중 세션이 시작되었습니다. 타이머 기준 시각은 서버에 저장되었습니다.");
     } catch (error) {
+      const failureMessage = error instanceof Error ? error.message : "집중 준비 중 문제가 발생했습니다.";
+      try {
+        const client = createClient() as unknown as FocusRpcClient;
+        let latest = requestedSession ? await getCanonicalFocusSession(client, requestedSession.id) : await getCurrentCanonicalFocusSession(client);
+        if (requestedSession && latest?.status === "starting") latest = await cancelCanonicalFocusStart(client, latest.id, getDeviceId());
+        if (latest) {
+          applyCanonicalSession(latest);
+          setMessage(latest.status === "cancelled"
+            ? `${failureMessage} 시작 준비를 취소했고 예약 포인트를 반환했습니다.`
+            : `${failureMessage} 서버에 저장된 세션 상태를 복구했습니다.`);
+          const extensionId = process.env.NEXT_PUBLIC_MIRUJIMA_EXTENSION_ID ?? "";
+          if (latest.status === "cancelled" && extensionId) void requestFocusReconcile(extensionId, chromeExternalSender, latest.scheduleId, latest.id).catch(() => undefined);
+          return;
+        }
+      } catch {
+        if (requestedSession) {
+          applyCanonicalSession(requestedSession);
+          setMessage(`${failureMessage} 서버 확인이 지연되고 있습니다. 세션 상태를 다시 확인해 주세요. 포인트 반환은 아직 확정되지 않았습니다.`);
+          return;
+        }
+      }
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "집중 준비 중 문제가 발생했습니다. 다시 시도해 주세요.");
+      setMessage(failureMessage);
+    } finally {
+      submitInFlight.current = false;
+    }
+  }
+
+  async function retryStartingFocus(cancel = false) {
+    if (!activeSession || activeSession.status !== "starting") return;
+    const session = activeSession;
+    setStatus("saving");
+    try {
+      requireOnlineAction("집중 시작 상태 확인");
+      const client = createClient() as unknown as FocusRpcClient;
+      if (cancel) {
+        applyCanonicalSession(await cancelCanonicalFocusStart(client, session.id, getDeviceId()));
+        const extensionId = process.env.NEXT_PUBLIC_MIRUJIMA_EXTENSION_ID ?? "";
+        if (extensionId) void requestFocusReconcile(extensionId, chromeExternalSender, session.scheduleId, session.id).catch(() => undefined);
+      } else {
+        await requestFocusSync(process.env.NEXT_PUBLIC_MIRUJIMA_EXTENSION_ID ?? "", chromeExternalSender, session.scheduleId, session.id);
+        const latest = await getCanonicalFocusSession(client, session.id);
+        if (!latest) throw new Error("세션 상태를 확인하지 못했습니다.");
+        applyCanonicalSession(latest);
+      }
+    } catch (error) {
+      setStatus("starting");
+      setMessage(error instanceof Error ? error.message : "시작 상태를 확인하지 못했습니다. 다시 시도해 주세요.");
     }
   }
 
   async function finish(goalIds: string[]) {
     if (!activeSession) return;
+    const fallbackStatus = remainingSeconds > 0 ? "active" : "awaiting-result";
     setStatus("saving");
     try {
-      const { data, error } = await createClient().rpc("finish_focus_session", {
-        p_session_id: activeSession.id,
-        p_completed_goal_ids: goalIds,
-        p_device_id: getDeviceId(),
-      });
-      if (error) {
-        if (error.message.includes("has not reached target time")) {
-          throw new Error("목표 시간이 끝난 뒤 완료한 목표를 제출할 수 있습니다.");
-        }
-        if (error.message.includes("invalid completed goal")) {
-          throw new Error("목표 정보가 변경되었습니다. 세션을 새로 불러온 뒤 다시 시도해 주세요.");
-        }
-        throw new Error("집중 결과와 포인트를 정산하지 못했습니다. 다시 시도해 주세요.");
-      }
-      const settled = data as ActiveFocusSession;
+      requireOnlineAction("집중 결과 정산");
+      const settled = await finishCanonicalFocusSession(
+        createClient() as unknown as FocusRpcClient,
+        activeSession.id,
+        goalIds,
+        getDeviceId(),
+      );
       const result = settled.result;
       setActiveSession(settled);
       setRemainingSeconds(0);
@@ -336,9 +672,62 @@ export function FocusPlanner() {
       setMessage(result
         ? `${result.totalGoalCount}개 중 ${result.completedGoalCount}개 완료 · ${result.completionPercent}%: ${result.earnedPoints.toLocaleString()}P 획득, ${result.returnedPoints.toLocaleString()}P 충전 포인트 반환`
         : "집중 결과 정산이 완료되었습니다.");
+      const extensionId = process.env.NEXT_PUBLIC_MIRUJIMA_EXTENSION_ID ?? "";
+      if (extensionId) {
+        void requestFocusReconcile(extensionId, chromeExternalSender, settled.scheduleId, settled.id).catch(() => undefined);
+      }
+    } catch (error) {
+      setStatus(fallbackStatus);
+      setMessage(error instanceof Error ? error.message : "집중 결과 정산 중 문제가 발생했습니다.");
+    }
+  }
+
+  async function pauseFocus() {
+    if (!activeSession || status !== "active") return;
+    setStatus("saving");
+    try {
+      requireOnlineAction("집중 일시정지");
+      const session = await pauseCanonicalFocusSession(
+        createClient() as unknown as FocusRpcClient,
+        activeSession.id,
+        getDeviceId(),
+      );
+      applyCanonicalSession(session);
     } catch (error) {
       setStatus("active");
-      setMessage(error instanceof Error ? error.message : "집중 결과 정산 중 문제가 발생했습니다.");
+      setMessage(error instanceof Error ? error.message : "집중 세션을 일시정지하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+    }
+  }
+
+  async function startBreak() {
+    if (!activeSession || status !== "active") return;
+    setStatus("saving");
+    try {
+      requireOnlineAction("휴식 시작");
+      applyCanonicalSession(await startCanonicalFocusBreak(createClient() as unknown as FocusRpcClient, activeSession.id, getDeviceId(), crypto.randomUUID()));
+    } catch {
+      try {
+        const latest = await getCanonicalFocusSession(createClient() as unknown as FocusRpcClient, activeSession.id);
+        if (latest) { applyCanonicalSession(latest); setMessage(latest.pauseKind === "break" ? "서버에서 휴식 시작을 확인했습니다." : "휴식이 시작되지 않았습니다. 남은 휴식 시간과 연결을 확인해 주세요."); return; }
+      } catch { /* Leave state uncertainty visible until reconnection fetches the canonical session. */ }
+      setStatus("active"); setMessage("휴식 시작 여부를 확인하지 못했습니다. 연결이 복구되면 서버 상태를 다시 확인합니다.");
+    }
+  }
+
+  async function resumeFocus() {
+    if (!activeSession || status !== "paused") return;
+    setStatus("saving");
+    try {
+      requireOnlineAction("집중 재개");
+      const session = await resumeCanonicalFocusSession(
+        createClient() as unknown as FocusRpcClient,
+        activeSession.id,
+        getDeviceId(),
+      );
+      applyCanonicalSession(session);
+    } catch (error) {
+      setStatus("paused");
+      setMessage(error instanceof Error ? error.message : "집중 세션을 재개하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
     }
   }
 
@@ -355,32 +744,48 @@ export function FocusPlanner() {
 
   async function requestAiRecommendation() {
     setAiBusy(true);
+    setAiError(null);
     try {
+      requireOnlineAction("AI 집중 계획 추천");
       const form = formRef.current ? new FormData(formRef.current) : new FormData();
+      const requestBody = focusCoachRequestSchema.parse({
+        action: "focus-coach",
+        title: String(form.get("title") ?? goals[0]?.name ?? "오늘의 집중 계획"),
+        targetFocusMinutes: Number(form.get("targetFocusMinutes") ?? 50),
+        goals: goals.map(({ name, detail, minutes }) => ({ name: name || "집중 목표", detail, minutes: Number(minutes) })),
+      });
       const { data, error } = await createClient().functions.invoke("ai-writing", {
-        body: {
-          action: "focus-coach",
-          title: String(form.get("title") ?? goals[0]?.name ?? "오늘의 집중 계획"),
-          targetFocusMinutes: Number(form.get("targetFocusMinutes") ?? 50),
-          goals: goals.map(({ name, detail, minutes }) => ({ name: name || "집중 목표", detail, minutes })),
-        },
+        body: requestBody,
       });
       if (error) {
         const context = error.context;
         const body = await context?.json?.().catch(() => null) as { error?: string } | null;
-        if (body?.error === "membership_entitlement_required" || context?.status === 403) {
+        if (body?.error === "membership_entitlement_required") {
           setMembershipModalOpen(true);
           return;
         }
+        if (["ai_timeout", "authentication_required", "ai_role_required", "ai_entitlement_required"].includes(body?.error ?? "")) throw new Error(aiCoachingErrorCopy(body!.error!));
+        if (body?.error === "rate_limited") throw new Error("AI 추천 요청 한도를 넘었습니다. 1분 뒤 다시 시도해 주세요.");
+        if (body?.error === "invalid_ai_result") throw new Error("AI 추천 결과 형식을 확인하지 못했습니다. 입력은 그대로 유지되며 다시 시도할 수 있습니다.");
         throw new Error("AI 추천을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
       }
-      if (!data || typeof data !== "object" || !Array.isArray(data.steps)) throw new Error("AI 추천 결과를 확인하지 못했습니다.");
-      setAiRecommendation(data as FocusCoachResult);
+      const parsed = focusCoachResultSchema.safeParse(data);
+      if (!parsed.success) throw new Error("AI 추천 결과 형식을 확인하지 못했습니다. 입력은 그대로 유지되며 다시 시도할 수 있습니다.");
+      setAiRecommendation(parsed.data);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "AI 추천을 불러오지 못했습니다.");
+      setAiError(error instanceof Error ? error.message : "AI 추천을 불러오지 못했습니다.");
     } finally {
       setAiBusy(false);
     }
+  }
+
+  function applyAiRecommendation() {
+    if (!aiRecommendation) return;
+    setTitle(aiRecommendation.recommendedTitle);
+    setTargetFocusMinutes(aiRecommendation.recommendedFocusMinutes);
+    setBreakMinutes(Math.max(1, aiRecommendation.recommendedBreakMinutes));
+    setAiError(null);
+    setMessage("AI 추천의 계획명과 시간만 적용했습니다. 목표와 포인트를 확인한 뒤 직접 계획을 확정해 주세요.");
   }
 
   const settlementGoals = activeSession?.goals ?? [];
@@ -404,8 +809,33 @@ export function FocusPlanner() {
         </button>
       </div>
 
+      <section className="card focus-saved-plans" aria-label="저장한 계획">
+        <h2>저장한 계획</h2>
+        <button type="button" className="button secondary small" onClick={() => void refreshPlans()}>목록 새로고침</button>
+        <button type="button" className="button secondary small" disabled={hasCurrentSession || status === "saving"} onClick={() => {
+          pendingPlan.current = null;
+          selectedPlan.current = null;
+          setSavedPlan(null); setTitle(""); setDescription(""); setTodayDate(dateKeyInTimeZone(new Date(), timeZone));
+          setActivityMode("interactive"); setPriority("medium"); setTargetFocusMinutes(50); setBreakMinutes(10);
+          setSelfDepositPoints(0); setGuardianRewardRequested(false); setGuardianPoints(2000);
+          setBlockingMode("blocklist"); setDomainsText("youtube.com\ninstagram.com");
+          setActiveSession(null); setCompletedGoalIds([]); setRemainingSeconds(50 * 60);
+          setGoals([{ id: crypto.randomUUID(), name: "", detail: "", minutes: 50, priority: "medium" }]);
+          setStatus("idle"); setMessage("새 계획을 작성하고 있습니다.");
+        }}>새 계획 작성</button>
+        {plansError ? <p role="alert">{plansError}</p> : savedPlans === null ? <p>저장한 계획을 불러오는 중입니다.</p> : savedPlans.length === 0 ? <p>저장한 계획이 없습니다.</p> : (
+          <ul className="focus-saved-plan-list">{savedPlans.map((plan) => <li key={plan.id}>
+            <button className="button secondary" type="button" disabled={hasCurrentSession || status === "saving" || !["draft", "planned", "ready"].includes(plan.status)} onClick={() => openPlan(plan)}>
+              {plan.title} · {plan.dateKey} · {plan.targetFocusMinutes}분 · {plan.status === "planned" || plan.status === "draft" || plan.status === "ready" ? "준비" : plan.status === "completed" ? "완료" : plan.status === "active" ? "진행 중" : "종료"}
+            </button>
+            {["draft", "planned", "ready"].includes(plan.status) ? <button className="button secondary small" type="button" disabled={hasCurrentSession || status === "saving"} onClick={() => void cancelSavedPlan(plan)}>계획 취소</button> : null}
+          </li>)}</ul>
+        )}
+        {savedPlan ? <p>편집 중: {savedPlan.title}</p> : null}
+      </section>
       <section className="focus-layout">
-        <form ref={formRef} className="card focus-form" action={submit}>
+        <form ref={formRef} className="card focus-form" action={(data) => submit(data)}>
+          <fieldset className="focus-plan-fields" disabled={hasCurrentSession || status === "saving" || status === "recovering" || rewardLocked || rewardBusy}>
           <div className="border-b border-gray-800 pb-3 mb-2">
             <span className="card-label">일일 계획 수립</span>
             <h2>오늘의 집중 계획 작성</h2>
@@ -427,8 +857,37 @@ export function FocusPlanner() {
               계획 날짜
               <input
                 type="date"
+                name="dateKey"
+                required
                 value={todayDate}
                 onChange={(e) => setTodayDate(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <label>계획 설명<textarea name="description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000} /></label>
+          <div className="field-row">
+            <label>활동 방식<select name="activityMode" value={activityMode} onChange={(event) => setActivityMode(event.target.value as FocusPlan["activityMode"])}>
+              <option value="interactive">문제 풀이·작업</option><option value="reading">읽기</option><option value="watching">강의 시청</option><option value="offline">오프라인 학습</option>
+            </select></label>
+            <label>계획 우선순위<select name="priority" value={priority} onChange={(event) => setPriority(event.target.value as FocusPlan["priority"])}>
+              <option value="low">낮음</option><option value="medium">보통</option><option value="high">높음</option>
+            </select></label>
+          </div>
+          <div className="field-row">
+            <label>
+              기본 휴식 시간 (분)
+              <input
+                name="breakMinutes"
+                type="number"
+                value={breakMinutes}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setBreakMinutes(value === "" ? "" : Math.max(1, Number(value)));
+                }}
+                min="1"
+                max="120"
+                placeholder="예: 10"
               />
             </label>
           </div>
@@ -479,6 +938,8 @@ export function FocusPlanner() {
               {guardianRewardRequested ? "보상 요청 켜짐" : "보상 요청 꺼짐"}
             </button>
           </div>
+
+          {guardianRewardRequested ? <label>보호자 보상 요청 금액 (P)<input type="number" min="1" max="1000000000" step="1" value={guardianPoints} onChange={(event) => setGuardianPoints(event.target.value === "" ? "" : Number(event.target.value))} /></label> : null}
 
           {(() => {
             const realism = evaluateRealism(title, targetFocusMinutes, goals);
@@ -672,10 +1133,30 @@ export function FocusPlanner() {
             </div>
           )}
 
+          </fieldset>
+          {guardianRewardRequested && !hasCurrentSession ? <section className="sub-card" aria-label="보호자 보상 승인">
+            <h3>집중 시작 전 보호자 승인</h3>
+            <p>계획 저장 → 보상 요청 → 보호자 승인 → 집중 시작 순서로 진행합니다. 요청 중에는 계획을 수정할 수 없습니다.</p>
+            <p role="status">{rewardBusy ? "보상 상태 확인 중…" : currentReward ? `${currentReward.points.toLocaleString()}P · ${{ pending: "승인 대기", approved: "승인 완료 · 포인트 예약", started: "집중 시작됨", completed: "지급 완료", returned: "예약 포인트 반환", declined: "거절 또는 요청 취소" }[currentReward.status]}` : "저장한 계획의 보상을 요청해 주세요."}</p>
+            {rewardMessage ? <p role="alert">{rewardMessage}</p> : null}
+            <div className="focus-actions-row">
+              <button className="button secondary small" type="button" disabled={!savedPlan || savedPlan.guardianRewardRequestPoints <= 0 || rewardBusy || rewardLocked || status === "saving"} onClick={() => void manageReward("request")}>보상 요청 보내기</button>
+              <button className="button secondary small" type="button" disabled={!savedPlan || rewardBusy || status === "saving"} onClick={() => void manageReward("refresh")}>승인 상태 확인</button>
+              {rewardLocked ? <button className="button secondary small" type="button" disabled={rewardBusy || status === "saving"} onClick={() => void manageReward("withdraw")}>보상 요청 취소</button> : null}
+            </div>
+          </section> : null}
+          {blockingMode !== "off" && <ExtensionConnectionPanel onConnectionChange={setExtensionConnected} />}
+
           <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
             <strong>
-              {status === "active"
+              {status === "recovering"
+                ? "진행 중인 세션 확인"
+                : status === "active"
                 ? "집중 시작 완료"
+                : status === "paused"
+                ? "집중 일시정지"
+                : status === "awaiting-result"
+                ? "집중 결과 확인"
                 : status === "saving"
                 ? "집중 준비 중"
                 : "확장 프로그램 연결"}
@@ -690,14 +1171,26 @@ export function FocusPlanner() {
               <p><b>권장 시간:</b> 집중 {aiRecommendation.recommendedFocusMinutes}분 · 휴식 {aiRecommendation.recommendedBreakMinutes}분</p>
               <ol>{aiRecommendation.steps.map((step) => <li key={step}>{step}</li>)}</ol>
               <p>{aiRecommendation.reason}</p>
+              <button className="button secondary small" type="button" disabled={hasCurrentSession || rewardLocked || rewardBusy} onClick={applyAiRecommendation}>추천 계획명·시간 적용</button>
             </div>
           ) : null}
 
+          {aiError ? <div className="notice error" role="alert"><strong>AI 추천을 표시하지 못했습니다.</strong><p>{aiError}</p></div> : null}
+
           <div className="focus-actions-row">
-            <button className="button full" type="submit" disabled={status === "saving"}>
-              {status === "saving" ? "확인하고 있습니다..." : "계획 확정 및 집중 준비"}
+            <button className="button secondary full" type="button" disabled={status === "saving" || status === "recovering" || hasCurrentSession || rewardLocked || rewardBusy} onClick={() => {
+              if (formRef.current?.reportValidity()) void submit(new FormData(formRef.current), false);
+            }}>계획 저장</button>
+            <button className="button full" type="submit" disabled={status === "saving" || status === "recovering" || hasCurrentSession || rewardBusy || (approvalRequired && !approvedReward)}>
+              {status === "recovering"
+                ? "진행 중인 세션 확인 중..."
+                : hasCurrentSession
+                ? "진행 중인 세션을 먼저 완료해 주세요"
+                : status === "saving"
+                ? "확인하고 있습니다..."
+                : approvedReward ? "승인된 계획으로 집중 시작" : approvalRequired ? "보호자 승인 후 시작 가능" : "저장하고 집중 시작"}
             </button>
-            <button className="button secondary full" type="button" disabled={aiBusy} onClick={() => void requestAiRecommendation()}>
+            <button className="button secondary full" type="button" disabled={aiBusy || hasCurrentSession || rewardLocked || rewardBusy} onClick={() => void requestAiRecommendation()}>
               <Sparkles className="w-4 h-4 text-blue-400" />
               <span>{aiBusy ? "AI 추천 생성 중…" : "AI 스마트 추천"}</span>
             </button>
@@ -707,27 +1200,33 @@ export function FocusPlanner() {
         <aside className="timer-preview">
           <div className="timer-top">
             <span>FOCUS SESSION</span>
-            <span className={`status-dot ${status === "active" ? "" : "idle"}`}>
+            <span className={`status-dot ${hasCurrentSession ? "" : "idle"}`}>
               <Flame className="w-3.5 h-3.5 inline" />
-              {status === "active" ? "집중 중" : "준비 전"}
+              {status === "starting" ? "차단 적용 확인" : status === "active" ? "집중 중" : status === "paused" ? onTimedBreak ? "휴식 중" : "일시정지" : status === "awaiting-result" ? "결과 확인" : "준비 전"}
             </span>
           </div>
 
           <strong>
-            {status === "active"
-              ? `${String(Math.floor(remainingSeconds / 60)).padStart(2, "0")}:${String(remainingSeconds % 60).padStart(2, "0")}`
+            {hasCurrentSession
+              ? `${String(Math.floor(displaySeconds / 60)).padStart(2, "0")}:${String(displaySeconds % 60).padStart(2, "0")}`
               : `${String(Number(targetFocusMinutes) || 0).padStart(2, "0")}:00`}
           </strong>
           <p>
-            {status === "active"
-              ? "확장 프로그램에서도 같은 세션을 확인할 수 있습니다."
+            {status === "starting"
+              ? "차단 적용을 확인할 때까지 집중 시간은 차감되지 않습니다."
+              : status === "active"
+              ? "웹과 확장 프로그램이 같은 서버 세션을 사용합니다."
+              : status === "paused"
+              ? onTimedBreak ? "남은 휴식 시간이 끝나면 차단과 집중 타이머가 자동으로 복구됩니다." : "남은 시간이 서버에 보존되었습니다. 재개하면 이어서 진행합니다."
+              : status === "awaiting-result"
+              ? "완료한 세부 목표를 선택해 포인트 정산을 마쳐 주세요."
               : title.trim()
               ? `“${truncateText(title, 10)}” (${Number(targetFocusMinutes) || 0}분) 세션을 시작할 준비가 되었습니다.`
               : `계획을 저장하면 ${Number(targetFocusMinutes) || 0}분 타이머가 준비됩니다.`}
           </p>
 
           <div className="timer-track">
-            <i style={{ width: status === "active" ? "100%" : "0%" }} />
+            <i style={{ width: hasCurrentSession ? `${Math.max(0, Math.min(100, 100 - (remainingSeconds / Math.max(1, Number(targetFocusMinutes) * 60)) * 100))}%` : "0%" }} />
           </div>
 
           <div className="timer-meta">
@@ -744,9 +1243,7 @@ export function FocusPlanner() {
             <span>
               확장 상태
               <strong>
-                {status === "active"
-                  ? "동기화됨"
-                  : blockingMode === "off"
+                {blockingMode === "off"
                   ? "필요 없음"
                   : extensionConnected === true
                   ? "연결됨"
@@ -792,18 +1289,28 @@ export function FocusPlanner() {
             </div>
           </div>
 
-          {activeSession && status === "active" && (
+          {activeSession && hasCurrentSession && (
             <div className="focus-settlement-actions">
-              {remainingSeconds > 0 ? (
+              {status === "starting" ? (
+                <><p>시작 준비가 끝나지 않았습니다. 같은 세션으로 다시 확인하거나 준비를 취소할 수 있습니다.</p>
+                  <button className="button secondary small" type="button" onClick={() => void retryStartingFocus()}>차단 적용 다시 확인</button>
+                  <button className="button family-code-cancel small" type="button" onClick={() => void retryStartingFocus(true)}>시작 준비 취소</button></>
+              ) : status !== "awaiting-result" && remainingSeconds > 0 ? (
                 <>
-                  <p>목표 시간이 끝나면 완료한 목표를 선택해 포인트를 정산할 수 있습니다.</p>
+                  <p>{status === "paused" ? "남은 시간과 차단 상태가 서버에 보존되어 있습니다." : "목표 시간이 끝나면 완료한 목표를 선택해 포인트를 정산할 수 있습니다."}</p>
+                  {status === "active" ? (
+                    <><button className="button secondary small" type="button" onClick={() => void pauseFocus()}>일시정지</button>
+                    <button className="button secondary small" type="button" disabled={(activeSession?.accumulatedBreakSeconds ?? 0) >= Number(breakMinutes) * 60} onClick={() => void startBreak()}>휴식 시작</button></>
+                  ) : (
+                    <button className="button secondary small" type="button" onClick={() => void resumeFocus()}>{onTimedBreak ? "휴식 끝내고 집중 재개" : "집중 재개"}</button>
+                  )}
                   <button className="button family-code-cancel small" type="button" onClick={abandonFocus}>집중 포기</button>
                 </>
               ) : (
                 <>
                   <div className="focus-completion-policy">
                     <strong>완료한 목표를 선택해 주세요</strong>
-                    <p>전부 완료 100% · 절반 이상 80% · 1개 이상 절반 미만 60% · 완료 없음 0%</p>
+                    <p>{activeSession?.depositPolicy?.mode === "all-or-none" ? "목표 시간과 모든 목표 완료 시 예약 포인트 전액을 획득합니다. 일부 목표가 남으면 예약 포인트 전액을 반환합니다." : "기존 세션 정책: 전부 완료 100% · 절반 이상 80% · 1개 이상 절반 미만 60% · 완료 없음 0% 전환"}</p>
                   </div>
                   <div className="focus-goal-checklist">
                     {settlementGoals.map((goal) => {
@@ -854,7 +1361,7 @@ export function FocusPlanner() {
                 <strong>학생 Premium 9,900원/30일</strong>
                 <p>집중 계획 AI 첨삭, 목표 분할, 학습 추천과 기존 AI 기능을 이용할 수 있습니다. 보호자 가족 Premium에 연결된 학생은 별도 결제 없이 사용할 수 있습니다.</p>
               </div>
-              <Link className="button full" href="/membership/checkout">학생 Premium 테스트 결제하기</Link>
+              <Link className="button full" href="/membership/checkout">학생 Premium 결제하기</Link>
             </div>
           </section>
         </div>

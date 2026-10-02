@@ -15,6 +15,7 @@ import { membershipService } from "../features/membership/service";
 import { cloudSyncService } from "../features/cloud-sync/service";
 import { ALARM_PREFIX } from "../shared/constants";
 import { applyWritingToTab, captureWritingArea } from "./writing-capture";
+import { prepareCanonicalRuntimeForUser, retryPendingCanonicalSettlements, resyncCanonicalFocus, clearCanonicalRuntimeForSignOut, finishCanonicalFocus, startCanonicalBreak, pauseCanonicalFocus, reconcileCanonicalFocus, resumeCanonicalFocus } from "../features/web-bridge/canonical-focus";
 
 export function isStrongSnoozeWarning(snoozeCount: number): boolean {
   return snoozeCount >= 3;
@@ -69,6 +70,10 @@ async function startFocus(scheduleId: string, organizeTabs = false): Promise<voi
 async function pauseFocus(): Promise<void> {
   const session = await repository.getActiveSession();
   if (!session || session.status !== "active") throw new Error("진행 중인 집중 세션이 없습니다.");
+  if (session.canonical) {
+    await pauseCanonicalFocus(session.id);
+    return;
+  }
   const now = new Date().toISOString();
   await repository.setActiveSession({
     ...session, status: "paused", pausedAt: now,
@@ -87,6 +92,10 @@ async function pauseFocus(): Promise<void> {
 async function resumeFocus(): Promise<void> {
   const session = await repository.getActiveSession();
   if (!session || session.status !== "paused") throw new Error("일시정지된 집중 세션이 없습니다.");
+  if (session.canonical) {
+    await resumeCanonicalFocus(session.id);
+    return;
+  }
   const schedules = await repository.getSchedules();
   const schedule = schedules.find((item) => item.id === session.scheduleId);
   if (!schedule) throw new Error("일정을 찾을 수 없습니다.");
@@ -122,6 +131,10 @@ async function resumeFocus(): Promise<void> {
 async function startBreak(): Promise<void> {
   const session = await repository.getActiveSession();
   if (!session || session.status !== "active") throw new Error("진행 중인 집중 세션이 없습니다.");
+  if (session.canonical) {
+    await startCanonicalBreak(session.id);
+    return;
+  }
   const schedules = await repository.getSchedules();
   const schedule = schedules.find((item) => item.id === session.scheduleId);
   if (!schedule) throw new Error("일정을 찾을 수 없습니다.");
@@ -165,6 +178,10 @@ export async function markFocusAwaitingResult(): Promise<void> {
   const session = await repository.getActiveSession();
   if (!session || session.status === "awaiting-result") return;
   if (session.status !== "active" && session.status !== "paused") return;
+  if (session.canonical) {
+    await reconcileCanonicalFocus(session.scheduleId, session.id);
+    return;
+  }
   const schedules = await repository.getSchedules();
   const schedule = schedules.find((item) => item.id === session.scheduleId);
   if (!schedule) return;
@@ -193,6 +210,11 @@ export async function markFocusAwaitingResult(): Promise<void> {
 async function finishFocus(result: "completed" | "incomplete"): Promise<void> {
   const session = await repository.getActiveSession();
   if (!session) throw new Error("진행 중인 집중 세션이 없습니다.");
+  if (session.canonical) {
+    const completedGoalIds = result === "completed" ? (session.goals ?? []).map((goal) => goal.id) : [];
+    await finishCanonicalFocus(session.id, session.scheduleId, completedGoalIds);
+    return;
+  }
   const endedAt = new Date().toISOString();
   const currentBreakSeconds = session.breakStartedAt
     ? Math.max(0, Math.floor((new Date(endedAt).getTime() - new Date(session.breakStartedAt).getTime()) / 1000))
@@ -313,6 +335,12 @@ export async function handleMessage(message: ExtensionMessage): Promise<AppSnaps
     case "FOCUS_RESUME": await resumeFocus(); break;
     case "FOCUS_BREAK": await startBreak(); break;
     case "FOCUS_FINISH": await finishFocus(message.result); break;
+    case "CANONICAL_FOCUS_FINISH": {
+      const session = await repository.getActiveSession();
+      if (!session?.canonical) throw new Error("서버 집중 세션을 찾지 못했습니다.");
+      await finishCanonicalFocus(session.id, session.scheduleId, message.completedGoalIds);
+      break;
+    }
     case "BLOCKED_ATTEMPT": await recordBlockedAttempt(message.hostname); break;
     case "TEMPORARY_ALLOW": await addTemporaryAllow(message.hostname, message.minutes, message.reason); break;
     case "ACTIVITY_HEARTBEAT": {
@@ -338,12 +366,29 @@ export async function handleMessage(message: ExtensionMessage): Promise<AppSnaps
       await tabOrganizerRepository.setSettings(message.payload);
       break;
     case "MEMBERSHIP_CHECK_ACCOUNT": await membershipService.checkChromeAccount(); break;
-    case "MEMBERSHIP_SIGN_IN": await membershipService.signIn(); break;
+    case "MEMBERSHIP_SIGN_IN": {
+      const account = await membershipService.signIn();
+      if (account.userId) await prepareCanonicalRuntimeForUser(account.userId);
+      await membershipService.restore();
+      await chrome.alarms.create(ALARM_PREFIX.canonicalFocusSync, { periodInMinutes: 1 });
+      try { await resyncCanonicalFocus(); } catch { /* Login remains usable while the server is temporarily unavailable. */ }
+      break;
+    }
     case "MEMBERSHIP_OPEN_CHECKOUT": await membershipService.openCheckout(); break;
-    case "MEMBERSHIP_RESTORE": await membershipService.restore(); break;
+    case "MEMBERSHIP_RESTORE": {
+      const account = await membershipService.restore();
+      if (account.userId) {
+        await prepareCanonicalRuntimeForUser(account.userId);
+        await chrome.alarms.create(ALARM_PREFIX.canonicalFocusSync, { periodInMinutes: 1 });
+        await retryPendingCanonicalSettlements();
+        await resyncCanonicalFocus();
+      }
+      break;
+    }
     case "MEMBERSHIP_SIGN_OUT":
-      await membershipService.signOut();
+      await clearCanonicalRuntimeForSignOut(() => membershipService.signOut());
       await chrome.alarms.clear(ALARM_PREFIX.cloudSync);
+      await chrome.alarms.clear(ALARM_PREFIX.canonicalFocusSync);
       break;
     case "CLOUD_INITIAL_BACKUP": await cloudSyncService.initialBackup(); break;
     case "CLOUD_RESTORE_PREVIEW": await cloudSyncService.previewRestore(); break;
