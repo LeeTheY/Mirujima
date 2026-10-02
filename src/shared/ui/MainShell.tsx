@@ -9,19 +9,22 @@ import { EXTENSION_NAV_ITEMS, openWebApp, type ExtensionPage } from "./extension
 function WebControlPanel() {
   return <section className="focus-page">
     <header className="page-heading">
-      <h1 className="page-title">Mirujima Web</h1>
-      <p className="page-lead">계획, 기록, 계정과 포인트 관리는 Web에서 이어서 이용하세요.</p>
+      <h1 className="page-title">웹 연결</h1>
+      <p className="page-lead">계획과 기록, 계정 관리를 웹에서 이어가세요.</p>
     </header>
     <div className="stack">
       <ConnectionCard />
       <article className="card">
-        <span className="eyebrow">CONTROL PLANE</span>
-        <h2>Web에서 관리하기</h2>
-        <p>확장 프로그램은 진행 중인 집중과 Chrome 사이트 차단을 계속 담당합니다.</p>
-        <div className="row">
-          <button className="button" onClick={() => openWebApp("/focus")}>집중 계획</button>
-          <button className="button secondary" onClick={() => openWebApp("/history")}>기록</button>
-          <button className="button ghost" onClick={() => openWebApp("/my")}>마이페이지</button>
+        <h2>웹 바로가기</h2>
+        <div className="web-shortcuts">
+          {[
+            { path: "/focus", title: "집중 계획", description: "계획 작성과 집중 시작" },
+            { path: "/history", title: "집중 기록", description: "성과와 리포트 확인" },
+            { path: "/my", title: "마이페이지", description: "계정과 포인트 관리" },
+          ].map((item) => <button key={item.path} onClick={() => openWebApp(item.path)}>
+            <span><strong>{item.title}</strong><small>{item.description}</small></span>
+            <span className="shortcut-arrow" aria-hidden="true">›</span>
+          </button>)}
         </div>
       </article>
     </div>
@@ -33,11 +36,11 @@ function TabOrganizerPage() {
   return <section className="focus-page">
     <header className="page-heading">
       <h1 className="page-title">탭 정리</h1>
-      <p className="page-lead">Chrome에서만 가능한 현재 창 탭 그룹화와 복원을 관리합니다.</p>
+      <p className="page-lead">집중할 때 필요한 탭을 모으고 정리하세요.</p>
     </header>
     {snapshot.activeSession
       ? <TabOrganizerCard />
-      : <article className="card"><h2>진행 중인 집중이 없습니다.</h2><p>Web에서 집중을 시작하면 현재 일정 기준으로 탭을 정리할 수 있습니다.</p><button className="button" onClick={() => openWebApp("/focus")}>Web에서 집중 준비</button></article>}
+      : <article className="card"><h2>집중을 시작하면 탭을 정리할 수 있어요</h2><p>작업에 필요한 탭을 모으고, 정리 전 상태로 복원할 수 있습니다.</p><button className="button" onClick={() => openWebApp("/focus")}>집중 계획 열기</button></article>}
   </section>;
 }
 
@@ -46,7 +49,7 @@ export function MainShell({ variant = "sidepanel" }: { variant?: "sidepanel" | "
   const { actionError, dismissActionError } = useApp();
 
   return <div className={`app-shell ${variant === "app" ? "app-page" : "sidepanel-page"}`}>
-    <BrandHeader subtitle="브라우저 집중 실행 에이전트" />
+    <BrandHeader subtitle="집중을 이어가는 브라우저 도우미" />
     <main className="content">
       {actionError && <div className="action-error-banner" role="alert"><span>{actionError}</span><button type="button" onClick={dismissActionError} aria-label="오류 메시지 닫기">닫기</button></div>}
       {page === "focus" && <FocusPage />}

@@ -51,7 +51,7 @@ export function PopupApp() {
 
   return (
     <div className="app-shell popup">
-      <BrandHeader subtitle="브라우저 집중 컨트롤러" />
+      <BrandHeader subtitle="집중을 이어가는 브라우저 도우미" />
       <main className="content">
         {actionError && (
           <div className="action-error-banner" role="alert">
@@ -128,9 +128,8 @@ export function PopupApp() {
             </article>
           ) : (
             <article className="card schedule-card">
-              <span className="eyebrow">WEB CONTROL PLANE</span>
               <h2>진행 중인 집중이 없습니다.</h2>
-              <p>계획 작성과 기록 관리는 Web에서 진행하고, 시작된 집중은 이곳에서 계속 제어할 수 있습니다.</p>
+              <p>웹에서 계획을 선택하고 집중을 시작하세요. 타이머와 사이트 차단은 이곳에서 이어집니다.</p>
               <button className="button full" onClick={() => openWebApp(primaryAction.path ?? "/focus")}>
                 {primaryAction.label}
               </button>
@@ -139,10 +138,10 @@ export function PopupApp() {
 
           <div className="popup-footer-actions">
             <button className="button secondary" onClick={openSidePanel} disabled={currentWindowId === null}>
-              Side Panel 열기
+              집중 패널 열기
             </button>
             <button className="button ghost" onClick={() => openWebApp("/home")}>
-              Web 홈 이동
+              웹 홈 열기
             </button>
           </div>
         </div>

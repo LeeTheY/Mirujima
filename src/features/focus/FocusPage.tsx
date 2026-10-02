@@ -18,7 +18,7 @@ export function FocusPage() {
   const elapsed = useMemo(() => session ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now) : 0, [session, now]);
   const target = (schedule?.targetFocusMinutes ?? 0) * 60;
   const remaining = remainingFocusSeconds(schedule?.targetFocusMinutes ?? 0, elapsed);
-  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><ConnectionCard /><EmptyState><span>Web에서 계획을 만들고 집중을 시작하세요.</span><button className="button" onClick={() => openWebApp("/focus")}>Web 집중 페이지 열기</button></EmptyState></section>;
+  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><ConnectionCard /><EmptyState><div><strong>집중을 시작할 준비가 됐나요?</strong><p>웹에서 계획을 선택하면 이곳에서 타이머와 사이트 차단을 관리할 수 있어요.</p></div><button className="button" onClick={() => openWebApp("/focus")}>집중 계획 열기</button></EmptyState></section>;
 
   if (session.canonicalStatus === "starting") return <section className="focus-page">
     <header className="page-heading"><h1 className="page-title">집중 준비 중</h1><p className="page-lead">사이트 차단 적용과 서버 시작 확인을 기다립니다. 아직 집중 시간은 시작되지 않았습니다.</p></header>

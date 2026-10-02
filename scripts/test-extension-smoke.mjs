@@ -34,6 +34,42 @@ try {
   await expect(popup.getByRole("button", { name: "Google로 로그인" })).toBeVisible();
   pass("extension popup exposes account login without a Chrome profile");
 
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+  for (const width of [320, 380, 480]) {
+    await panel.setViewportSize({ width, height: 760 });
+    for (const label of ["집중", "탭 정리", "웹 연결"]) {
+      await panel.getByRole("navigation").getByRole("button", { name: label, exact: true }).click();
+      await expect(panel.getByRole("heading", { name: label, exact: true })).toBeVisible();
+      const layout = await panel.evaluate(() => {
+        const brand = globalThis.document.querySelector(".brand-copy strong");
+        const accent = globalThis.document.querySelector(".brand-accent");
+        const brandRect = brand.getBoundingClientRect();
+        const accentRect = accent.getBoundingClientRect();
+        return { overflow: globalThis.document.documentElement.scrollWidth > globalThis.innerWidth,
+          brandText: brand.textContent.trim(),
+          sameLine: accentRect.top >= brandRect.top && accentRect.bottom <= brandRect.bottom + 1,
+          titleSize: parseFloat(globalThis.getComputedStyle(globalThis.document.querySelector(".page-title")).fontSize),
+          largeButtons: [...globalThis.document.querySelectorAll(".button")].some((button) => button.getBoundingClientRect().height > 48) };
+      });
+      assert.equal(layout.brandText, "미루지마");
+      assert.equal(layout.sameLine, true);
+      assert.equal(layout.overflow, false);
+      assert.equal(layout.largeButtons, false);
+      assert(layout.titleSize <= 24);
+      if (process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR) await panel.screenshot({ path: join(process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR, `extension-${width}-${label}.png`), fullPage: true, animations: "disabled" });
+    }
+  }
+  await panel.getByRole("navigation").getByRole("button", { name: "웹 연결", exact: true }).click();
+  const pagesBefore = context.pages().length;
+  await panel.getByRole("button", { name: "집중 기록" }).click();
+  await expect.poll(() => context.pages().length).toBe(pagesBefore + 1);
+  const openedWeb = context.pages().at(-1);
+  await expect(openedWeb).toHaveURL(`${webOrigin}/history`);
+  await openedWeb.close();
+  await panel.close();
+  pass("panel keeps brand on one line, compact controls and no overflow across three widths; web shortcut opens the correct route");
+
   const web = await context.newPage();
   await web.goto(webOrigin);
   const response = await web.evaluate(async (id) => globalThis.chrome.runtime.sendMessage(id, { type: "mirujima:ping", version: 1, requestId: "smoke-ping" }), extensionId);
@@ -64,6 +100,24 @@ try {
     await send({ type: "FOCUS_START", scheduleId: schedule.id, organizeTabs: false });
     if (mode !== "off") assert((await rules()).length > 0);
     else assert.equal((await rules()).length, 0);
+    if (mode === "blocklist") {
+      const activePanel = await context.newPage();
+      await activePanel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+      for (const width of [320, 480]) {
+        await activePanel.setViewportSize({ width, height: 760 });
+        await expect(activePanel.locator(".focus-timer")).toBeVisible();
+        assert.equal(await activePanel.evaluate(() => globalThis.document.documentElement.scrollWidth > globalThis.innerWidth), false);
+        if (process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR) await activePanel.screenshot({ path: join(process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR, `extension-active-${width}.png`), fullPage: true, animations: "disabled" });
+        await activePanel.getByRole("navigation").getByRole("button", { name: "탭 정리", exact: true }).click();
+        await expect(activePanel.getByRole("button", { name: "지금 탭 정리" })).toBeVisible();
+        assert.equal(await activePanel.evaluate(() => globalThis.document.documentElement.scrollWidth > globalThis.innerWidth), false);
+        if (process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR) await activePanel.screenshot({ path: join(process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR, `extension-tabs-active-${width}.png`), fullPage: true, animations: "disabled" });
+        await activePanel.getByRole("navigation").getByRole("button", { name: "집중", exact: true }).click();
+      }
+      await activePanel.close();
+      if (process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR) await popup.locator(".popup").screenshot({ path: join(process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR, "extension-popup-active.png"), animations: "disabled" });
+      pass("active timer and tab organizer remain contained at narrow panel widths");
+    }
     const fixture = await context.newPage();
     await fixture.goto("http://focus-fixture.test:3000");
     if (mode === "off") await expect(fixture).toHaveURL(/focus-fixture\.test/);
