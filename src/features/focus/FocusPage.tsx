@@ -18,11 +18,11 @@ export function FocusPage() {
   const elapsed = useMemo(() => session ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now) : 0, [session, now]);
   const target = (schedule?.targetFocusMinutes ?? 0) * 60;
   const remaining = remainingFocusSeconds(schedule?.targetFocusMinutes ?? 0, elapsed);
-  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><ConnectionCard /><FocusPreview /></section>;
+  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header>{!snapshot.membership.userId && <ConnectionCard />}<FocusPreview /></section>;
 
   if (session.canonicalStatus === "starting") return <section className="focus-page">
     <header className="page-heading"><h1 className="page-title">집중 준비 중</h1><p className="page-lead">사이트 차단 적용과 서버 시작 확인을 기다립니다. 아직 집중 시간은 시작되지 않았습니다.</p></header>
-    <ConnectionCard />
+    {!snapshot.membership.userId && <ConnectionCard />}
     <article className="card"><h2>{schedule.title}</h2><button className="button" onClick={() => openWebApp("/focus")}>웹에서 준비 상태 확인</button></article>
   </section>;
 
