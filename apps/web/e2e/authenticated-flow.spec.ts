@@ -1,6 +1,39 @@
 import { expect, test } from "@playwright/test";
 import { AUTHENTICATED_ROLE, AUTH_STORAGE_STATE } from "./helpers/auth-state";
 
+test("거래 내역은 작은 행으로 표시되고 긴 주문 정보는 펼쳐서 확인한다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  const id = "11111111-1111-4111-8111-111111111111";
+  await page.route("**/rest/v1/rpc/list_wallet_transactions", async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    const item = { id, kind: "topup_confirmed", status: "posted", points: 10000, krwAmount: 10000,
+      createdAt: "2026-10-02T10:00:00Z", scheduleId: null, sessionId: null, relatedTransactionId: null,
+      orderId: "mirujima_topup_" + "a".repeat(150), fromBucket: "external", toBucket: "topup", provider: "toss",
+      resolutionKind: null, resolutionTransactionId: null, reasonCode: null };
+    await route.fulfill({ response, json: { ...data, items: [item], hasMore: false, nextCursor: null } });
+  });
+  await page.goto("/wallet/history");
+  const panel = page.getByRole("region", { name: "전체 포인트 거래 내역" });
+  const row = panel.locator(".wallet-history-item");
+  await expect(row).toHaveCount(1);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(row.locator("details")).not.toHaveAttribute("open", "");
+    await expect.poll(async () => (await row.boundingBox())!.height).toBeLessThan(200);
+    await row.getByText("거래 정보", { exact: true }).click();
+    await expect(row.getByText("주문 ID", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    await row.getByText("거래 정보", { exact: true }).click();
+  }
+  await row.getByRole("link", { name: "이 거래만 확인" }).click();
+  await expect(page).toHaveURL(new RegExp("transaction=" + id));
+  await expect(panel.locator("details.wallet-transaction-details")).toHaveAttribute("open", "");
+  await panel.getByRole("link", { name: "전체 거래로 돌아가기" }).click();
+  await expect(page).toHaveURL(/\/wallet\/history$/);
+  await page.unrouteAll({ behavior: "wait" });
+});
+
 test("저장한 계획의 보조 버튼은 카드 전체 폭으로 늘어나지 않는다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 필요합니다.");
   await page.goto("/focus");

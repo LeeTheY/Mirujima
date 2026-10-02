@@ -83,7 +83,7 @@ export default function MyPage() {
 
       {privacyMessage && <p className="notice" role="status">{privacyMessage}</p>}
       {!sharing && <div className="notice error" role="alert">공유 설정을 불러오지 못했습니다. 저장된 설정은 유지됩니다. <button className="button secondary small" type="button" onClick={() => router.refresh()}>다시 불러오기</button></div>}
-      <Link className="button secondary small" href="/wallet/history">전체 포인트 거래 내역</Link>
+      <Link className="button secondary small wallet-history-entry" href="/wallet/history">전체 포인트 거래 내역</Link>
       {!walletSummary && <WalletUnavailable checkedAt={walletCheckedAt} />}
 
       <section className="settings-grid">

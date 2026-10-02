@@ -2957,18 +2957,45 @@ select {
   white-space: normal;
 }
 
-.wallet-history-filters, .wallet-history-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.wallet-history-entry { align-self: flex-start; justify-self: start; width: fit-content; min-height: 36px; padding: 0 14px; font-size: 13px; }
+.wallet-history-panel { display: grid; gap: 14px; min-width: 0; }
+.wallet-history-guide { padding: 12px 16px; border: 1px solid var(--border-light); border-radius: 12px; background: var(--primary-soft); font-size: 13px; color: var(--primary-strong); }
+.wallet-history-guide summary { cursor: pointer; font-weight: 650; }
+.wallet-history-guide p { margin: 8px 0 0; font-size: 12px; line-height: 1.7; }
+.wallet-history-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+.wallet-history-toolbar .button { width: auto; min-height: 36px; padding: 0 12px; font-size: 12px; box-shadow: none; }
+.wallet-history-filters { display: flex; flex-wrap: wrap; gap: 6px; }
 .wallet-history-filters button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); border-color: var(--primary); }
-.wallet-history-list { display: grid; gap: 16px; list-style: none; padding: 0; }
-.wallet-history-list > li { min-width: 0; overflow-wrap: anywhere; }
-.wallet-history-item-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-.wallet-history-item-heading h2 { font-size: 18px; margin: 0; }
-.wallet-history-list dl { font-size: 12px; display: grid; gap: 4px; }
-.wallet-history-list dt { color: var(--text-muted); }
-.wallet-history-list dd { margin: 0 0 8px; }
-.wallet-history-links a { color: var(--primary); text-decoration: underline; }
-.wallet-history-panel .test-mode-banner { display: block; }
-.wallet-history-panel .test-mode-banner strong, .wallet-history-panel .test-mode-banner span { display: block; }
+.wallet-history-checked { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); font-size: 11px; }
+.wallet-history-checked:empty { display: none; }
+.wallet-history-list { display: grid; gap: 0; list-style: none; padding: 0; margin: 0; border: 1px solid var(--border-light); border-radius: 16px; background: var(--surface); overflow: hidden; }
+.wallet-history-item { min-width: 0; padding: 16px 20px; border-bottom: 1px solid var(--border-light); overflow-wrap: anywhere; }
+.wallet-history-item:last-child { border-bottom: 0; }
+.wallet-history-item-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.wallet-history-item-heading h2 { font-size: 14px; margin: 0; line-height: 1.5; }
+.wallet-history-item-heading > strong { flex-shrink: 0; font-size: 16px; font-variant-numeric: tabular-nums; }
+.wallet-history-item .wallet-history-status { margin: 2px 0 6px; font-size: 12px; color: var(--muted); }
+.wallet-history-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--muted); }
+.wallet-history-item-actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-top: 8px; }
+.wallet-transaction-details[open] { flex-basis: 100%; }
+.wallet-transaction-details { margin-top: 0; font-size: 12px; color: var(--muted); }
+.wallet-transaction-details summary { cursor: pointer; width: fit-content; }
+.wallet-transaction-details > p { font-size: 12px; margin: 10px 0; }
+.wallet-history-list dl { font-size: 11px; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 6px 12px; margin: 8px 0; }
+.wallet-history-list dt { color: var(--muted); }
+.wallet-history-list dd { margin: 0; color: var(--navy); overflow-wrap: anywhere; }
+.wallet-history-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; font-size: 12px; }
+.wallet-history-links:empty { display: none; }
+.wallet-history-links a { color: var(--primary); text-decoration: none; }
+.wallet-history-links a:hover { text-decoration: underline; }
+.wallet-history-item .notice { margin: 6px 0; padding: 8px 10px; font-size: 12px; }
+@media (max-width: 640px) {
+  .wallet-history-item { padding: 14px; }
+  .wallet-history-item-heading > strong { font-size: 14px; }
+  .wallet-history-toolbar .button, .wallet-history-entry { min-height: 40px; }
+  .wallet-history-list dl { grid-template-columns: 60px minmax(0, 1fr); }
+}
+
 
 /* Shared public layout and keyboard access. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
