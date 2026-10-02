@@ -97,6 +97,15 @@ test("대시보드 본문은 모든 지원 너비에서 섹션 간격과 최대 
 
 test("충전 내역 dialog는 작은 화면과 확대 환경에서도 화면 안에 들어간다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  await page.route("**/rest/v1/wallet_transactions?**", async (route) => {
+    const ownerId = decodeURIComponent(route.request().url()).match(/to_user_id\.eq\.([a-f0-9-]{36})/)?.[1];
+    const records = Array.from({ length: 30 }, (_, index) => ({
+      id: `11111111-1111-4111-8111-${String(index + 1).padStart(12, "0")}`, points: 10000, krw_amount: 10000,
+      created_at: "2026-10-02T10:00:00Z", provider: "toss", kind: "topup_confirmed", status: "posted",
+      provider_order_id: "mirujima_" + "a".repeat(55), related_transaction_id: null, from_user_id: null, to_user_id: ownerId,
+    }));
+    await route.fulfill({ json: records });
+  });
   await page.setViewportSize({ width: 320, height: 600 });
   await page.goto(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my" : "/my");
   await page.getByRole("button", { name: AUTHENTICATED_ROLE === "guardian" ? "충전·환불 내역" : "충전 내역", exact: true }).click();
@@ -108,8 +117,20 @@ test("충전 내역 dialog는 작은 화면과 확대 환경에서도 화면 안
   expect(bounds!.y).toBeGreaterThanOrEqual(15);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(305);
   expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(585);
+  const rows = dialog.locator(".topup-history-row");
+  await expect(rows).toHaveCount(30);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(async () => (await rows.first().boundingBox())!.height).toBeLessThan(140);
+    const list = dialog.locator(".topup-history-scroll-list");
+    expect(await list.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    await rows.first().getByText("주문 정보", { exact: true }).click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    await rows.first().getByText("주문 정보", { exact: true }).click();
+  }
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
+  await page.unrouteAll({ behavior: "wait" });
 });
 
 test("저장된 로그인 상태로 역할별 대시보드를 연다", async ({ page }) => {

@@ -203,7 +203,7 @@ export default function MyPage() {
             <div className="space-y-3">
               <div className="sub-card flex items-center justify-between" style={{ background: '#EAF2FF', borderColor: '#C9DCFF' }}>
                 <div>
-                  <span className="text-xs text-blue-600 font-bold block">획득 포인트 (지급 절차 별도)</span>
+                  <span className="text-xs text-blue-600 font-bold block">획득 포인트</span>
                   <strong className="text-lg font-extrabold text-navy block mt-1">{formatWalletPoints(walletSummary?.earnedAvailable)}</strong>
                 </div>
                 <Link className="button small" href="/wallet/cashout">
@@ -213,8 +213,8 @@ export default function MyPage() {
 
               <div className="sub-card flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-muted font-bold block">충전 포인트 (현금화 불가)</span>
-                  <span className="text-xs text-muted block mt-0.5">결제 충전 자산 (앱 내 챌린지 전용)</span>
+                  <span className="text-xs text-muted font-bold block">충전 포인트</span>
+                  <span className="text-xs text-muted block mt-0.5">앱 내 사용 · 현금화 불가</span>
                 </div>
                 <strong className="text-base font-extrabold text-navy">{formatWalletPoints(walletSummary?.topupAvailable)}</strong>
               </div>
