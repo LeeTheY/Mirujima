@@ -1,6 +1,44 @@
 import { expect, test } from "@playwright/test";
 import { AUTHENTICATED_ROLE, AUTH_STORAGE_STATE } from "./helpers/auth-state";
 
+test("대시보드 본문은 모든 지원 너비에서 섹션 간격과 최대 폭을 유지한다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  const path = AUTHENTICATED_ROLE === "guardian" ? "/guardian/history" : "/history";
+  await page.goto(path);
+  await expect(page.getByRole("navigation", { name: "주요 메뉴" })).toBeVisible();
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    const layout = await page.locator(".app-main").evaluate((main) => {
+      const sections = [...main.children].filter((node) => node.getBoundingClientRect().height > 0);
+      return {
+        width: main.getBoundingClientRect().width,
+        overflow: document.documentElement.scrollWidth > innerWidth + 1,
+        gaps: sections.slice(1).map((section, index) => section.getBoundingClientRect().top - sections[index].getBoundingClientRect().bottom),
+      };
+    });
+    expect(layout.overflow, `${width}px 가로 넘침`).toBe(false);
+    expect(layout.width).toBeLessThanOrEqual(1200);
+    for (const gap of layout.gaps) expect(gap, `${width}px 섹션 간격`).toBeGreaterThanOrEqual(19);
+  }
+});
+
+test("충전 내역 dialog는 작은 화면과 확대 환경에서도 화면 안에 들어간다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  await page.setViewportSize({ width: 320, height: 600 });
+  await page.goto(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my" : "/my");
+  await page.getByRole("button", { name: AUTHENTICATED_ROLE === "guardian" ? "충전·환불 내역" : "충전 내역", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "포인트 충전 및 환불 내역" });
+  await expect(dialog).toBeVisible();
+  const bounds = await dialog.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(15);
+  expect(bounds!.y).toBeGreaterThanOrEqual(15);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(305);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(585);
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+});
+
 test("저장된 로그인 상태로 역할별 대시보드를 연다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE, "MIRUJIMA_E2E_STORAGE_STATE 또는 .auth/user.json이 없어 인증 검사를 건너뜁니다.");
 

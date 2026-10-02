@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 
@@ -18,6 +18,9 @@ export function PaymentOverlay({
   children: React.ReactNode;
 }>) {
   const router = useRouter();
+  useEffect(() => {
+    if (closeMode === "route") router.prefetch(returnHref);
+  }, [closeMode, returnHref, router]);
   const close = useCallback(() => {
     if (closeMode === "back") {
       router.back();

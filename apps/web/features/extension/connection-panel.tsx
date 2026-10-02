@@ -37,7 +37,7 @@ export function ExtensionConnectionPanel({ onConnectionChange }: { onConnectionC
     return () => { mounted.current = false; window.removeEventListener("focus", check); document.removeEventListener("visibilitychange", onVisible); };
   }, [check]);
 
-  return <section className="notice" aria-label="확장 프로그램 연결">
+  return <section className="notice extension-connection" aria-label="확장 프로그램 연결">
     <div role="status" aria-live="polite">
       <strong>{checking ? "확장 프로그램 확인 중" : connection?.status === "connected" ? "확장 프로그램 연결됨" : "확장 프로그램 연결 확인"}</strong>
       <p>{connection?.message ?? "웹과 확장 프로그램의 계정을 확인합니다."}</p>
