@@ -3202,3 +3202,30 @@ h1, h2, h3, p, button, label { word-break: keep-all; overflow-wrap: anywhere; }
 .focus-runtime-info > :only-child { grid-column: 1 / -1; }
 @media (max-width: 760px) { .focus-runtime-info { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .focus-duration-fields { grid-template-columns: minmax(0, 1fr); } }
+
+/* Related history reports share rows instead of stretching the page. */
+.history-coaching-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 20px; align-items: stretch; }
+.history-report-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+.history-coaching-grid > *, .history-report-grid > * { min-width: 0; margin: 0; }
+.history-metric-grid > .metric { padding: 20px 24px; gap: 8px; }
+.history-metric-grid .metric strong { margin-top: 0; }
+.history-metric-grid .metric p { margin: 0; font-size: 12px; }
+.history-report-grid .card, .history-coaching-grid .card { padding: 24px; gap: 12px; }
+.history-report-grid h2, .history-coaching-grid h2 { font-size: 18px; margin: 0; }
+.history-report-grid .card > p, .history-coaching-grid .card > p { margin: 0; font-size: 12px; line-height: 1.6; }
+.history-report-grid .history-table-wrap { max-height: 280px; overflow: auto; margin-top: 12px; }
+.history-report-grid .history-table th { position: sticky; top: 0; z-index: 1; }
+.history-report-grid .history-table td, .history-report-grid .history-table th { padding: 9px 10px; }
+.history-report-grid .history-bars { height: 180px; margin-top: 12px; }
+.history-report-grid .history-session-list { max-height: 460px; overflow-y: auto; margin-top: 12px; padding-right: 4px; gap: 10px; }
+.history-report-grid .history-session-card { padding: 14px; border-radius: 12px; }
+.history-report-grid .history-session-card ul { max-height: 180px; overflow-y: auto; }
+.history-report-grid .chart-placeholder { height: 180px; margin-top: 0; }
+@media (max-width: 900px) {
+  .history-coaching-grid, .history-report-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+}
+@media (max-width: 640px) {
+  .history-report-grid .card, .history-coaching-grid .card, .history-metric-grid > .metric { padding: 20px; }
+}
+
+.history-report-grid > .card { justify-content: flex-start; }

@@ -222,6 +222,28 @@ test("결제 dialog는 초기 focus와 Escape 닫기를 지원한다", async ({ 
   await expect(page).toHaveURL(new RegExp(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my/?$" : "/my/?$"));
 });
 
+test("기록 리포트는 데스크톱에서 두 열로 묶이고 모바일에서 넘치지 않는다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 필요합니다.");
+  await page.goto("/history?period=monthly");
+  const reports = page.locator(".history-report-grid > .card");
+  await expect(reports).toHaveCount(4);
+  for (const width of [1440, 1024, 768, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const boxes = await reports.evaluateAll((elements) => elements.map((element) => {
+      const bounds = element.getBoundingClientRect();
+      return { y: bounds.y, height: bounds.height };
+    }));
+    if (width > 900) {
+      expect(Math.abs(boxes[0].y - boxes[1].y)).toBeLessThan(1);
+      expect(boxes[0].height).toBe(boxes[1].height);
+      expect(Math.abs(boxes[2].y - boxes[3].y)).toBeLessThan(1);
+      expect(boxes[2].height).toBe(boxes[3].height);
+    }
+    await expect(page.getByRole("table", { name: "날짜별 집중 기록 표" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+  }
+});
+
 test("학생 기록 차트에는 접근 가능한 표 요약이 함께 있다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 없어 기록 접근성 검사를 건너뜁니다.");
   await page.goto("/history");
