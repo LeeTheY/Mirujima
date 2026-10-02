@@ -131,7 +131,7 @@ function getDeviceId(): string {
   return created;
 }
 
-const INITIAL_GUIDANCE = "사이트 차단 계획은 확장 프로그램 설치와 로그인 상태를 확인한 뒤 시작할 수 있습니다.";
+const INITIAL_GUIDANCE = "계획과 목표를 작성한 뒤 저장하거나 집중을 시작하세요.";
 
 export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string }) {
   const submitInFlight = useRef(false);
@@ -1188,7 +1188,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
           </div>
           <div className="focus-plan-goals">
           <div className="focus-plan-summary">
-          {(status !== "idle" || message !== INITIAL_GUIDANCE) && <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
+          <div className={`notice ${status === "error" ? "error" : ""}`} role="status">
             <strong>
               {status === "recovering"
                 ? "진행 중인 세션 확인"
@@ -1203,7 +1203,7 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
                 : "집중 계획 안내"}
             </strong>
             <p>{message}</p>
-          </div>}
+          </div>
           {(() => {
             const realism = evaluateRealism(title, targetFocusMinutes, goals);
             return (
@@ -1314,12 +1314,11 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
 
           </fieldset>
 
-          </div>
-
             <button type="button" className="add-goal-button" disabled={hasCurrentSession || status === "saving" || status === "recovering" || rewardLocked || rewardBusy} onClick={addGoal}>
               <Plus className="w-4 h-4" />
               <span>목표 추가</span>
             </button>
+          </div>
           </div>
           {guardianRewardRequested && !hasCurrentSession ? <section className="sub-card" aria-label="보호자 보상 승인">
             <h3>집중 시작 전 보호자 승인</h3>
