@@ -76,13 +76,13 @@ export function FamilyCodeIssuer({ activeStudentCount = 0 }: { activeStudentCoun
       </> : <>
         <h2 className="text-lg font-bold mb-1 mt-1">새 코드를 발급하세요</h2>
         <p className="text-xs text-muted mb-0" role="status">{message}</p>
-        <button className="button full small mt-2" type="button" onClick={issue} disabled={busy || activeStudentCount >= 5}>{busy ? "발급 중..." : activeStudentCount >= 5 ? "최대 5명 연결 완료" : "연결 코드 발급"}</button>
+        <button className="button small mt-2" type="button" onClick={issue} disabled={busy || activeStudentCount >= 5}>{busy ? "발급 중..." : activeStudentCount >= 5 ? "최대 5명 연결 완료" : "연결 코드 발급"}</button>
       </>}
     </div>
     {seatModalOpen ? (
       <Dialog title="추가 학생 좌석이 필요합니다" onClose={() => setSeatModalOpen(false)}>
         <div className="notice"><strong>기본 2명 포함 · 최대 5명</strong><p>세 번째 학생부터 1명당 3,900원/30일이며, 현재 가족 멤버십의 남은 기간만큼 일할 계산됩니다.</p></div>
-        <Link className="button full" href="/membership/checkout?orderKind=family_seat">추가 좌석 결제하기</Link>
+        <Link className="button" href="/membership/checkout?orderKind=family_seat">추가 좌석 결제하기</Link>
       </Dialog>
     ) : null}
   </>;

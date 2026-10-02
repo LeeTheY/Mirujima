@@ -1,3 +1,4 @@
+import { recordWebConnection } from "./connection-state";
 import { parseWebToExtensionMessage } from "@mirujima/contracts";
 import { repository } from "../../shared/storage/repository";
 import { EXTERNAL_REQUEST_RECEIPT_LIMIT, EXTERNAL_REQUEST_RECEIPT_TTL_MS } from "../../shared/constants";
@@ -60,7 +61,13 @@ export async function handleExternalMessage(message: unknown, sender: chrome.run
   try { parsed = parseWebToExtensionMessage(message); } catch { return { ok: false, code: "INVALID_REQUEST", error: "요청 형식을 확인할 수 없습니다." }; }
   try {
     const userId = await requireExtensionUser();
+    if (parsed.type === "mirujima:ping") {
+      const sameAccount = parsed.expectedUserId === userId;
+      if (parsed.expectedUserId && !sameAccount) await recordWebConnection(userId, "account-mismatch");
+      if (parsed.expectedUserId && !sameAccount) return { ok: false, version: 1, requestId: parsed.requestId, code: "ACCOUNT_MISMATCH" };
+    }
     await prepareCanonicalRuntimeForUser(userId);
+    if (parsed.type === "mirujima:ping" && parsed.expectedUserId === userId) await recordWebConnection(userId, "connected");
     const cached = await cachedResponse(parsed.requestId, userId);
     if (cached) return cached;
     let response: Record<string, unknown>;
@@ -75,6 +82,7 @@ export async function handleExternalMessage(message: unknown, sender: chrome.run
     await rememberResponse(parsed.requestId, userId, response!);
     return response!;
   } catch (error) {
+    if (parsed.type === "mirujima:ping" && error instanceof ExtensionAuthRequired) await recordWebConnection(null, "signed-out");
     return { ok: false, version: 1, requestId: parsed.requestId,
       code: error instanceof ExtensionAuthRequired ? "AUTH_REQUIRED" : "SYNC_FAILED",
       error: error instanceof ExtensionAuthRequired ? "확장 프로그램 로그인이 필요합니다." : "집중 동기화에 실패했습니다. 연결 상태를 확인해 주세요." };

@@ -44,7 +44,7 @@ export function GuardianMyPage({ displayName, students, studentLoadFailed, membe
       </div>
 
       <WalletBalanceGuide summary={walletSummary} checkedAt={walletCheckedAt} />
-      <Link className="button secondary small" href="/wallet/history">전체 포인트 거래 내역</Link>
+      <Link className="button secondary small wallet-history-entry" href="/wallet/history">전체 포인트 거래 내역</Link>
       {!walletSummary && <WalletUnavailable checkedAt={walletCheckedAt} />}
 
       <section className="settings-grid">

@@ -20,7 +20,7 @@ export function CashoutPanel({ initialBalances }: { initialBalances: WalletBalan
       <article className="card"><span className="card-label">기존 요청 예약 포인트</span><strong className="text-3xl font-extrabold text-navy block mt-2">{initialBalances.cashoutReserved.toLocaleString()} P</strong></article>
       <article className="card"><span className="card-label">기존 정산 기록</span><strong className="text-3xl font-extrabold text-navy block mt-2">{initialBalances.cashoutCompleted.toLocaleString()} P</strong><p className="text-xs text-muted">이 기록만으로 계좌 송금 완료를 의미하지 않습니다.</p></article>
     </div>}
-    <button className="button full" type="button" disabled>현금화 신청 준비 중</button>
+    <button className="button" type="button" disabled>현금화 신청 준비 중</button>
     <Link className="button secondary" href="/wallet/history">거래 내역 확인</Link>
   </section>;
 }

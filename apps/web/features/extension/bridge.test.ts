@@ -84,3 +84,12 @@ describe("connection diagnostics", () => {
     expect(send).not.toHaveBeenCalled();
   });
 });
+
+
+describe("identity handshake", () => {
+  it("sends the expected identity and reports explicit mismatch responses", async () => {
+    const send = vi.fn().mockResolvedValue({ ok: false, version: 1, requestId: "identity", code: "ACCOUNT_MISMATCH" });
+    expect((await checkExtensionConnection("id", send, "owner", "identity")).status).toBe("account-mismatch");
+    expect(send).toHaveBeenCalledWith("id", { type: "mirujima:ping", version: 1, requestId: "identity", expectedUserId: "owner" });
+  });
+});

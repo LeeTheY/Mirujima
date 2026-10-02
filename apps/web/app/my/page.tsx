@@ -83,7 +83,7 @@ export default function MyPage() {
 
       {privacyMessage && <p className="notice" role="status">{privacyMessage}</p>}
       {!sharing && <div className="notice error" role="alert">공유 설정을 불러오지 못했습니다. 저장된 설정은 유지됩니다. <button className="button secondary small" type="button" onClick={() => router.refresh()}>다시 불러오기</button></div>}
-      <Link className="button secondary small" href="/wallet/history">전체 포인트 거래 내역</Link>
+      <Link className="button secondary small wallet-history-entry" href="/wallet/history">전체 포인트 거래 내역</Link>
       {!walletSummary && <WalletUnavailable checkedAt={walletCheckedAt} />}
 
       <section className="settings-grid">
@@ -203,7 +203,7 @@ export default function MyPage() {
             <div className="space-y-3">
               <div className="sub-card flex items-center justify-between" style={{ background: '#EAF2FF', borderColor: '#C9DCFF' }}>
                 <div>
-                  <span className="text-xs text-blue-600 font-bold block">획득 포인트 (지급 절차 별도)</span>
+                  <span className="text-xs text-blue-600 font-bold block">획득 포인트</span>
                   <strong className="text-lg font-extrabold text-navy block mt-1">{formatWalletPoints(walletSummary?.earnedAvailable)}</strong>
                 </div>
                 <Link className="button small" href="/wallet/cashout">
@@ -213,13 +213,13 @@ export default function MyPage() {
 
               <div className="sub-card flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-muted font-bold block">충전 포인트 (현금화 불가)</span>
-                  <span className="text-xs text-muted block mt-0.5">결제 충전 자산 (앱 내 챌린지 전용)</span>
+                  <span className="text-xs text-muted font-bold block">충전 포인트</span>
+                  <span className="text-xs text-muted block mt-0.5">앱 내 사용 · 현금화 불가</span>
                 </div>
                 <strong className="text-base font-extrabold text-navy">{formatWalletPoints(walletSummary?.topupAvailable)}</strong>
               </div>
             </div>
-            <WalletBalanceGuide summary={walletSummary} checkedAt={walletCheckedAt} />
+            <WalletBalanceGuide summary={walletSummary} checkedAt={walletCheckedAt} compact />
           </div>
           <div className="card-action-footer grid grid-cols-2 gap-2">
             <Link className="button secondary full small text-center flex items-center justify-center" href="/wallet/charge">

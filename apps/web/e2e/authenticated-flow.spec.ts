@@ -1,6 +1,207 @@
 import { expect, test } from "@playwright/test";
 import { AUTHENTICATED_ROLE, AUTH_STORAGE_STATE } from "./helpers/auth-state";
 
+test("알림 센터는 빈 상태가 작고 알림 목록과 설정이 화면 안에 들어간다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  let populated = false;
+  await page.route("**/rest/v1/rpc/get_notification_unread_count", (route) => route.fulfill({ json: populated ? 20 : 0 }));
+  await page.route("**/rest/v1/rpc/list_notifications", async (route) => {
+    const items = populated ? Array.from({ length: 20 }, (_, index) => ({
+      id: `11111111-1111-4111-8111-${String(index + 1).padStart(12, "0")}`,
+      kind: index % 2 ? "focus_completed" : "family_linked", title: index % 2 ? "오늘의 집중을 완료했어요" : "보호자 연결이 완료됐어요",
+      body: "기록에서 결과를 확인해 보세요.", data: {}, readAt: null, createdAt: new Date().toISOString(),
+    })) : [];
+    await route.fulfill({ json: { items, unreadCount: items.length, nextCursor: null } });
+  });
+  await page.goto(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my" : "/my");
+  await page.getByRole("button", { name: "알림 센터", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "알림 센터" });
+  await expect(dialog.getByText("도착한 알림이 없습니다.")).toBeVisible();
+  expect((await dialog.boundingBox())!.height).toBeLessThan(340);
+  await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+  populated = true;
+  await page.getByRole("button", { name: "알림 센터", exact: true }).click();
+  await expect(dialog.locator(".notification-card")).toHaveCount(20);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 600 });
+    await expect.poll(async () => (await dialog.locator(".notification-card").first().boundingBox())!.height).toBeLessThan(130);
+    await dialog.locator(".notification-push-settings summary").click();
+    const box = (await dialog.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(box.y + box.height).toBeLessThanOrEqual(600);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    await dialog.locator(".notification-push-settings summary").click();
+  }
+  await dialog.getByRole("button", { name: /미읽음/ }).click();
+  await expect(dialog.locator(".notification-card")).toHaveCount(20);
+  await dialog.getByRole("button", { name: "보호자 연결", exact: true }).click();
+  await expect(dialog.locator(".notification-card")).toHaveCount(10);
+  await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+  await page.unrouteAll({ behavior: "wait" });
+});
+
+test("마이페이지 카드는 기본 높이가 같고 안내를 펼친 카드만 늘어난다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  await page.goto(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my" : "/my");
+  const cards = page.locator(".settings-grid > .card");
+  await expect(cards).toHaveCount(6);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(async () => cards.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height)))
+      .toEqual([440, 440, 440, 440, 440, 440]);
+  }
+  if (AUTHENTICATED_ROLE === "student") {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.getByText("포인트 사용·지급 안내", { exact: true }).click();
+    const wallet = cards.filter({ has: page.locator(".wallet-balance-details") });
+    await expect.poll(async () => (await wallet.boundingBox())!.height).toBeGreaterThan(440);
+    const siblings = page.locator(".settings-grid > .card:not(:has(.wallet-balance-details))");
+    expect(await siblings.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))).toEqual([440, 440, 440, 440, 440]);
+    await page.getByText("포인트 사용·지급 안내", { exact: true }).click();
+    await expect.poll(async () => (await wallet.boundingBox())!.height).toBe(440);
+  }
+});
+
+test("거래 내역은 작은 행으로 표시되고 긴 주문 정보는 펼쳐서 확인한다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  const id = "11111111-1111-4111-8111-111111111111";
+  await page.route("**/rest/v1/rpc/list_wallet_transactions", async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    const item = { id, kind: "topup_confirmed", status: "posted", points: 10000, krwAmount: 10000,
+      createdAt: "2026-10-02T10:00:00Z", scheduleId: null, sessionId: null, relatedTransactionId: null,
+      orderId: "mirujima_topup_" + "a".repeat(150), fromBucket: "external", toBucket: "topup", provider: "toss",
+      resolutionKind: null, resolutionTransactionId: null, reasonCode: null };
+    await route.fulfill({ response, json: { ...data, items: [item], hasMore: false, nextCursor: null } });
+  });
+  await page.goto("/wallet/history");
+  const panel = page.getByRole("region", { name: "전체 포인트 거래 내역" });
+  const row = panel.locator(".wallet-history-item");
+  await expect(row).toHaveCount(1);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(row.locator("details")).not.toHaveAttribute("open", "");
+    await expect.poll(async () => (await row.boundingBox())!.height).toBeLessThan(200);
+    await row.getByText("거래 정보", { exact: true }).click();
+    await expect(row.getByText("주문 ID", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    await row.getByText("거래 정보", { exact: true }).click();
+  }
+  await row.getByRole("link", { name: "이 거래만 확인" }).click();
+  await expect(page).toHaveURL(new RegExp("transaction=" + id));
+  await expect(panel.locator("details.wallet-transaction-details")).toHaveAttribute("open", "");
+  await panel.getByRole("link", { name: "전체 거래로 돌아가기" }).click();
+  await expect(page).toHaveURL(/\/wallet\/history$/);
+  await page.unrouteAll({ behavior: "wait" });
+});
+
+test("집중 화면은 요약 두 열과 전체 너비 작성 폼이며 목표 추가로 요약이 늘어나지 않는다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 필요합니다.");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/focus");
+  await expect(page.getByRole("button", { name: "계획 저장", exact: true })).toBeEnabled();
+  const timer = page.locator(".timer-preview");
+  const saved = page.locator(".focus-saved-plans");
+  const form = page.locator(".focus-form");
+  const height = (await timer.boundingBox())!.height;
+  for (let index = 0; index < 7; index++) await page.getByRole("button", { name: "목표 추가", exact: true }).click();
+  await expect(page.locator(".mini-goal-card")).toHaveCount(8);
+  expect((await timer.boundingBox())!.height).toBe(height);
+  expect(await page.getByRole("region", { name: "세부 목표 미리보기" }).evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  await page.locator(".goal-item-card").last().getByPlaceholder("목표 일정명 입력").fill("마지막 목표 확인");
+  await expect(page.locator(".mini-goal-card").last()).toContainText("마지막 목표 확인");
+  for (const width of [1440, 1024, 768, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const timerBox = (await timer.boundingBox())!;
+    const savedBox = (await saved.boundingBox())!;
+    const formBox = (await form.boundingBox())!;
+    if (width > 760) {
+      expect(Math.abs(timerBox.y - savedBox.y)).toBeLessThan(1);
+      expect(timerBox.height).toBe(savedBox.height);
+      expect(formBox.y).toBeGreaterThanOrEqual(timerBox.y + timerBox.height);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+  }
+});
+
+test("저장한 계획의 보조 버튼은 카드 전체 폭으로 늘어나지 않는다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 필요합니다.");
+  await page.goto("/focus");
+  const savedPlans = page.getByRole("region", { name: "저장한 계획" });
+  await expect(savedPlans).toBeVisible();
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const name of ["새로고침", "새 계획 작성"]) {
+      const bounds = await savedPlans.getByRole("button", { name, exact: true }).boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.width).toBeLessThan(200);
+      expect(bounds!.height).toBeLessThanOrEqual(40);
+    }
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+    expect(overflow).toBe(false);
+  }
+});
+
+test("대시보드 본문은 모든 지원 너비에서 섹션 간격과 최대 폭을 유지한다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  const path = AUTHENTICATED_ROLE === "guardian" ? "/guardian/history" : "/history";
+  await page.goto(path);
+  await expect(page.getByRole("navigation", { name: "주요 메뉴" })).toBeVisible();
+  for (const width of [320, 390, 768, 1024, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    const layout = await page.locator(".app-main").evaluate((main) => {
+      const sections = [...main.children].filter((node) => node.getBoundingClientRect().height > 0);
+      return {
+        width: main.getBoundingClientRect().width,
+        overflow: document.documentElement.scrollWidth > innerWidth + 1,
+        gaps: sections.slice(1).map((section, index) => section.getBoundingClientRect().top - sections[index].getBoundingClientRect().bottom),
+      };
+    });
+    expect(layout.overflow, `${width}px 가로 넘침`).toBe(false);
+    expect(layout.width).toBeLessThanOrEqual(1200);
+    for (const gap of layout.gaps) expect(gap, `${width}px 섹션 간격`).toBeGreaterThanOrEqual(19);
+  }
+});
+
+test("충전 내역 dialog는 작은 화면과 확대 환경에서도 화면 안에 들어간다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  await page.route("**/rest/v1/wallet_transactions?**", async (route) => {
+    const ownerId = decodeURIComponent(route.request().url()).match(/to_user_id\.eq\.([a-f0-9-]{36})/)?.[1];
+    const records = Array.from({ length: 30 }, (_, index) => ({
+      id: `11111111-1111-4111-8111-${String(index + 1).padStart(12, "0")}`, points: 10000, krw_amount: 10000,
+      created_at: "2026-10-02T10:00:00Z", provider: "toss", kind: "topup_confirmed", status: "posted",
+      provider_order_id: "mirujima_" + "a".repeat(55), related_transaction_id: null, from_user_id: null, to_user_id: ownerId,
+    }));
+    await route.fulfill({ json: records });
+  });
+  await page.setViewportSize({ width: 320, height: 600 });
+  await page.goto(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my" : "/my");
+  await page.getByRole("button", { name: AUTHENTICATED_ROLE === "guardian" ? "충전·환불 내역" : "충전 내역", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "포인트 충전 및 환불 내역" });
+  await expect(dialog).toBeVisible();
+  const bounds = await dialog.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.x).toBeGreaterThanOrEqual(15);
+  expect(bounds!.y).toBeGreaterThanOrEqual(15);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(305);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(585);
+  const rows = dialog.locator(".topup-history-row");
+  await expect(rows).toHaveCount(30);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(async () => (await rows.first().boundingBox())!.height).toBeLessThan(140);
+    const list = dialog.locator(".topup-history-scroll-list");
+    expect(await list.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    await rows.first().getByText("주문 정보", { exact: true }).click();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    await rows.first().getByText("주문 정보", { exact: true }).click();
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await page.unrouteAll({ behavior: "wait" });
+});
+
 test("저장된 로그인 상태로 역할별 대시보드를 연다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE, "MIRUJIMA_E2E_STORAGE_STATE 또는 .auth/user.json이 없어 인증 검사를 건너뜁니다.");
 
@@ -19,6 +220,28 @@ test("결제 dialog는 초기 focus와 Escape 닫기를 지원한다", async ({ 
   await expect(page.getByRole("button", { name: "결제 창 닫기" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(new RegExp(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my/?$" : "/my/?$"));
+});
+
+test("기록 리포트는 데스크톱에서 두 열로 묶이고 모바일에서 넘치지 않는다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 필요합니다.");
+  await page.goto("/history?period=monthly");
+  const reports = page.locator(".history-report-grid > .card");
+  await expect(reports).toHaveCount(4);
+  for (const width of [1440, 1024, 768, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const boxes = await reports.evaluateAll((elements) => elements.map((element) => {
+      const bounds = element.getBoundingClientRect();
+      return { y: bounds.y, height: bounds.height };
+    }));
+    if (width > 900) {
+      expect(Math.abs(boxes[0].y - boxes[1].y)).toBeLessThan(1);
+      expect(boxes[0].height).toBe(boxes[1].height);
+      expect(Math.abs(boxes[2].y - boxes[3].y)).toBeLessThan(1);
+      expect(boxes[2].height).toBe(boxes[3].height);
+    }
+    await expect(page.getByRole("table", { name: "날짜별 집중 기록 표" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+  }
 });
 
 test("학생 기록 차트에는 접근 가능한 표 요약이 함께 있다", async ({ page }) => {

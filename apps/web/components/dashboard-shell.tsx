@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { UserRole } from "@mirujima/contracts";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { Brand } from "./brand";
 import { BellIcon } from "./icons";
 import { navigationForRole } from "@/features/navigation/navigation";
@@ -32,9 +32,11 @@ export function DashboardShell({
                 className={`pill-item ${item.href === activeHref ? "active" : ""}`}
                 aria-current={item.href === activeHref ? "page" : undefined}
                 href={item.href}
+                prefetch={true}
                 key={item.href}
               >
                 {item.label}
+                <NavigationHint />
               </Link>
             ))}
           </div>
@@ -63,4 +65,9 @@ export function DashboardShell({
       <main className="app-main">{children}</main>
     </div>
   );
+}
+
+function NavigationHint() {
+  const { pending } = useLinkStatus();
+  return <span className={`navigation-hint${pending ? " pending" : ""}`} aria-hidden="true" />;
 }

@@ -1,4 +1,4 @@
-/* global navigator, caches */
+/* global navigator, caches, performance */
 import process from "node:process";
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
@@ -47,10 +47,19 @@ try {
   await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting)), { timeout: 15000 }).toBe(true);
   assert.equal(await page.evaluate(() => navigator.serviceWorker.controller.scriptURL), initialController);
   await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeVisible();
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: "load" }),
-    page.getByRole("button", { name: "업데이트", exact: true }).click(),
-  ]);
+  // The update reloads the same URL. Verify a new document rather than waiting
+  // for every resource to emit "load", which can stall despite activation.
+  const beforeReload = await page.evaluate(() => performance.timeOrigin);
+  await page.getByRole("button", { name: "업데이트", exact: true }).click();
+  await expect.poll(async () => {
+    try { return await page.evaluate(() => performance.timeOrigin); }
+    catch (error) {
+      if (error.message.includes("Execution context was destroyed")) return beforeReload;
+      throw error;
+    }
+  }, { timeout: 15000 }).not.toBe(beforeReload);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeHidden();
   await expect.poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.getRegistration()).waiting))).toBe(false);
   await expect.poll(() => page.evaluate(async () => (await caches.keys()).includes("mirujima-private-obsolete"))).toBe(false);
   assert((await page.evaluate(() => caches.keys())).includes("another-product-cache"));

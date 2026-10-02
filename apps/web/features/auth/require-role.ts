@@ -1,11 +1,12 @@
 import type { User } from "@supabase/supabase-js";
 import type { UserRole } from "@mirujima/contracts";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loginHref } from "./login-destination";
 import { resolveAccess } from "./route-access";
 
-export async function requireAuthenticatedRole(
+export const requireAuthenticatedRole = cache(async function requireAuthenticatedRole(
   pathname: string,
 ): Promise<{ user: User; role: UserRole }> {
   const supabase = await createClient();
@@ -19,4 +20,4 @@ export async function requireAuthenticatedRole(
 
   if ("redirectTo" in decision) redirect(decision.redirectTo === "/login" ? loginHref(pathname) : decision.redirectTo);
   return { user: user!, role: decision.role };
-}
+});
