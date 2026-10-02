@@ -16,6 +16,8 @@
 
 Edge Function 13개를 JWT 검증 ON으로 배포했다: `membership-create-order`, `membership-confirm-payment`, `wallet-create-topup-order`, `wallet-confirm-topup`, `wallet-refund-topup`, `wallet-summary`, `cashout-request`, `cloud-sync`, `get-membership-entitlements`, `ai-writing`, `family-link-issue`, `family-link-redeem`, `notification-push-dispatch`.
 
+배포 응답과 실제 소스가 달랐던 결제 함수 6개는 단독 재배포했다. 최종 원격 함수 및 공유 소스 25개 파일이 로컬 커밋 소스와 일치함을 대조했고 학생·보호자 현금화 요청이 HTTP 503 `cashout_unavailable`로 차단됨을 확인했다.
+
 `TOSS_PAYMENT_MODE=test`, `MIRUJIMA_LIVE_PAYMENTS_ENABLED=false`를 명시했다. 실제 제공자 환불 검증 전이므로 환불 모드는 미설정으로 유지하고 요청을 차단한다. 현금화 신청·자동 지급은 차단 상태다.
 
 ## 실행 검증
@@ -35,3 +37,7 @@ Edge Function 13개를 JWT 검증 ON으로 배포했다: `membership-create-orde
 사용자 전체 데이터 백업은 자동 승인 검토에서 거절되어 추출하지 않았다. schema-only 전체 dump도 Docker 부재와 DB 권한 제한으로 실패했다. 대안으로 사용자 행과 자격 증명이 없는 기존 public SQL 함수 정의만 보호된 로컬 임시 파일에 보관했다. 진행 중 작업 전체 건수 조회는 권한 제한으로 확인하지 못했다. 적용 migration은 기존 행의 일괄 수정·삭제를 하지 않는다.
 
 과거 단계 문서의 원격 보류 기록은 당시 상태이며, 현재 원격 상태는 이 문서가 대체한다. 최신 Web/Extension 배포 및 실제 제공자 게이트 완료 전에는 출시 후보 검증용 PR로 취급한다.
+
+## GitHub 및 Preview
+
+새 브랜치 `feat/v3-release-readiness`, Draft PR #3을 생성했다. Vercel Preview 빌드는 READY이며 실제 공개 화면과 미인증 집중 페이지의 로그인 복귀 주소를 확인했다. 최초 GitHub CI의 공식 Supabase DB 검사와 493개 단위·타입·빌드 검사는 통과했다. 공개 E2E는 Supabase 환경변수가 없는 CI에서 로그인 폼이 생성된다고 가정한 검사 1개가 실패했다. 설정 없는 상태의 명시적 안내와 설정 있는 상태의 목적지 form을 구분하도록 검사만 수정했다. 제품 인증 경계는 변경하지 않았다. 최신 CI 결과는 PR Checks를 따른다.

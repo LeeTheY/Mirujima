@@ -7,7 +7,14 @@ test("OAuth 취소는 목적지를 보존하고 안전한 재시도 안내를 �
   expect(url.searchParams.get("next")).toBe("/focus");
   await expect(page.getByRole("alert", { name: "로그인 오류" })).toContainText("취소");
   await expect(page.getByRole("alert", { name: "로그인 오류" })).not.toContainText("private-provider-detail");
-  await expect(page.locator('form input[name="next"]')).toHaveValue("/focus");
+  const destination = page.locator('form input[name="next"]');
+  if (await destination.count()) {
+    await expect(destination).toHaveValue("/focus");
+  } else {
+    // CI has no Supabase config: the page keeps next in the URL and offers no
+    // unusable login form. Its explicit preview notice must be present.
+    await expect(page.getByText("로컬 미리보기 모드", { exact: true })).toBeVisible();
+  }
 });
 
 test("외부 복귀 주소는 OAuth 오류 복구에도 허용하지 않는다", async ({ page }) => {

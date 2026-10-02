@@ -66,16 +66,16 @@ Supabase Secret: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `MIRU
 
 ## 단계별 배포와 rollback
 
-1. staging에서 DB 백업 및 현재 migration 목록·서버 함수 버전·웹 artifact·Extension manifest를 기록한다.
-2. 미배포 금융 migration `0003/0006/0007/0010/0011/0012`를 개별 검토한다. root에서 `db push`를 한꺼번에 실행하지 않는다.
-3. 호환성을 확인한 additive SQL → 대응 Edge Functions → Web/Extension 순서로 같은 릴리스에 적용한다. `0013~0016`도 모두 staging 회귀 후 반영한다. 로그아웃은 `revoke_all_push_subscriptions` RPC가 먼저 배포되어야 한다.
+1. 유료 검증 환경을 만들지 않는다. 기존 원격 환경의 승인된 백업 범위와 migration 목록·서버 함수 버전·웹 artifact·Extension manifest를 기록하고 로컬에서 회귀 검증한다. 사용자 데이터 복제는 별도 허용 범위에서만 수행한다.
+2. migration을 개별 검토하고 linked dry-run의 정확한 대상 목록을 대조한다. `0003/0006/0007/0010/0011/0012/0017/0018/202610030001`은 2026-10-03 기존 원격에 적용했다. 최신 결과는 [원격 반영 기록](superpowers/plans/2026-10-03-remote-rollout-result.md)을 따른다.
+3. 호환성을 확인한 additive SQL → 대응 Edge Functions → Web/Extension 순서로 같은 릴리스에 적용한다. `0013~0016`은 이미 적용되어 있으며 이후 변경도 분리된 로컬 환경에서 회귀 검증한다. 로그아웃은 `revoke_all_push_subscriptions` RPC가 먼저 배포되어야 한다.
 4. 실계정 학생/보호자, 테스트 provider 승인·환불·AI 철회, 기기 설치/업데이트/푸시, 구버전 Extension을 검증한다. 누락 환경은 gate 실패/미검증이다.
 5. 제한 베타에서 error와 pending age를 관측한 뒤 일반 공개한다. 자동 현금화·실결제는 계약/정책 gate까지 비활성화한다.
 6. 사고 시 신규 금융/AI/푸시 진입을 서버 설정으로 닫고 기존 집중·예약·정산을 보존한다. additive DB는 삭제 migration으로 되돌리지 않는다. 이전 compatible Edge/Web artifact만 복구한다. 클라이언트는 버전별 manifest와 exact origin을 유지한다.
 
 ## 백업·복구·보존
 
-DB 운영 담당자가 provider가 제공하는 백업/PITR 가용성을 실제 프로젝트에서 확인한다. 정기 staging 복원 연습으로 RLS, 금융 원장, 예약 참조, family links, 클라우드 집중 상태를 대조한다. 복원한 DB는 결제·Push·AI 외부 발송을 먼저 차단하고 provider 이력과 대조한 후 운영 전환한다.
+DB 운영 담당자가 provider가 제공하는 백업/PITR 가용성을 실제 프로젝트에서 확인한다. 승인된 무료 로컬 복원 연습으로 RLS, 금융 원장, 예약 참조, family links, 클라우드 집중 상태를 대조한다. 복원한 DB는 결제·Push·AI 외부 발송을 먼저 차단하고 provider 이력과 대조한 후 운영 전환한다.
 
 현재 원격 백업 생성·복원 연습은 수행하지 않았다. 금융 참조 session/order/원장은 일반 TTL cleanup에서 제외한다. URL·본문 등의 원본을 분쟁 증거라고 새로 저장하지 않는다. 보존 기간·계정 삭제와 원장 보관의 처리 정책은 출시 gate에서 확정한다.
 
