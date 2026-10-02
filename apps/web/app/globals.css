@@ -1805,7 +1805,7 @@ select {
 
 .settings-grid .card {
   height: auto;
-  min-height: 280px;
+  min-height: 440px;
   align-self: start;
 }
 
@@ -1814,7 +1814,7 @@ select {
 .settings-grid .card:has(.linked-student-disconnect),
 .settings-grid .card.guardian-family-card {
   height: auto;
-  min-height: 280px;
+  min-height: 440px;
   align-self: start;
 }
 
@@ -2876,7 +2876,7 @@ select {
 
   .settings-grid .card {
     height: auto;
-    min-height: 0;
+    min-height: 440px;
   }
 
   .family-code-actions {
@@ -3095,3 +3095,8 @@ h1, h2, h3, p, button, label { word-break: keep-all; overflow-wrap: anywhere; }
   .modal-content { padding: 20px; max-height: calc(100dvh - 32px); border-radius: 20px; }
   .modal-content > header h2 { font-size: 18px; }
 }
+
+/* A shared baseline never stretches siblings when one card expands. */
+.wallet-balance-details { margin-top: 14px; font-size: 12px; color: var(--muted); }
+.wallet-balance-details summary { cursor: pointer; font-weight: 600; }
+.wallet-balance-details p { margin: 10px 0 0; line-height: 1.7; }

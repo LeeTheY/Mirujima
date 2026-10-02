@@ -1,6 +1,28 @@
 import { expect, test } from "@playwright/test";
 import { AUTHENTICATED_ROLE, AUTH_STORAGE_STATE } from "./helpers/auth-state";
 
+test("마이페이지 카드는 기본 높이가 같고 안내를 펼친 카드만 늘어난다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  await page.goto(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my" : "/my");
+  const cards = page.locator(".settings-grid > .card");
+  await expect(cards).toHaveCount(6);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(async () => cards.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height)))
+      .toEqual([440, 440, 440, 440, 440, 440]);
+  }
+  if (AUTHENTICATED_ROLE === "student") {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.getByText("포인트 사용·지급 안내", { exact: true }).click();
+    const wallet = cards.filter({ has: page.locator(".wallet-balance-details") });
+    await expect.poll(async () => (await wallet.boundingBox())!.height).toBeGreaterThan(440);
+    const siblings = page.locator(".settings-grid > .card:not(:has(.wallet-balance-details))");
+    expect(await siblings.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height))).toEqual([440, 440, 440, 440, 440]);
+    await page.getByText("포인트 사용·지급 안내", { exact: true }).click();
+    await expect.poll(async () => (await wallet.boundingBox())!.height).toBe(440);
+  }
+});
+
 test("거래 내역은 작은 행으로 표시되고 긴 주문 정보는 펼쳐서 확인한다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
   const id = "11111111-1111-4111-8111-111111111111";

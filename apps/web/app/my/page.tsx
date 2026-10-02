@@ -219,7 +219,7 @@ export default function MyPage() {
                 <strong className="text-base font-extrabold text-navy">{formatWalletPoints(walletSummary?.topupAvailable)}</strong>
               </div>
             </div>
-            <WalletBalanceGuide summary={walletSummary} checkedAt={walletCheckedAt} />
+            <WalletBalanceGuide summary={walletSummary} checkedAt={walletCheckedAt} compact />
           </div>
           <div className="card-action-footer grid grid-cols-2 gap-2">
             <Link className="button secondary full small text-center flex items-center justify-center" href="/wallet/charge">
