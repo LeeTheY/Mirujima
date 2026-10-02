@@ -133,7 +133,7 @@ export function NotificationCenter({
     <div className="notification-backdrop" onClick={onClose}>
       <div className="notification-popover" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="알림 센터">
         <div className="notification-header">
-          <div className="notification-title-row"><h2>알림 센터</h2>{unreadCount > 0 && <span className="unread-badge">{unreadCount}개 안읽음</span>}</div>
+          <div className="notification-title-row"><h2>알림 센터</h2>{unreadCount > 0 && <span className="unread-badge">미읽음 {unreadCount}</span>}</div>
           <button className="icon-close-button" onClick={onClose} aria-label="닫기"><X className="w-4 h-4" /></button>
         </div>
         <div className="notification-tabs" role="group" aria-label="알림 필터">
@@ -155,6 +155,7 @@ export function NotificationCenter({
                   {item.kind === "family_disconnected" && <UserX className="w-4 h-4 text-rose-500" />}
                   {category === "focus" && <Flame className="w-4 h-4 text-blue-600" />}
                   {category === "reward" && <Award className="w-4 h-4 text-amber-500" />}
+                  {category !== "focus" && category !== "reward" && !["family_linked", "family_disconnected"].includes(item.kind) && <Bell className="w-4 h-4 text-blue-600" />}
                 </span>
                 <span className="notification-content">
                   <span className="notification-card-header"><strong className="notification-item-title">{item.title}</strong><span className="notification-time">{relativeNotificationTime(item.createdAt)}</span></span>

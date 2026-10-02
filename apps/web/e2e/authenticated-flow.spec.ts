@@ -1,6 +1,46 @@
 import { expect, test } from "@playwright/test";
 import { AUTHENTICATED_ROLE, AUTH_STORAGE_STATE } from "./helpers/auth-state";
 
+test("알림 센터는 빈 상태가 작고 알림 목록과 설정이 화면 안에 들어간다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
+  let populated = false;
+  await page.route("**/rest/v1/rpc/get_notification_unread_count", (route) => route.fulfill({ json: populated ? 20 : 0 }));
+  await page.route("**/rest/v1/rpc/list_notifications", async (route) => {
+    const items = populated ? Array.from({ length: 20 }, (_, index) => ({
+      id: `11111111-1111-4111-8111-${String(index + 1).padStart(12, "0")}`,
+      kind: index % 2 ? "focus_completed" : "family_linked", title: index % 2 ? "오늘의 집중을 완료했어요" : "보호자 연결이 완료됐어요",
+      body: "기록에서 결과를 확인해 보세요.", data: {}, readAt: null, createdAt: new Date().toISOString(),
+    })) : [];
+    await route.fulfill({ json: { items, unreadCount: items.length, nextCursor: null } });
+  });
+  await page.goto(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my" : "/my");
+  await page.getByRole("button", { name: "알림 센터", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "알림 센터" });
+  await expect(dialog.getByText("도착한 알림이 없습니다.")).toBeVisible();
+  expect((await dialog.boundingBox())!.height).toBeLessThan(340);
+  await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+  populated = true;
+  await page.getByRole("button", { name: "알림 센터", exact: true }).click();
+  await expect(dialog.locator(".notification-card")).toHaveCount(20);
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 600 });
+    await expect.poll(async () => (await dialog.locator(".notification-card").first().boundingBox())!.height).toBeLessThan(130);
+    await dialog.locator(".notification-push-settings summary").click();
+    const box = (await dialog.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(box.y + box.height).toBeLessThanOrEqual(600);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)).toBe(false);
+    await dialog.locator(".notification-push-settings summary").click();
+  }
+  await dialog.getByRole("button", { name: /미읽음/ }).click();
+  await expect(dialog.locator(".notification-card")).toHaveCount(20);
+  await dialog.getByRole("button", { name: "보호자 연결", exact: true }).click();
+  await expect(dialog.locator(".notification-card")).toHaveCount(10);
+  await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+  await page.unrouteAll({ behavior: "wait" });
+});
+
 test("마이페이지 카드는 기본 높이가 같고 안내를 펼친 카드만 늘어난다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
   await page.goto(AUTHENTICATED_ROLE === "guardian" ? "/guardian/my" : "/my");

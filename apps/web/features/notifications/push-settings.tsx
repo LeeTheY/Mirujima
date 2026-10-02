@@ -55,5 +55,5 @@ export function PushSettings() {
     } catch { setMessage("알림 설정을 저장하지 못했습니다. 연결을 확인하고 다시 시도해 주세요."); }
     finally { setBusy(false); }
   };
-  return <section className="sub-card"><strong>기기 알림</strong><p>집중 결과와 새 알림을 앱 밖에서도 확인합니다. 권한은 버튼을 누를 때만 요청합니다.</p>{supported ? <div className="flex gap-3 flex-wrap"><button className="button secondary small" disabled={busy} aria-pressed={enabled} onClick={() => void change(true)}>알림 켜기</button><button className="text-button" disabled={busy} onClick={() => void change(false)}>알림 끄기</button></div> : <p>앱 설치·HTTPS·서버 알림 설정이 준비되면 사용할 수 있습니다.</p>}{message ? <p role="status">{message}</p> : null}</section>;
+  return <details className="notification-push-settings"><summary>기기 알림 <span>{supported ? enabled ? "켜짐" : "꺼짐" : "지원 준비 중"}</span></summary><p>앱 밖에서도 알림을 받습니다. 켜기를 누르면 권한을 요청합니다.</p>{supported ? <div className="flex gap-3 flex-wrap"><button className="button secondary small" disabled={busy} aria-pressed={enabled} onClick={() => void change(true)}>알림 켜기</button><button className="text-button" disabled={busy} onClick={() => void change(false)}>알림 끄기</button></div> : <p>이 환경에서는 기기 알림을 사용할 수 없습니다.</p>}{message ? <p role="status">{message}</p> : null}</details>;
 }

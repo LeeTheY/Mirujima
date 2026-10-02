@@ -3111,3 +3111,28 @@ h1, h2, h3, p, button, label { word-break: keep-all; overflow-wrap: anywhere; }
 .wallet-balance-details { margin-top: 14px; font-size: 12px; color: var(--muted); }
 .wallet-balance-details summary { cursor: pointer; font-weight: 600; }
 .wallet-balance-details p { margin: 10px 0 0; line-height: 1.7; }
+
+/* Notification center stays compact even when the inbox is empty. */
+.notification-popover { align-self: flex-start; max-height: calc(100dvh - 104px); border-radius: 20px; }
+.notification-header { padding: 16px 18px; }
+.notification-title-row { gap: 8px; flex-wrap: wrap; }
+.notification-title-row h2 { font-size: 17px; }
+.notification-tabs { padding: 8px 14px; gap: 4px; }
+.notification-tabs .tab-item { padding: 6px 10px; font-size: 12px; min-height: 34px; white-space: nowrap; }
+.notification-push-settings { margin: 10px 16px 4px; padding: 10px 12px; border: 1px solid var(--border-light); border-radius: 10px; font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.notification-push-settings summary { cursor: pointer; font-weight: 600; color: var(--navy); }
+.notification-push-settings summary > span { float: right; color: var(--muted); font-size: 11px; font-weight: 500; }
+.notification-push-settings p { font-size: 12px; margin: 8px 0; line-height: 1.6; }
+.notification-push-settings .button { min-height: 34px; padding: 0 10px; font-size: 12px; }
+.notification-list { min-height: 0; padding: 8px 14px; gap: 0; }
+.notification-card { flex-shrink: 0; padding: 12px 8px; gap: 10px; border: 0; border-bottom: 1px solid var(--border-light); border-radius: 0; }
+.notification-card:last-child { border-bottom: 0; }
+.notification-card.unread { background: #F4F8FF; box-shadow: inset 2px 0 var(--primary); border-color: var(--border-light); }
+.notification-card .icon-circle { width: 30px; height: 30px; min-width: 30px; border-radius: 9px; }
+.notification-card-header { gap: 8px; align-items: baseline; }
+.notification-item-title { font-size: 13px; line-height: 1.5; }
+.notification-time { flex-shrink: 0; white-space: nowrap; font-size: 11px; }
+.notification-item-body { display: block; font-size: 12px; line-height: 1.6; }
+.notification-empty { padding: 24px 16px; gap: 8px; font-size: 13px; }
+.notification-empty p { margin: 0; font-size: 13px; }
+.notification-footer { padding: 10px 18px; flex-shrink: 0; }
