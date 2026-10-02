@@ -1,6 +1,24 @@
 import { expect, test } from "@playwright/test";
 import { AUTHENTICATED_ROLE, AUTH_STORAGE_STATE } from "./helpers/auth-state";
 
+test("저장한 계획의 보조 버튼은 카드 전체 폭으로 늘어나지 않는다", async ({ page }) => {
+  test.skip(!AUTH_STORAGE_STATE || AUTHENTICATED_ROLE !== "student", "학생 인증 storage state가 필요합니다.");
+  await page.goto("/focus");
+  const savedPlans = page.getByRole("region", { name: "저장한 계획" });
+  await expect(savedPlans).toBeVisible();
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const name of ["새로고침", "새 계획 작성"]) {
+      const bounds = await savedPlans.getByRole("button", { name, exact: true }).boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.width).toBeLessThan(200);
+      expect(bounds!.height).toBeLessThanOrEqual(40);
+    }
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+    expect(overflow).toBe(false);
+  }
+});
+
 test("대시보드 본문은 모든 지원 너비에서 섹션 간격과 최대 폭을 유지한다", async ({ page }) => {
   test.skip(!AUTH_STORAGE_STATE, "인증 storage state가 필요합니다.");
   const path = AUTHENTICATED_ROLE === "guardian" ? "/guardian/history" : "/history";

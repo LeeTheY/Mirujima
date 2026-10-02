@@ -29,7 +29,7 @@ import {
 } from "./canonical-focus-service";
 import { canonicalSessionIdFromRealtimePayload } from "./canonical-focus-realtime";
 import { ExtensionConnectionPanel } from "@/features/extension/connection-panel";
-import { Plus, Trash2, ArrowUp, ArrowDown, Sparkles, Shield, Flame, CheckCircle2, HelpCircle, X } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Sparkles, Shield, Flame, CheckCircle2, HelpCircle, X, RefreshCw, CalendarDays, ChevronRight } from "lucide-react";
 import { dateKeyInTimeZone } from "@/features/history/history-query";
 import { requireOnlineAction } from "@/lib/online";
 
@@ -810,9 +810,11 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
       </div>
 
       <section className="card focus-saved-plans" aria-label="저장한 계획">
-        <h2>저장한 계획</h2>
-        <button type="button" className="button secondary small" onClick={() => void refreshPlans()}>목록 새로고침</button>
-        <button type="button" className="button secondary small" disabled={hasCurrentSession || status === "saving"} onClick={() => {
+        <header className="saved-plans-header">
+          <div><h2>저장한 계획</h2><p>계획을 선택하면 아래에서 이어서 작성할 수 있어요.</p></div>
+          <div className="saved-plans-actions">
+        <button type="button" className="button secondary small" onClick={() => void refreshPlans()}><RefreshCw size={14} aria-hidden="true" />새로고침</button>
+        <button type="button" className="button secondary small saved-plan-create" disabled={hasCurrentSession || status === "saving"} onClick={() => {
           pendingPlan.current = null;
           selectedPlan.current = null;
           setSavedPlan(null); setTitle(""); setDescription(""); setTodayDate(dateKeyInTimeZone(new Date(), timeZone));
@@ -822,16 +824,20 @@ export function FocusPlanner({ timeZone = "Asia/Seoul" }: { timeZone?: string })
           setActiveSession(null); setCompletedGoalIds([]); setRemainingSeconds(50 * 60);
           setGoals([{ id: crypto.randomUUID(), name: "", detail: "", minutes: 50, priority: "medium" }]);
           setStatus("idle"); setMessage("새 계획을 작성하고 있습니다.");
-        }}>새 계획 작성</button>
-        {plansError ? <p role="alert">{plansError}</p> : savedPlans === null ? <p>저장한 계획을 불러오는 중입니다.</p> : savedPlans.length === 0 ? <p>저장한 계획이 없습니다.</p> : (
-          <ul className="focus-saved-plan-list">{savedPlans.map((plan) => <li key={plan.id}>
-            <button className="button secondary" type="button" disabled={hasCurrentSession || status === "saving" || !["draft", "planned", "ready"].includes(plan.status)} onClick={() => openPlan(plan)}>
-              {plan.title} · {plan.dateKey} · {plan.targetFocusMinutes}분 · {plan.status === "planned" || plan.status === "draft" || plan.status === "ready" ? "준비" : plan.status === "completed" ? "완료" : plan.status === "active" ? "진행 중" : "종료"}
+        }}><Plus size={15} aria-hidden="true" />새 계획 작성</button>
+          </div>
+        </header>
+        {plansError ? <p role="alert">{plansError}</p> : savedPlans === null ? <p role="status">저장한 계획을 불러오는 중입니다.</p> : savedPlans.length === 0 ? <div className="saved-plans-empty"><CalendarDays size={20} aria-hidden="true" /><p>첫 집중 계획을 작성해 보세요.<span>저장한 계획은 여기에 모아볼 수 있어요.</span></p></div> : (
+          <ul className="focus-saved-plan-list">{savedPlans.map((plan) => <li key={plan.id} className={savedPlan?.id === plan.id ? "selected" : undefined}>
+            <button className="saved-plan-open" type="button" aria-pressed={savedPlan?.id === plan.id} disabled={hasCurrentSession || status === "saving" || !["draft", "planned", "ready"].includes(plan.status)} onClick={() => openPlan(plan)}>
+              <span className="saved-plan-copy"><strong>{plan.title}</strong><span>{plan.dateKey.replaceAll("-", ".")}<span aria-hidden="true"> · </span>{plan.targetFocusMinutes}분</span></span>
+              <span className={`saved-plan-status ${plan.status}`}>{plan.status === "planned" || plan.status === "draft" || plan.status === "ready" ? "준비" : plan.status === "completed" ? "완료" : plan.status === "active" ? "진행 중" : "종료"}</span>
+              <ChevronRight size={16} aria-hidden="true" />
             </button>
-            {["draft", "planned", "ready"].includes(plan.status) ? <button className="button secondary small" type="button" disabled={hasCurrentSession || status === "saving"} onClick={() => void cancelSavedPlan(plan)}>계획 취소</button> : null}
+            {["draft", "planned", "ready"].includes(plan.status) ? <button className="saved-plan-cancel" type="button" disabled={hasCurrentSession || status === "saving"} onClick={() => void cancelSavedPlan(plan)}>계획 취소</button> : null}
           </li>)}</ul>
         )}
-        {savedPlan ? <p>편집 중: {savedPlan.title}</p> : null}
+        {savedPlan ? <p className="saved-plan-editing" role="status">선택한 계획을 편집하고 있습니다.</p> : null}
       </section>
       <section className="focus-layout">
         <form ref={formRef} className="card focus-form" action={(data) => submit(data)}>
