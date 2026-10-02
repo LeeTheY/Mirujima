@@ -3,7 +3,7 @@ import { EXTENSION_NAV_ITEMS, extensionEntrySurface, webAppUrl } from "./extensi
 
 describe("extension navigation", () => {
   it("keeps only browser-agent surfaces in the extension", () => {
-    expect(EXTENSION_NAV_ITEMS.map((item) => item.id)).toEqual(["focus", "tabs", "web"]);
+    expect(EXTENSION_NAV_ITEMS.map((item) => item.id)).toEqual(["focus", "tabs", "history", "web"]);
     expect(extensionEntrySurface(false)).toBe("agent");
     expect(extensionEntrySurface(true)).toBe("agent");
   });

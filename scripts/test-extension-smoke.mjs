@@ -38,9 +38,9 @@ try {
   await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
   for (const width of [320, 380, 480]) {
     await panel.setViewportSize({ width, height: 760 });
-    for (const label of ["집중", "탭 정리", "웹 연결"]) {
+    for (const label of ["집중", "탭 정리", "기록", "바로가기"]) {
       await panel.getByRole("navigation").getByRole("button", { name: label, exact: true }).click();
-      await expect(panel.getByRole("heading", { name: label, exact: true })).toBeVisible();
+      await expect(panel.getByRole("heading", { name: label === "기록" ? "집중 기록" : label, exact: true })).toBeVisible();
       const layout = await panel.evaluate(() => {
         const brand = globalThis.document.querySelector(".brand-copy strong");
         const accent = globalThis.document.querySelector(".brand-accent");
@@ -60,7 +60,7 @@ try {
       if (process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR) await panel.screenshot({ path: join(process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR, `extension-${width}-${label}.png`), fullPage: true, animations: "disabled" });
     }
   }
-  await panel.getByRole("navigation").getByRole("button", { name: "웹 연결", exact: true }).click();
+  await panel.getByRole("navigation").getByRole("button", { name: "바로가기", exact: true }).click();
   const pagesBefore = context.pages().length;
   await panel.getByRole("button", { name: "집중 기록" }).click();
   await expect.poll(() => context.pages().length).toBe(pagesBefore + 1);
@@ -94,6 +94,7 @@ try {
       startAt: now.toISOString(), endAt: new Date(now.getTime() + 300_000).toISOString(), targetFocusMinutes: 5,
       activityMode: "interactive", blockingMode: mode, allowedDomains: [{ hostname: "study-fixture.test", includeSubdomains: false }],
       blockedDomains: [{ hostname: "focus-fixture.test", includeSubdomains: false }], breakMinutes: 5,
+      goals: Array.from({ length: 5 }, (_, index) => ({ id: `goal-${index}`, name: `세부 목표 ${index + 1}`, detail: "", minutes: 1, priority: "medium" })),
       status: "scheduled", snoozeCount: 0, createdAt: now.toISOString(), updatedAt: now.toISOString(),
     };
     await send({ type: "SCHEDULE_CREATE", payload: schedule });
@@ -106,6 +107,7 @@ try {
       for (const width of [320, 480]) {
         await activePanel.setViewportSize({ width, height: 760 });
         await expect(activePanel.locator(".focus-timer")).toBeVisible();
+        await expect(activePanel.locator(".preview-goals li")).toHaveCount(5);
         assert.equal(await activePanel.evaluate(() => globalThis.document.documentElement.scrollWidth > globalThis.innerWidth), false);
         if (process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR) await activePanel.screenshot({ path: join(process.env.MIRUJIMA_EXTENSION_SCREENSHOT_DIR, `extension-active-${width}.png`), fullPage: true, animations: "disabled" });
         await activePanel.getByRole("navigation").getByRole("button", { name: "탭 정리", exact: true }).click();

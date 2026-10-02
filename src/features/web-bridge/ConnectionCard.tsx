@@ -16,12 +16,7 @@ export function ConnectionCard() {
     finally { setBusy(false); }
   }
   const account = snapshot.membership;
-  return <article className="card connection-card" aria-label="웹 계정 연결">
-    <h2>{account.userId ? "계정 연결됨" : "Google 계정 연결"}</h2>
-    <p>{account.userId ? `${account.email ?? "로그인한 계정"}으로 연결되어 있습니다.` : "웹과 같은 계정으로 로그인하고 집중을 이어가세요."}</p>
-    <details className="connection-note"><summary>어떤 계정으로 연결하나요?</summary><p>웹과 확장 프로그램에서 같은 Google 계정을 선택하세요. Chrome 자체에 로그인할 필요는 없습니다.</p></details>
-    {(error || account.error) && <p role="alert">{error ?? "서버 연결을 확인하지 못했습니다. 네트워크를 확인하고 다시 연결해 주세요."}</p>}
-    <div className="row connection-actions">
+  const controls = <div className="row connection-actions">
       {!account.userId && <button type="button" className="button" disabled={busy} onClick={() => void act("MEMBERSHIP_SIGN_IN")}>{busy ? "연결 중…" : "Google로 로그인"}</button>}
       {account.userId && <>
         <button type="button" className="button secondary" disabled={busy} onClick={() => void act("MEMBERSHIP_RESTORE")}>{busy ? "확인 중…" : "연결 다시 확인"}</button>
@@ -31,6 +26,14 @@ export function ConnectionCard() {
         }}>로그아웃</button>
       </>}
       <button type="button" className="button ghost" onClick={() => openWebApp("/focus")}>연결 확인</button>
-    </div>
+    </div>;
+  return <article className={`card connection-card ${account.userId ? "connected" : ""}`} aria-label="웹 계정 연결">
+    <h2>{account.userId ? "계정 연결됨" : "Google 계정 연결"}</h2>
+    <p className="connection-account" title={account.email ?? undefined}>{account.userId ? account.email ?? "로그인한 계정" : "웹과 같은 계정으로 로그인하고 집중을 이어가세요."}</p>
+    {(error || account.error) && <p role="alert">{error ?? "서버 연결을 확인하지 못했습니다. 네트워크를 확인하고 다시 연결해 주세요."}</p>}
+    {account.userId ? <details className="connection-note"><summary>연결 관리</summary>{controls}<p>웹과 같은 Google 계정으로 연결되어 있습니다.</p></details> : <>
+      <details className="connection-note"><summary>어떤 계정으로 연결하나요?</summary><p>웹과 확장 프로그램에서 같은 Google 계정을 선택하세요. Chrome 자체에 로그인할 필요는 없습니다.</p></details>
+      {controls}
+    </>}
   </article>;
 }

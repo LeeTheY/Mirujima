@@ -1,7 +1,8 @@
 export const EXTENSION_NAV_ITEMS = [
   { id: "focus", label: "집중" },
   { id: "tabs", label: "탭 정리" },
-  { id: "web", label: "웹 연결" },
+  { id: "history", label: "기록" },
+  { id: "web", label: "바로가기" },
 ] as const;
 
 export type ExtensionPage = (typeof EXTENSION_NAV_ITEMS)[number]["id"];

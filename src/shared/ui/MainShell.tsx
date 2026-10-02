@@ -1,4 +1,5 @@
 import { ConnectionCard } from "../../features/web-bridge/ConnectionCard";
+import { HistoryPage } from "../../features/extension-history/HistoryPage";
 import { useState } from "react";
 import { FocusPage } from "../../features/focus/FocusPage";
 import { TabOrganizerCard } from "../../features/tab-organizer/TabOrganizerCard";
@@ -9,7 +10,7 @@ import { EXTENSION_NAV_ITEMS, openWebApp, type ExtensionPage } from "./extension
 function WebControlPanel() {
   return <section className="focus-page">
     <header className="page-heading">
-      <h1 className="page-title">웹 연결</h1>
+      <h1 className="page-title">바로가기</h1>
       <p className="page-lead">계획과 기록, 계정 관리를 웹에서 이어가세요.</p>
     </header>
     <div className="stack">
@@ -54,6 +55,7 @@ export function MainShell({ variant = "sidepanel" }: { variant?: "sidepanel" | "
       {actionError && <div className="action-error-banner" role="alert"><span>{actionError}</span><button type="button" onClick={dismissActionError} aria-label="오류 메시지 닫기">닫기</button></div>}
       {page === "focus" && <FocusPage />}
       {page === "tabs" && <TabOrganizerPage />}
+      {page === "history" && <HistoryPage />}
       {page === "web" && <WebControlPanel />}
     </main>
     <nav className="nav" aria-label="주 메뉴">

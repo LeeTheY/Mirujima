@@ -2,10 +2,10 @@ import { ConnectionCard } from "../web-bridge/ConnectionCard";
 import { useMemo, useState } from "react";
 import { completionPercentForGoals } from "@mirujima/contracts";
 import { useApp } from "../../shared/ui/AppContext";
-import { DomainChips, EmptyState, ProgressBar } from "../../shared/ui/components";
+import { DomainChips, ProgressBar } from "../../shared/ui/components";
 import { elapsedBreakSeconds, elapsedFocusSeconds, formatClock, getBreakTimeState, remainingFocusSeconds } from "../../shared/time/time";
 import { useNow } from "../../shared/time/useNow";
-import { TabOrganizerCard } from "../tab-organizer/TabOrganizerCard";
+import { FocusPreview } from "./FocusPreview";
 import { sendMessage } from "../../shared/chrome/messaging";
 import { openWebApp } from "../../shared/ui/extension-navigation";
 
@@ -18,7 +18,7 @@ export function FocusPage() {
   const elapsed = useMemo(() => session ? elapsedFocusSeconds(session.startedAt, session.pausedAt, session.accumulatedFocusSeconds, now) : 0, [session, now]);
   const target = (schedule?.targetFocusMinutes ?? 0) * 60;
   const remaining = remainingFocusSeconds(schedule?.targetFocusMinutes ?? 0, elapsed);
-  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><ConnectionCard /><EmptyState><div><strong>집중을 시작할 준비가 됐나요?</strong><p>웹에서 계획을 선택하면 이곳에서 타이머와 사이트 차단을 관리할 수 있어요.</p></div><button className="button" onClick={() => openWebApp("/focus")}>집중 계획 열기</button></EmptyState></section>;
+  if (!session || !schedule) return <section className="focus-page"><header className="page-heading"><h1 className="page-title">집중</h1><p className="page-lead">진행 중인 집중 세션을 관리합니다.</p></header><ConnectionCard /><FocusPreview /></section>;
 
   if (session.canonicalStatus === "starting") return <section className="focus-page">
     <header className="page-heading"><h1 className="page-title">집중 준비 중</h1><p className="page-lead">사이트 차단 적용과 서버 시작 확인을 기다립니다. 아직 집중 시간은 시작되지 않았습니다.</p></header>
@@ -117,6 +117,7 @@ export function FocusPage() {
           <span className="focus-section-label">남은 시간</span>
           <div className="focus-timer" aria-live="polite">{formatClock(remaining)}</div>
           <div className="focus-time-meta"><span>진행 {formatClock(elapsed)}</span><span>목표 {schedule.targetFocusMinutes}분</span></div>
+          {(session.goals ?? schedule.goals ?? []).length > 0 && <ul className="preview-goals" tabIndex={0} aria-label="세부 목표 목록">{(session.goals ?? schedule.goals ?? []).map((goal) => <li key={goal.id}><span>{goal.name}</span><strong>{goal.minutes}분</strong></li>)}</ul>}
         </section>}
 
         <section className="focus-progress-panel">
@@ -124,8 +125,7 @@ export function FocusPage() {
         </section>
 
         {!onBreak && schedule.blockingMode !== "off" && <section className="focus-sites-panel">
-          <div className="focus-section-heading"><div><span className="focus-section-label">{schedule.blockingMode === "blocklist" ? "현재 차단 사이트" : "현재 허용 사이트"}</span><p>{schedule.blockingMode === "blocklist" ? "목록에 있는 사이트만 차단합니다." : "목록에 있는 사이트와 서브도메인만 허용합니다."}</p></div></div>
-          <DomainChips domains={sessionDomains} />
+          <details><summary>{schedule.blockingMode === "blocklist" ? "차단 사이트" : "허용 사이트"} {sessionDomains.length}개</summary><DomainChips domains={sessionDomains} /></details>
         </section>}
 
         <section className="focus-actions" aria-label="집중 세션 동작">
@@ -139,7 +139,6 @@ export function FocusPage() {
       </article>
 
       <aside className="focus-side-column">
-        <TabOrganizerCard />
         <article className="card focus-health-card">
           <header><span className="eyebrow">세션 상태</span><h3>집중 신호</h3></header>
           <div className="focus-metric-grid">

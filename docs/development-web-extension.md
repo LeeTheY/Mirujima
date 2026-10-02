@@ -70,3 +70,10 @@ npm run test:extension:smoke
 ## 전체 원장 조회 (8차)
 
 `/wallet/history`에서 충전·집중·보상·지급 거래를 본인 범위로 조회한다. 2026-10-02 Supabase에 조회 전용 0009를 단독 적용하고 DB lint 오류 없음을 확인했다. 실제 계정의 원격 조회·ledger 대조와 Web 배포는 남아 있다. 0003·0006·0007 집중 정산 변경은 포함하지 않았다. [8차 검증 기록](superpowers/plans/2026-10-02-project-completion-phase-8.md).
+
+
+## 확장 프로그램의 집중·기록 요약
+
+하단 메뉴는 **집중 / 탭 정리 / 기록 / 바로가기**다. 로그인 후 기록 탭은 웹과 동일한 Supabase 프로젝트에서 `get_student_focus_history`로 오늘·이번 주·이번 달 집계를 읽는다. 보호자는 `get_guardian_linked_students`와 `get_guardian_focus_history`로 연결 학생의 동의된 집계만 조회하며, 공유하지 않은 항목은 `비공개`로 표시한다. 조회 기준 날짜는 `get_focus_history_context`의 학생 시간대 기준 날짜를 사용한다. 화면이 열려 있을 때 1분마다 갱신하고 새로고침 버튼으로 즉시 다시 조회할 수 있다. 로그아웃하거나 계정을 바꾸면 이전 계정의 요약을 표시하지 않는다.
+
+집중 준비 화면은 본인 `cloud_schedules`의 최근 저장된 준비 계획을 작은 타이머와 목표 목록으로 보여준다. 삭제된 계획과 다른 소유자의 데이터는 표시하지 않는다. 아직 저장된 계획이 없으면 기본 50분 안내를 표시하며, 집중 시작은 웹에서 수행한다. 실행 중에는 기존 서버 canonical session 및 Extension runtime을 사용한다. 긴 목표 목록은 카드 안에서 스크롤한다. 기록 조회와 준비 미리보기는 재무 데이터나 계획을 변경하지 않으며 별도 DB 또는 migration이 필요하지 않다.
